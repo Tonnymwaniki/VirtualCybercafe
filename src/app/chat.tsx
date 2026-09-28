@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChatActions } from '@/components/chat-actions';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { askAttendant } from '@/lib/attendant-client';
 import type { ChatMessage } from '@/lib/chat-types';
@@ -43,7 +44,10 @@ export default function ChatScreen() {
     setWaiting(true);
     const response = await askAttendant(history);
     setSampleMode(response.mode === 'sample');
-    setMessages((current) => [...current, { role: 'assistant', text: response.reply }]);
+    setMessages((current) => [
+      ...current,
+      { role: 'assistant', text: response.reply, actions: response.actions },
+    ]);
     setWaiting(false);
   };
 
@@ -83,15 +87,19 @@ export default function ChatScreen() {
           contentContainerStyle={styles.messages}
           onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}>
           {messages.map((message, index) => (
-            <View
-              key={index}
-              style={[
-                styles.bubble,
-                message.role === 'user' ? styles.userBubble : styles.assistantBubble,
-              ]}>
-              <Text style={message.role === 'user' ? styles.userText : styles.assistantText}>
-                {message.text}
-              </Text>
+            <View key={index} style={styles.turn}>
+              <View
+                style={[
+                  styles.bubble,
+                  message.role === 'user' ? styles.userBubble : styles.assistantBubble,
+                ]}>
+                <Text style={message.role === 'user' ? styles.userText : styles.assistantText}>
+                  {message.text}
+                </Text>
+              </View>
+              {message.actions && message.actions.length > 0 && (
+                <ChatActions actions={message.actions} />
+              )}
             </View>
           ))}
           {waiting && (
@@ -161,6 +169,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
     alignSelf: 'center',
   },
+  turn: { gap: Spacing.sm },
   bubble: { maxWidth: '85%', borderRadius: Radius.lg, padding: Spacing.md },
   userBubble: { alignSelf: 'flex-end', backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
   assistantBubble: {

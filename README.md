@@ -22,7 +22,19 @@ npm run web      # open in the browser
 
 The chat and the CV builder talk to small server routes (`src/app/api/`) that call Claude. Until a key is set, the chat answers with sample replies and CVs are written from a template.
 
-To turn on the real AI, copy `.env.example` to `.env`, paste your key from https://console.anthropic.com, and restart `npm start`. The key stays on the server and never ships inside the app.
+To turn on the real AI:
+1. Add `ANTHROPIC_API_KEY=sk-ant-...` to `.env` (key from https://console.anthropic.com). The key stays on the server and never ships inside the app.
+2. Run `npm run check-keys` to confirm the key (and Supabase) work.
+3. Restart with `npx expo start --clear`. The chat header stops saying "sample replies".
+
+With the key, the attendant (`src/server/attendant-agent.ts`) works as an agent that can use tools:
+- **Service guides** (`src/data/guides.ts`): passport, KRA PIN, good conduct, HELB, KUCCPS, driving licence, business name, job applications.
+- **Open app tools**: passport photo, photos to PDF, shrink photo, CV builder, Locker, sign-in. These appear as buttons under its reply.
+- **Check the Locker**: lists the signed-in person's saved files (read-only).
+- **Write documents**: letters and forms-ready text the person downloads as a PDF.
+- **Web search** (Kenya-focused) and **official links**.
+
+It never submits forms or makes payments; the person does that. Tapping a service tile opens the chat with that service, so the same agent handles both.
 
 ## Accounts and Digital Locker
 
