@@ -24,6 +24,16 @@ The chat and the CV builder talk to small server routes (`src/app/api/`) that ca
 
 To turn on the real AI, copy `.env.example` to `.env`, paste your key from https://console.anthropic.com, and restart `npm start`. The key stays on the server and never ships inside the app.
 
+## Accounts and Digital Locker
+
+Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.
+
+To connect Supabase:
+1. Create a free project at supabase.com.
+2. In **SQL Editor**, run `supabase/migrations/0001_locker.sql`. It creates the private `locker` bucket and rules so each person only sees their own files.
+3. In **Authentication > Sign In / Providers**, turn on **Phone** and connect an SMS provider (for example Twilio).
+4. Copy the Project URL and anon key from **Settings > API** into `.env` (see `.env.example`), then restart `npm start`.
+
 ## Project layout
 
 - `src/app/`: screens (every file is a route)
@@ -34,8 +44,10 @@ To turn on the real AI, copy `.env.example` to `.env`, paste your key from https
   - `studio/`: Document Studio (passport photo, photos to PDF, shrink a photo)
   - `cv/`: guided CV and cover letter builder
   - `api/cv+api.ts`: server route that writes the CV
+  - `sign-in.tsx`: phone number sign-in
   - `api/chat+api.ts`: server route that talks to the AI
-- `src/lib/`: chat helpers, the sample attendant and image/PDF helpers
+- `src/lib/`: chat helpers, the sample attendant, image/PDF helpers, sign-in and Locker storage
+- `supabase/migrations/`: database and storage rules
 - `src/components/`: shared UI pieces
 - `src/constants/theme.ts`: colours and spacing
 - `src/data/`: sample data used until the backend exists

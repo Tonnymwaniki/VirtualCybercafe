@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 export type PickedImage = {
   uri: string;
+  fileName: string | null;
   width: number;
   height: number;
   bytes: number | null;
@@ -55,6 +56,7 @@ export async function pickImages(
   return Promise.all(
     result.assets.map(async (asset) => ({
       uri: asset.uri,
+      fileName: asset.fileName ?? null,
       width: asset.width,
       height: asset.height,
       bytes: await fileSize(asset.uri, asset.fileSize),

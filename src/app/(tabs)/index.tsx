@@ -8,7 +8,7 @@ import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { examplePrompts, services } from '@/data/services';
-import { sampleUser } from '@/data/user';
+import { useAuth } from '@/lib/auth';
 
 function greeting(date = new Date()) {
   const hour = date.getHours();
@@ -25,6 +25,8 @@ const trustPoints = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const firstName = user?.fullName?.split(' ')[0];
   const [request, setRequest] = useState('');
 
   // Opens the attendant chat with the request already sent.
@@ -41,7 +43,7 @@ export default function HomeScreen() {
 
       <View>
         <Text style={styles.greeting}>
-          {greeting()}, {sampleUser.firstName} 👋
+          {greeting()}{firstName ? `, ${firstName}` : ''} 👋
         </Text>
         <Text style={styles.subtitle}>What do you need done today?</Text>
       </View>
