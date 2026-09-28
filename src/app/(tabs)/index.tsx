@@ -87,7 +87,7 @@ export default function HomeScreen() {
         {services.map((service) => (
           <Pressable
             key={service.id}
-            onPress={() => router.push(service.id === 'documents' ? '/studio' : '/services')}
+            onPress={() => router.push(service.route ?? '/services')}
             style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
             <IconBadge icon={service.icon} color={service.color} size={44} />
             <Text style={styles.gridLabel} numberOfLines={1}>

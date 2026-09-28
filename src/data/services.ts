@@ -1,3 +1,4 @@
+import type { Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -10,6 +11,8 @@ export type Service = {
   description: string;
   icon: IconName;
   color: string;
+  // Screen that handles this service, once it has one.
+  route?: Href;
 };
 
 // Sample data until the services come from the backend.
@@ -29,6 +32,7 @@ export const services: Service[] = [
     description: 'CVs, job applications, career support',
     icon: 'briefcase',
     color: '#EF4444',
+    route: '/cv',
   },
   {
     id: 'education',
@@ -45,6 +49,7 @@ export const services: Service[] = [
     description: 'PDFs, Word, images, OCR, formatting',
     icon: 'document-text',
     color: '#3B82F6',
+    route: '/studio',
   },
   {
     id: 'print',

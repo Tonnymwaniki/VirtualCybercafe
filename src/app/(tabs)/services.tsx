@@ -18,7 +18,7 @@ export default function ServicesScreen() {
         {services.map((service) => (
           <Pressable
             key={service.id}
-            onPress={() => service.id === 'documents' && router.push('/studio')}
+            onPress={() => service.route && router.push(service.route)}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
             <IconBadge icon={service.icon} color={service.color} />
             <View style={styles.cardText}>

@@ -154,6 +154,12 @@ export async function sharePdfFromImages(images: ProcessedImage[]) {
   img { max-width: 100%; max-height: 100%; object-fit: contain; }
 </style></head><body>${pages}</body></html>`;
 
+  await sharePdfFromHtml(html);
+}
+
+// Turns an HTML page into a PDF and shares it (phone), or opens the browser's
+// print dialog where it can be saved as PDF (web).
+export async function sharePdfFromHtml(html: string) {
   if (Platform.OS === 'web') {
     const win = window.open('', '_blank');
     if (!win) return;

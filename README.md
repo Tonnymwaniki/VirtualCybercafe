@@ -20,7 +20,7 @@ npm run web      # open in the browser
 
 ## AI attendant
 
-The chat talks to a small server route (`src/app/api/chat+api.ts`) that calls Claude. Until a key is set it answers with sample replies.
+The chat and the CV builder talk to small server routes (`src/app/api/`) that call Claude. Until a key is set, the chat answers with sample replies and CVs are written from a template.
 
 To turn on the real AI, copy `.env.example` to `.env`, paste your key from https://console.anthropic.com, and restart `npm start`. The key stays on the server and never ships inside the app.
 
@@ -32,6 +32,8 @@ To turn on the real AI, copy `.env.example` to `.env`, paste your key from https
   - `(tabs)/locker.tsx`: the Digital Locker
   - `chat.tsx`: the attendant chat
   - `studio/`: Document Studio (passport photo, photos to PDF, shrink a photo)
+  - `cv/`: guided CV and cover letter builder
+  - `api/cv+api.ts`: server route that writes the CV
   - `api/chat+api.ts`: server route that talks to the AI
 - `src/lib/`: chat helpers, the sample attendant and image/PDF helpers
 - `src/components/`: shared UI pieces
