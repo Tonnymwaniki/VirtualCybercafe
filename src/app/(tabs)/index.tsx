@@ -26,13 +26,12 @@ const trustPoints = [
 export default function HomeScreen() {
   const router = useRouter();
   const [request, setRequest] = useState('');
-  const [sentRequest, setSentRequest] = useState<string | null>(null);
 
-  // The AI attendant is not connected yet; for now we only echo the request back.
+  // Opens the attendant chat with the request already sent.
   const send = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setSentRequest(trimmed);
+    router.push({ pathname: '/chat', params: { q: trimmed } });
     setRequest('');
   };
 
@@ -81,14 +80,6 @@ export default function HomeScreen() {
           ))}
         </View>
 
-        {sentRequest && (
-          <View style={styles.notice}>
-            <Ionicons name="chatbubble-ellipses" size={16} color={Colors.primary} />
-            <Text style={styles.noticeText}>
-              “{sentRequest}” received. The AI attendant is coming in the next update.
-            </Text>
-          </View>
-        )}
       </View>
 
       <Text style={styles.sectionTitle}>Quick Services</Text>
@@ -178,15 +169,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.card,
   },
   chipText: { fontSize: 13, color: Colors.text },
-  notice: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    alignItems: 'center',
-    backgroundColor: Colors.primarySoft,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-  },
-  noticeText: { flex: 1, fontSize: 13, color: Colors.text },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: Colors.text },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.lg },
   gridItem: { width: '25%', alignItems: 'center', gap: Spacing.sm },

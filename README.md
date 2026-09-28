@@ -18,12 +18,21 @@ npm run ios      # open on an iOS simulator (macOS only)
 npm run web      # open in the browser
 ```
 
+## AI attendant
+
+The chat talks to a small server route (`src/app/api/chat+api.ts`) that calls Claude. Until a key is set it answers with sample replies.
+
+To turn on the real AI, copy `.env.example` to `.env`, paste your key from https://console.anthropic.com, and restart `npm start`. The key stays on the server and never ships inside the app.
+
 ## Project layout
 
 - `src/app/`: screens (every file is a route)
   - `(tabs)/index.tsx`: Home, with the attendant chat box and quick services
   - `(tabs)/services.tsx`: all services
   - `(tabs)/locker.tsx`: the Digital Locker
+  - `chat.tsx`: the attendant chat
+  - `api/chat+api.ts`: server route that talks to the AI
+- `src/lib/`: chat helpers and the sample attendant
 - `src/components/`: shared UI pieces
 - `src/constants/theme.ts`: colours and spacing
 - `src/data/`: sample data used until the backend exists

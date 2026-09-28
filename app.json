@@ -20,7 +20,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "output": "single"
+      "output": "server"
     },
     "scheme": "virtualcybercafe",
     "plugins": [
