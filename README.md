@@ -31,8 +31,26 @@ Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.
 To connect Supabase:
 1. Create a free project at supabase.com.
 2. In **SQL Editor**, run `supabase/migrations/0001_locker.sql`. It creates the private `locker` bucket and rules so each person only sees their own files.
-3. In **Authentication > Sign In / Providers**, turn on **Phone** and connect an SMS provider (for example Twilio).
+3. In **Authentication > Sign In / Providers**, turn on **Phone**. For testing, put placeholder values in the Twilio fields and add test numbers (for example `254748969001=123456`); test numbers never send a real SMS.
 4. Copy the Project URL and anon key from **Settings > API** into `.env` (see `.env.example`), then restart `npm start`.
+
+### Sending codes with Africa's Talking
+
+Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supabase/functions/send-sms`). With the hook on, Supabase uses it instead of Twilio.
+
+1. Create an account at africastalking.com. The free sandbox uses the username `sandbox`, and its messages appear in the online simulator. For real SMS, create a live app, top it up, and use its username and API key.
+2. Install the Supabase CLI and deploy the function from this folder:
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref <your project ref>
+   npx supabase functions deploy send-sms --no-verify-jwt
+   ```
+3. In Supabase, open **Authentication > Hooks**, add a **Send SMS** hook, choose **HTTPS**, and paste the function URL (`https://<project ref>.supabase.co/functions/v1/send-sms`). Click **Generate secret** and copy it.
+4. Set the function's secrets:
+   ```bash
+   npx supabase secrets set SEND_SMS_HOOK_SECRET="v1,whsec_..." AT_USERNAME=sandbox AT_API_KEY=your-key
+   ```
+   Optionally add `AT_SENDER_ID` once Africa's Talking approves a sender name.
 
 ## Project layout
 
@@ -48,6 +66,7 @@ To connect Supabase:
   - `api/chat+api.ts`: server route that talks to the AI
 - `src/lib/`: chat helpers, the sample attendant, image/PDF helpers, sign-in and Locker storage
 - `supabase/migrations/`: database and storage rules
+- `supabase/functions/send-sms/`: sends sign-in codes through Africa's Talking
 - `src/components/`: shared UI pieces
 - `src/constants/theme.ts`: colours and spacing
 - `src/data/`: sample data used until the backend exists
