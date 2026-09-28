@@ -31,8 +31,9 @@ To turn on the real AI, copy `.env.example` to `.env`, paste your key from https
   - `(tabs)/services.tsx`: all services
   - `(tabs)/locker.tsx`: the Digital Locker
   - `chat.tsx`: the attendant chat
+  - `studio/`: Document Studio (passport photo, photos to PDF, shrink a photo)
   - `api/chat+api.ts`: server route that talks to the AI
-- `src/lib/`: chat helpers and the sample attendant
+- `src/lib/`: chat helpers, the sample attendant and image/PDF helpers
 - `src/components/`: shared UI pieces
 - `src/constants/theme.ts`: colours and spacing
 - `src/data/`: sample data used until the backend exists

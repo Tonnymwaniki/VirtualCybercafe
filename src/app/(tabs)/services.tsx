@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -8,6 +9,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { services } from '@/data/services';
 
 export default function ServicesScreen() {
+  const router = useRouter();
   return (
     <Screen>
       <AppHeader title="Services" />
@@ -16,6 +18,7 @@ export default function ServicesScreen() {
         {services.map((service) => (
           <Pressable
             key={service.id}
+            onPress={() => service.id === 'documents' && router.push('/studio')}
             style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
             <IconBadge icon={service.icon} color={service.color} />
             <View style={styles.cardText}>
