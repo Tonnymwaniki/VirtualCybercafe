@@ -8,7 +8,9 @@ import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { examplePrompts, services } from '@/data/services';
-import { sampleUser } from '@/data/user';
+import { useAuth } from '@/lib/auth';
+import { formatPhone } from '@/lib/phone';
+import { supabase } from '@/lib/supabase';
 
 function greeting(date = new Date()) {
   const hour = date.getHours();
@@ -25,6 +27,11 @@ const trustPoints = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { session } = useAuth();
+  const user = session?.user;
+  // Phone sign-ups have no name yet; fall back to a plain greeting.
+  const firstName: string | undefined = user?.user_metadata?.first_name;
+  const phone = user?.phone ? formatPhone(`+${user.phone.replace(/^\+/, '')}`) : null;
   const [request, setRequest] = useState('');
   const [sentRequest, setSentRequest] = useState<string | null>(null);
 
@@ -42,9 +49,17 @@ export default function HomeScreen() {
 
       <View>
         <Text style={styles.greeting}>
-          {greeting()}, {sampleUser.firstName} 👋
+          {greeting()}{firstName ? `, ${firstName}` : ''}👋
         </Text>
         <Text style={styles.subtitle}>What do you need done today?</Text>
+        {phone && (
+          <View style={styles.accountRow}>
+            <Text style={styles.accountText}>Signed in as {phone}</Text>
+            <Pressable onPress={() => supabase.auth.signOut()} hitSlop={8}>
+              <Text style={styles.signOut}>Sign out</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
 
       <View style={styles.attendantCard}>
@@ -137,6 +152,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   greeting: { fontSize: 24, fontWeight: '700', color: Colors.text },
   subtitle: { marginTop: Spacing.xs, fontSize: 15, color: Colors.textMuted },
+  accountRow: { marginTop: Spacing.sm, flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  accountText: { fontSize: 13, color: Colors.textMuted },
+  signOut: { fontSize: 13, fontWeight: '600', color: Colors.primary },
   attendantCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
