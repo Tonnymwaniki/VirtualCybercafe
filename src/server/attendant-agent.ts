@@ -94,7 +94,8 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     type: webSearchType,
     name: 'web_search',
     max_uses: 3,
-    user_location: { type: 'approximate', country: 'KE', timezone: 'Africa/Nairobi' },
+    // Web search rejects country KE, so only the timezone is sent.
+    user_location: { type: 'approximate', timezone: 'Africa/Nairobi' },
   },
 ];
 
