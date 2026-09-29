@@ -45,11 +45,23 @@ export const profileFields: ProfileField[] = [
   { key: 'motherId', label: 'Mother’s ID number', section: 'Family', kind: 'idNumber' },
   { key: 'nextOfKinName', label: 'Next of kin name', section: 'Family' },
   { key: 'nextOfKinPhone', label: 'Next of kin phone', section: 'Family', kind: 'phone' },
+  { key: 'householdIncome', label: 'Household monthly income (about)', section: 'Family', placeholder: 'e.g. KSh 15,000' },
 
   { key: 'highestLevel', label: 'Highest level of education', section: 'Education', placeholder: 'KCSE, Certificate, Diploma, Degree...' },
   { key: 'school', label: 'Secondary school', section: 'Education' },
   { key: 'kcseIndex', label: 'KCSE index number', section: 'Education' },
   { key: 'kcseYear', label: 'KCSE year', section: 'Education' },
+  { key: 'kcseMeanGrade', label: 'KCSE mean grade', section: 'Education', placeholder: 'e.g. B-' },
+  {
+    key: 'kcseGrades',
+    label: 'KCSE subject grades (one per line)',
+    section: 'Education',
+    multiline: true,
+    placeholder: 'English B+\nKiswahili B\nMathematics A-',
+  },
+  { key: 'college', label: 'University or college (current or admitted to)', section: 'Education' },
+  { key: 'course', label: 'Course', section: 'Education' },
+  { key: 'admissionNumber', label: 'Admission or registration number', section: 'Education' },
 
   {
     key: 'experience',

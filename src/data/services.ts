@@ -42,6 +42,7 @@ export const services: Service[] = [
     description: 'KUCCPS, HELB, school forms and more',
     icon: 'school',
     color: '#14B8A6',
+    route: '/education',
   },
   {
     id: 'documents',

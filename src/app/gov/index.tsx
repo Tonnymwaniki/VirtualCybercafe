@@ -8,21 +8,11 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { govTasks, type GovTaskId } from '@/data/gov-tasks';
+import { taskColors } from '@/data/task-colors';
 import { useAuth } from '@/lib/auth';
 import { GUEST_ID, loadAllProgress } from '@/lib/gov-store';
 import type { TaskProgress } from '@/lib/gov-types';
 
-const taskColors: Record<GovTaskId, string> = {
-  good_conduct: '#2563EB',
-  kra_pin: '#16A34A',
-  passport: '#6366F1',
-  lost_id: '#F59E0B',
-  driving_licence: '#EF4444',
-  birth_certificate: '#14B8A6',
-  sha: '#EC4899',
-  business_name: '#22C55E',
-  kra_returns: '#0EA5E9',
-};
 
 function statusText(stages: string[], progress: TaskProgress | undefined) {
   if (!progress || progress.stage < 0) return 'Not started';

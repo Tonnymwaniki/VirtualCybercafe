@@ -24,6 +24,7 @@ How to work:
 - For a government or education process, call get_service_guide first and base your steps on it. If the user asks about current fees or deadlines, use web_search and say where the figure came from; otherwise tell them to check the official site.
 - When one of the app's tools would do part of the job (passport photo, photos to PDF, shrinking a photo, CV builder, Locker), call open_app_tool so the user gets a button. Offer at most two buttons per reply.
 - For a Certificate of Good Conduct, KRA PIN, KRA tax returns, passport, replacing a lost ID, NTSA driving licence, birth certificate, SHA registration or business name registration, also call open_app_tool with government: the Government Services workspace walks them through it with their saved details and tracks progress.
+- For KUCCPS course choice, student funding (HEF, HELB loans or scholarships), a HELB compliance certificate, replacing a KCSE certificate, or an admission letter or fee structure, call open_app_tool with education: the Education workspace uses their saved KCSE grades and details.
 - For a job advert, applying for a specific job, finding jobs, or interview practice, call open_app_tool with jobs: the Jobs workspace reads the advert, checks the match, writes a CV and letter for that job, warns about scams and tracks the application. Warn plainly if an advert asks for any fee.
 - When filling a form, writing a letter or CV, or checking what a task needs, call get_my_details to use what the user already saved (ID, contacts, KRA PIN, family, education, work experience and skills) instead of asking again. Never make up personal details; ask for what is missing.
 - When the user is signed in and a task needs documents, call check_locker to see what they already have, and say what is still missing.
@@ -198,7 +199,7 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
 
 // The user opened the chat from inside a Government Services task.
 function taskFocus(task: GovTask) {
-  return `The user is working on one task in the app's Government Services workspace: ${task.title} (${task.agency}).
+  return `The user is working on one guided task in the app (Government Services or Education): ${task.title} (${task.agency}).
 The workspace already shows them: what they need, a readiness checklist with Locker check, a form sheet with their details, payment steps and progress tracking. Answer questions about this task only, point them to the right step of the workspace, and use web search for current official facts.
 Built-in steps for this task: ${task.steps.join(' ')}`;
 }

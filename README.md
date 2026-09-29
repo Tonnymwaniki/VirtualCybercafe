@@ -63,6 +63,16 @@ The Jobs tile opens a workspace (`src/app/jobs/`) where each job is worked throu
 
 Jobs are saved in the same private `task_progress` table (as `job:<id>` rows), so no new SQL is needed. Without the AI key, pasted adverts, the match check, CV and questions use simple rules.
 
+## Education
+
+The Education tile opens `src/app/education/`:
+
+- **KUCCPS course choice** (`kuccps.tsx`): the student types their KCSE grades once (saved in My Details). The app estimates the mean grade and shows which levels the usual minimums allow. The education agent (`src/server/edu-agent.ts`, `/api/education`) searches the KUCCPS sites for programmes that fit their grades and interests, marked Likely, Possible or Reach, with requirements and cut-offs as KUCCPS states them. Choices can be ordered and progress ticked. Only KUCCPS decides placement.
+- **Student funding (HEF / HELB), HELB compliance certificate and KNEC certificate replacement** are guided tasks in `src/data/gov-tasks.ts` (`eduTasks`), using the same five steps, live requirements check and form helper as Government Services.
+- **Admission letter or fee structure:** a photo or pasted text is read into fees, total, how to pay, reporting date and a what-to-bring checklist. Fees going to a personal phone number are flagged.
+
+The KUCCPS plan and letters are stored in `task_progress` as `edu:` rows (`src/lib/record-store.ts`), so no new SQL is needed.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

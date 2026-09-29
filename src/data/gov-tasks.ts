@@ -19,7 +19,12 @@ export type GovTaskId =
   | 'birth_certificate'
   | 'sha'
   | 'business_name'
-  | 'kra_returns';
+  | 'kra_returns'
+  // Education tasks use the same guided flow; they are listed in the
+  // Education workspace instead of Government Services.
+  | 'student_funding'
+  | 'helb_clearance'
+  | 'knec_certificate';
 
 export type Requirement = {
   id: string;
@@ -491,6 +496,132 @@ export const govTasks: GovTask[] = [
   },
 ];
 
+const mpesaPinWarning = 'Type your M-Pesa PIN only on your own phone’s M-Pesa prompt. Never share it with anyone, including this app.';
+
+export const eduTasks: GovTask[] = [
+  {
+    id: 'student_funding',
+    title: 'Student funding (HEF / HELB)',
+    description: 'Scholarship and loan for university or TVET',
+    icon: 'cash',
+    agency: 'Higher Education Financing: the Universities Fund and HELB',
+    portal: { label: 'Open the HEF portal', url: 'https://www.hef.co.ke' },
+    officialDomains: ['hef.co.ke', 'helb.co.ke', 'universitiesfund.go.ke'],
+    requirements: [
+      { ...idScan, label: 'Your National ID (or birth certificate if you have no ID yet)' },
+      { id: 'kcse_index', label: 'Your KCSE index number and year' },
+      { id: 'admission_letter', label: 'Admission letter from your university or college', lockerName: 'admission-letter', lockerCategory: 'Documents' },
+      { id: 'parents_ids', label: 'Parents’ or guardian’s ID copies (or death certificates)', lockerName: 'parents-ids', lockerCategory: 'Documents' },
+      { id: 'phone_email', label: 'A phone number registered in your name and an email you can open' },
+    ],
+    steps: [
+      'Get your admission letter from your university or college.',
+      'Create an account on the HEF portal with your ID (or birth certificate) number and KCSE index number.',
+      'Fill in your family and household details honestly; they decide your funding band.',
+      'Upload the documents asked for and submit before the deadline.',
+      'Check your funding band and appeal if it looks wrong.',
+      'Sign the loan agreement when asked, then follow up on the money reaching your institution.',
+    ],
+    fields: [
+      ...idFields,
+      ...contactFields,
+      { key: 'kcseIndex', label: 'KCSE index number' },
+      { key: 'kcseYear', label: 'KCSE year' },
+      { key: 'college', label: 'University or college admitted to' },
+      { key: 'course', label: 'Course' },
+      { key: 'admissionNumber', label: 'Admission number', optional: true },
+      { key: 'fatherName', label: 'Father’s full name', optional: true },
+      { key: 'fatherId', label: 'Father’s ID number', kind: 'idNumber', optional: true },
+      { key: 'motherName', label: 'Mother’s full name', optional: true },
+      { key: 'motherId', label: 'Mother’s ID number', kind: 'idNumber', optional: true },
+      { key: 'householdIncome', label: 'Household monthly income (about)', optional: true },
+      { key: 'county', label: 'Home county' },
+    ],
+    payment: { free: true, howTo: ['Applying for student funding is free.', 'Never pay anyone who offers to “speed up” or increase your loan.'] },
+    stages: ['Account created', 'Application submitted', 'Funding band out', 'Appeal (if needed)', 'Loan agreement signed', 'Funds received'],
+  },
+  {
+    id: 'helb_clearance',
+    title: 'HELB compliance certificate',
+    description: 'Proof your HELB loan is paid or on track',
+    icon: 'ribbon',
+    agency: 'Higher Education Loans Board (HELB)',
+    portal: { label: 'Open HELB', url: 'https://www.helb.co.ke' },
+    officialDomains: ['helb.co.ke'],
+    requirements: [
+      { id: 'helb_account', label: 'A HELB portal account (sign up with your ID number)' },
+      { id: 'loan_status', label: 'Loan fully repaid, or repayments up to date' },
+      { id: 'fee', label: 'Certificate fee, paid by M-Pesa to the paybill HELB shows' },
+    ],
+    steps: [
+      'Sign in to the HELB portal.',
+      'Check your loan balance and any penalties.',
+      'Clear any arrears, or agree a repayment plan with HELB.',
+      'Request the compliance certificate and pay the fee shown.',
+      'Download the certificate and save it in your Locker.',
+    ],
+    fields: [
+      { key: 'fullName', label: 'Full name (as on ID)' },
+      { key: 'idNumber', label: 'ID number', kind: 'idNumber' },
+      ...contactFields,
+      { key: 'kraPin', label: 'KRA PIN', kind: 'kraPin', optional: true },
+      { key: 'employer', label: 'Employer', optional: true },
+    ],
+    payment: {
+      howTo: [
+        'On the HELB portal, choose the certificate and note the amount, paybill and account number it shows.',
+        'Pay with Lipa na M-Pesa > Paybill using exactly those details.',
+        mpesaPinWarning,
+      ],
+    },
+    stages: ['Signed in to HELB', 'Loan checked', 'Certificate requested', 'Paid', 'Certificate downloaded'],
+  },
+  {
+    id: 'knec_certificate',
+    title: 'Replace a lost KCSE certificate',
+    description: 'Replacement certificate or result slip from KNEC',
+    icon: 'document-text',
+    agency: 'Kenya National Examinations Council (KNEC)',
+    portal: { label: 'Open KNEC', url: 'https://www.knec.ac.ke' },
+    officialDomains: ['knec.ac.ke'],
+    requirements: [
+      idScan,
+      { id: 'police_abstract', label: 'Police abstract for the lost certificate', lockerName: 'police-abstract', lockerCategory: 'Documents' },
+      { id: 'result_slip', label: 'Copy of your result slip or old certificate, if you have one', lockerName: 'result-slip', lockerCategory: 'Certificates' },
+      {
+        id: 'photo',
+        label: 'Recent passport photo',
+        lockerName: 'passport-photo',
+        lockerCategory: 'Photos',
+        fix: { label: 'Make passport photo', route: '/studio/passport' },
+      },
+      { id: 'fee', label: 'Replacement fee, paid as KNEC instructs' },
+    ],
+    steps: [
+      'Report the loss at a police station and get a police abstract.',
+      'Get the certificate replacement application form from the KNEC website or a KNEC office.',
+      'Fill it in with your index number and year, and attach the documents.',
+      'Pay the fee as KNEC instructs and keep the receipt.',
+      'Submit the application, then collect the certificate when KNEC says it is ready.',
+    ],
+    fields: [
+      ...idFields,
+      ...contactFields,
+      { key: 'school', label: 'Secondary school' },
+      { key: 'kcseIndex', label: 'KCSE index number' },
+      { key: 'kcseYear', label: 'KCSE year' },
+    ],
+    payment: {
+      howTo: [
+        'Pay only to the KNEC account or paybill printed on the official KNEC form or website.',
+        'Keep the receipt; you attach it to the application.',
+        mpesaPinWarning,
+      ],
+    },
+    stages: ['Police abstract', 'Form filled', 'Paid', 'Submitted to KNEC', 'Certificate collected'],
+  },
+];
+
 export function findGovTask(id: string | undefined): GovTask | undefined {
-  return govTasks.find((task) => task.id === id);
+  return govTasks.find((task) => task.id === id) ?? eduTasks.find((task) => task.id === id);
 }
