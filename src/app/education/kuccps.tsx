@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { DemandCard } from '@/components/edu/demand-card';
 import { Card, CheckRow, LinkButton, Note, openUrl } from '@/components/gov/ui';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
@@ -265,6 +266,13 @@ export default function KuccpsScreen() {
           <Button label="Open the KUCCPS portal" icon="open-outline" onPress={() => openUrl(PORTAL)} />
         </View>
       </Card>
+
+      <DemandCard
+        choices={plan.choices.map((c) => c.programme)}
+        meanGrade={mean ?? ''}
+        report={plan.demand}
+        onReport={(demand) => updatePlan((current) => ({ ...current, demand }))}
+      />
 
       <Card title="Your progress">
         {kuccpsStages.map((stage, index) => (

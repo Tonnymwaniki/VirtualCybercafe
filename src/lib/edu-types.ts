@@ -38,7 +38,29 @@ export const kuccpsStages = [
   'Reported to college',
 ];
 
+// Live job-market research for one or more courses.
+export type CourseDemand = {
+  programme: string;
+  demand: 'high' | 'medium' | 'low';
+  // How many current adverts the search saw, in words, e.g. "About 12 adverts".
+  openingsSeen: string;
+  roles: string[];
+  salary: string;
+  skills: string[];
+  note: string;
+};
+
+export type DemandReport = {
+  courses: CourseDemand[];
+  summary: string;
+  alternatives: { programme: string; why: string }[];
+  sources: { title: string; url: string }[];
+  checkedAt: string;
+  mode: 'ai' | 'sample';
+};
+
 export type KuccpsPlan = {
+  demand?: DemandReport;
   choices: CourseSuggestion[];
   stage: number;
   stageDates: Record<number, string>;

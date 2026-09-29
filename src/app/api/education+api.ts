@@ -1,9 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
-import { sampleCourses, sampleLetter } from '@/lib/edu-sample';
+import { sampleCourses, sampleDemand, sampleLetter } from '@/lib/edu-sample';
 import type { CourseQuery, ReadLetterResult } from '@/lib/edu-types';
 import { levels, type Level } from '@/lib/kcse';
-import { readLetter, suggestCourses } from '@/server/edu-agent';
+import { courseDemand, readLetter, suggestCourses } from '@/server/edu-agent';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 
@@ -30,6 +30,15 @@ export async function POST(request: Request) {
         county: str(body.county, 60),
       };
       return Response.json(hasKey ? await suggestCourses(query) : sampleCourses(query));
+    }
+
+    if (body.action === 'demand') {
+      const programmes = (Array.isArray(body.programmes) ? body.programmes : [])
+        .filter((p): p is string => typeof p === 'string' && !!p.trim())
+        .map((p) => p.trim().slice(0, 160))
+        .slice(0, 6);
+      if (!programmes.length) return Response.json({ error: 'Name at least one course' }, { status: 400 });
+      return Response.json(hasKey ? await courseDemand(programmes, str(body.meanGrade, 3)) : sampleDemand());
     }
 
     if (body.action === 'read_letter') {

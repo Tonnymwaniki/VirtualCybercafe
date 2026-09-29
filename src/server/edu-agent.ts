@@ -6,7 +6,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { letterWarnings } from '@/lib/edu-sample';
-import type { AdmissionLetter, CourseQuery, CourseSearch, CourseSuggestion, ReadLetterResult } from '@/lib/edu-types';
+import type { AdmissionLetter, CourseDemand, CourseQuery, CourseSearch, CourseSuggestion, DemandReport, ReadLetterResult } from '@/lib/edu-types';
+import { JOB_SITES } from '@/server/jobs-agent';
 import { mergeSignals } from '@/lib/job-scam';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
 
@@ -158,6 +159,118 @@ export async function readLetter(input: { text?: string; image?: string }): Prom
   return {
     letter: { ...letter, reportingDate: /^\d{4}-\d{2}-\d{2}$/.test(letter.reportingDate) ? letter.reportingDate : '', warnings },
     problem: '',
+    mode: 'ai',
+  };
+}
+
+// ---- Job market check ----
+
+const DEMAND_SITES = [...JOB_SITES, 'knbs.or.ke', 'kuccps.ac.ke'];
+const demandCache = ((globalThis as { courseDemandCache?: Map<string, { value: DemandReport; expires: number }> }).courseDemandCache ??=
+  new Map());
+
+const demandTool: Anthropic.Beta.BetaTool = {
+  name: 'report_demand',
+  description: 'Report the job market for each course. Call this once, after searching.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      courses: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            programme: { type: 'string' },
+            demand: { type: 'string', enum: ['high', 'medium', 'low'] },
+            openingsSeen: { type: 'string', description: 'Roughly how many current Kenyan adverts you saw for jobs this course leads to, e.g. "About 15 adverts". Say "Few found" if unsure.' },
+            roles: { type: 'array', items: { type: 'string' }, description: 'Job titles this course leads to, seen in adverts.' },
+            salary: { type: 'string', description: 'Pay range as stated in adverts or official statistics, with the source, or empty.' },
+            skills: { type: 'array', items: { type: 'string' }, description: 'Skills employers ask for most, short.' },
+            note: { type: 'string', description: 'One short line: prospects, competition or where the jobs are.' },
+          },
+          required: ['programme', 'demand', 'openingsSeen', 'roles', 'salary', 'skills', 'note'],
+          additionalProperties: false,
+        },
+      },
+      summary: { type: 'string', description: 'Two or three plain sentences comparing the courses for the student.' },
+      alternatives: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { programme: { type: 'string' }, why: { type: 'string' } },
+          required: ['programme', 'why'],
+          additionalProperties: false,
+        },
+        description: 'Up to 3 related courses with stronger demand that fit the student’s grades, or empty.',
+      },
+      sources: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { title: { type: 'string' }, url: { type: 'string' } },
+          required: ['title', 'url'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['courses', 'summary', 'alternatives', 'sources'],
+    additionalProperties: false,
+  },
+  strict: true,
+};
+
+export async function courseDemand(programmes: string[], meanGrade: string): Promise<DemandReport> {
+  const key = `${programmes.join('|').toLowerCase()}#${meanGrade}`;
+  const cached = demandCache.get(key);
+  if (cached && cached.expires > Date.now()) return cached.value;
+
+  const client = new Anthropic();
+  const messages: Anthropic.Beta.BetaMessageParam[] = [
+    {
+      role: 'user',
+      content: `A Kenyan student is choosing between these courses:
+${programmes.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+KCSE mean grade: ${meanGrade || 'not given'}
+Research the current job market in Kenya for each: search recent job adverts for the jobs each course leads to, and official labour statistics. Then call report_demand.`,
+    },
+  ];
+  for (let step = 0; step < 5; step++) {
+    const response = await client.beta.messages.create({
+      model: MODEL,
+      max_tokens: 4000,
+      ...modelOptions,
+      ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
+      system: `You research the Kenyan job market for students choosing courses, for the Virtual Cybercafe app. Today is ${new Date().toISOString().slice(0, 10)}.
+Search the trusted job sites and official statistics only. Base demand on what you actually saw: the number and recency of adverts, and statistics. Quote pay only as stated in a source. Be honest and balanced: demand is one factor; the student's interest and ability matter too.`,
+      tools: [{ type: webSearchType, name: 'web_search', max_uses: 5, allowed_domains: DEMAND_SITES }, demandTool],
+      messages,
+    });
+    messages.push({ role: 'assistant', content: response.content });
+    if (response.stop_reason === 'pause_turn') continue;
+    const report = response.content.find(
+      (block): block is Anthropic.Beta.BetaToolUseBlock => block.type === 'tool_use' && block.name === 'report_demand',
+    );
+    if (report) {
+      const input = report.input as Omit<DemandReport, 'checkedAt' | 'mode'> & { courses: CourseDemand[] };
+      const value: DemandReport = {
+        ...input,
+        alternatives: input.alternatives.slice(0, 3),
+        sources: input.sources.filter((s) => /^https:\/\//.test(s.url)).slice(0, 6),
+        checkedAt: new Date().toISOString(),
+        mode: 'ai',
+      };
+      demandCache.set(key, { value, expires: Date.now() + CACHE_MS });
+      return value;
+    }
+    if (response.stop_reason === 'refusal') break;
+    messages.push({ role: 'user', content: 'Please call report_demand now with what you found.' });
+  }
+  return {
+    courses: [],
+    summary: 'I couldn’t finish the job market check right now. Try again in a moment.',
+    alternatives: [],
+    sources: [],
+    checkedAt: new Date().toISOString(),
     mode: 'ai',
   };
 }

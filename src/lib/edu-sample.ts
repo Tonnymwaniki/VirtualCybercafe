@@ -1,7 +1,7 @@
 // Rule-based Education helpers used until the AI key is set, plus the
 // payment check every admission letter gets.
 
-import type { AdmissionLetter, CourseQuery, CourseSearch } from '@/lib/edu-types';
+import type { AdmissionLetter, CourseQuery, CourseSearch, DemandReport } from '@/lib/edu-types';
 import { findDate } from '@/lib/jobs-sample';
 import { cleanGrade, levelMinimum, levels, meetsLevel } from '@/lib/kcse';
 
@@ -57,4 +57,15 @@ export function sampleCourses(query: CourseQuery): CourseSearch {
     ? `With a mean grade of ${mean} you meet the usual minimum for: ${open.join(', ') || 'none of the levels'} (degree needs ${levelMinimum.Degree}, diploma ${levelMinimum.Diploma}). The course search switches on with the AI; for now, search courses on the KUCCPS portal.`
     : 'Add your KCSE mean grade first. The course search switches on with the AI.';
   return { courses: [], note, mode: 'sample' };
+}
+
+export function sampleDemand(): DemandReport {
+  return {
+    courses: [],
+    summary: 'The live job market check switches on with the AI. For now, search the course’s job titles on BrighterMonday, MyJobMag or the Public Service Commission.',
+    alternatives: [],
+    sources: [],
+    checkedAt: new Date().toISOString(),
+    mode: 'sample',
+  };
 }
