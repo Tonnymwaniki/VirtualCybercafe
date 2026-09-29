@@ -38,11 +38,14 @@ async function fileSize(uri: string, known?: number | null) {
 export async function pickImages(
   source: 'camera' | 'library',
   multiple = false,
+  // Let the person crop the photo right after taking it (one photo only).
+  crop = false,
 ): Promise<PickedImage[]> {
   const options: ImagePicker.ImagePickerOptions = {
     mediaTypes: ['images'],
     quality: 1,
     allowsMultipleSelection: multiple,
+    allowsEditing: crop && !multiple,
   };
   let result: ImagePicker.ImagePickerResult;
   if (source === 'camera') {

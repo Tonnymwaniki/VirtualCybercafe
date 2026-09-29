@@ -13,68 +13,65 @@ type Tool = {
   description: string;
   icon: ComponentProps<typeof Ionicons>['name'];
   color: string;
-  href?: Href;
+  href: Href;
 };
 
-const tools: Tool[] = [
+const groups: { title: string; tools: Tool[] }[] = [
   {
-    title: 'Passport Photo',
-    description: 'Crop, resize to 600×600 and shrink under 200 KB for eCitizen',
-    icon: 'person-circle',
-    color: '#F59E0B',
-    href: '/studio/passport',
+    title: 'Fit an upload limit',
+    tools: [
+      { title: 'Shrink a PDF', description: 'Make a PDF smaller, e.g. under 1 MB', icon: 'contract', color: '#DC2626', href: '/studio/shrink-pdf' },
+      { title: 'Shrink a photo', description: 'Make a photo smaller, e.g. under 200 KB', icon: 'image', color: '#22C55E', href: '/studio/compress' },
+      { title: 'Resize a photo', description: 'Exact pixels, e.g. 600 × 600', icon: 'resize', color: '#0EA5E9', href: '/studio/resize' },
+      { title: 'Passport photo', description: 'Crop, 600 × 600 and under 200 KB', icon: 'person-circle', color: '#F59E0B', href: '/studio/passport' },
+    ],
   },
   {
-    title: 'Photos to PDF',
-    description: 'Turn photos of documents into one PDF, one page each',
-    icon: 'documents',
-    color: '#3B82F6',
-    href: '/studio/photos-to-pdf',
+    title: 'Make a PDF',
+    tools: [
+      { title: 'Scan a document', description: 'Photo of a page, cleaned up like a scanner', icon: 'scan', color: '#6366F1', href: '/studio/scan' },
+      { title: 'Photos to PDF', description: 'Several photos, one PDF', icon: 'documents', color: '#3B82F6', href: '/studio/photos-to-pdf' },
+      { title: 'Join PDFs', description: 'Combine PDFs and photos into one file', icon: 'git-merge', color: '#8B5CF6', href: '/studio/merge' },
+    ],
   },
   {
-    title: 'Shrink a Photo',
-    description: 'Make a photo small enough to upload, e.g. under 500 KB',
-    icon: 'contract',
-    color: '#22C55E',
-    href: '/studio/compress',
-  },
-  {
-    title: 'Shrink a PDF',
-    description: 'Coming soon',
-    icon: 'document',
-    color: '#94A3B8',
+    title: 'Change a PDF',
+    tools: [
+      { title: 'Pick or split pages', description: 'Keep, remove or separate pages', icon: 'cut', color: '#EC4899', href: '/studio/split' },
+      { title: 'PDF to JPG', description: 'Pages as pictures, for JPG-only forms', icon: 'images', color: '#14B8A6', href: '/studio/pdf-to-jpg' },
+    ],
   },
 ];
 
-export default function StudioScreen() {
+export default function WorkbenchScreen() {
   const router = useRouter();
   return (
     <Screen>
-      <SubHeader title="Document Studio" />
-      <Text style={styles.intro}>Get your documents ready for any online form.</Text>
-      <View style={styles.list}>
-        {tools.map((tool) => (
-          <Pressable
-            key={tool.title}
-            disabled={!tool.href}
-            onPress={() => tool.href && router.push(tool.href)}
-            style={({ pressed }) => [styles.card, (pressed || !tool.href) && styles.dim]}>
-            <IconBadge icon={tool.icon} color={tool.color} />
-            <View style={styles.cardText}>
-              <Text style={styles.cardTitle}>{tool.title}</Text>
-              <Text style={styles.cardDescription}>{tool.description}</Text>
-            </View>
-            {tool.href && <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />}
-          </Pressable>
-        ))}
-      </View>
+      <SubHeader title="Document Workbench" />
+      <Text style={styles.intro}>Get any document ready for an online form. Everything happens on your phone; nothing is uploaded unless you save it to your Locker.</Text>
+      {groups.map((group) => (
+        <View key={group.title} style={styles.group}>
+          <Text style={styles.groupTitle}>{group.title}</Text>
+          {group.tools.map((tool) => (
+            <Pressable key={tool.title} onPress={() => router.push(tool.href)} style={({ pressed }) => [styles.card, pressed && styles.dim]}>
+              <IconBadge icon={tool.icon} color={tool.color} size={42} />
+              <View style={styles.cardText}>
+                <Text style={styles.cardTitle}>{tool.title}</Text>
+                <Text style={styles.cardDescription}>{tool.description}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+            </Pressable>
+          ))}
+        </View>
+      ))}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  intro: { fontSize: 15, color: Colors.textMuted },
-  list: { gap: Spacing.md },
+  intro: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
+  group: { gap: Spacing.sm },
+  groupTitle: { fontSize: 13, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -83,7 +80,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: Colors.border,
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
   cardText: { flex: 1, gap: 2 },
   cardTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },

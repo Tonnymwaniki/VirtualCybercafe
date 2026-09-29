@@ -66,6 +66,16 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 - AI results that rarely change (requirement checks, visa rules, job, course and tender searches) are cached in `.cache/ai-cache.json`, so they survive restarts and aren't paid for twice.
 - Each phone gets `AI_DAILY_LIMIT` AI requests a day (default 40), and the whole app stops calling the AI for the day once `AI_DAILY_BUDGET_USD` is spent (default 1). Answers from the cache don't count. Set either in `.env`.
 
+## Document Workbench
+
+Documents > Document Workbench gets files ready for online forms. Every tool runs on the phone and nothing is uploaded unless you tap Save to Locker. Each result shows a card with the measured size, type and pages or pixels, plus Download and Save to Locker.
+
+- **Fit an upload limit:** Shrink a PDF (to 200 KB, 500 KB, 1 MB, 2 MB, 5 MB or any size), Shrink a photo, Resize a photo (exact pixels or longest side, JPG or PNG, optional KB limit) and Passport photo.
+- **Make a PDF:** Scan a document (turn, then Original, Brighter, Clean or Black & white), Photos to PDF and Join PDFs (PDFs and photos, in any order).
+- **Change a PDF:** Pick or split pages (keep, remove, or one file per page, with page previews) and PDF to JPG.
+
+How it works: `src/lib/workbench/` holds the tools (`pdf-lib` for PDFs, `expo-image-manipulator` for photos). Reading PDF pages (PDF to JPG, previews, shrinking scans) and scan clean-up run in a hidden web page (`react-native-webview` on the phone, a hidden frame on the web) with pdf.js from cdnjs, so the first use needs internet. Shrink a PDF first re-saves the file losslessly; if that isn't enough, it redraws the pages as pictures at the best quality that fits, and says so. Text PDFs will shrink better with the small server planned for launch.
+
 ## Look and feel
 
 - **Continue on Home** (`src/lib/continue.ts`): unfinished guided tasks, trips, jobs and tenders, each with its next step.
@@ -173,7 +183,7 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
   - `(tabs)/services.tsx`: all services
   - `(tabs)/locker.tsx`: the Digital Locker
   - `chat.tsx`: the attendant chat
-  - `studio/`: Document Studio (passport photo, photos to PDF, shrink a photo)
+  - `studio/`: Document Workbench (shrink a PDF or photo, resize, passport photo, scan, photos to PDF, join, pick or split pages, PDF to JPG)
   - `cv/`: guided CV and cover letter builder
   - `api/cv+api.ts`: server route that writes the CV
   - `sign-in.tsx`: phone number sign-in

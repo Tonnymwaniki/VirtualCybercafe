@@ -48,7 +48,7 @@ export const services: Service[] = [
     id: 'documents',
     title: 'Documents',
     shortTitle: 'Documents',
-    description: 'PDFs, Word, images, OCR, formatting',
+    description: 'Shrink PDFs and photos, scan, join, split, PDF to JPG',
     icon: 'document-text',
     color: '#3B82F6',
     route: '/studio',
