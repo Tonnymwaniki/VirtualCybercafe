@@ -85,6 +85,11 @@ function saveToday(state: Today) {
   }
 }
 
+// The feature the current request is for, e.g. "jobs.tailor".
+export function currentFeature(): string | undefined {
+  return storage.getStore()?.feature;
+}
+
 export function recordUsage(model: string, usage: UsageNumbers) {
   const context = storage.getStore();
   if (context) context.calls += 1;

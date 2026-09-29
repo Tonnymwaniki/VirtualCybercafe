@@ -1,6 +1,8 @@
 // Which Claude model the server routes use. Defaults to Claude Haiku 4.5, the
 // cheapest; set ANTHROPIC_MODEL in .env (e.g. claude-opus-5-5) to switch.
 
+// Requests are written for this model; claude.ts moves each one to the model
+// planned for its feature (model-plan.ts), e.g. ANTHROPIC_WRITING_MODEL for CVs.
 export const MODEL = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
 
 // Haiku 4.5 doesn't take adaptive thinking, effort, refusal fallbacks or the

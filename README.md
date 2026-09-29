@@ -28,7 +28,7 @@ The chat and the CV builder talk to small server routes (`src/app/api/`) that ca
 
 To turn on the real AI:
 1. Add `ANTHROPIC_API_KEY=sk-ant-...` to `.env` (key from https://console.anthropic.com). The key stays on the server and never ships inside the app.
-2. Optional: the attendant uses Claude Haiku 4.5, the cheapest model. To switch, add `ANTHROPIC_MODEL=claude-sonnet-5-5` (or another model id).
+2. Optional: the attendant uses Claude Haiku 4.5, the cheapest model. To switch, add `ANTHROPIC_MODEL=claude-sonnet-5-5` (or another model id). To pay for a stronger model only where quality shows, add `ANTHROPIC_WRITING_MODEL=claude-opus-5-5`: CVs, tailored applications, business documents and travel letters use it, and everything else keeps `ANTHROPIC_MODEL`. `AI_MODELS=chat=claude-sonnet-5-5,jobs.match=...` sets single features (names as in `/api/usage`). See `src/server/model-plan.ts`.
 3. Run `npm run check-keys` to confirm the key (and Supabase) work.
 4. Restart with `npx expo start --clear`. The chat header stops saying "sample replies".
 
