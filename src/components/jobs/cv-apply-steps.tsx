@@ -12,6 +12,7 @@ import { Colors, Spacing } from '@/constants/theme';
 import { jobPortalTask } from '@/data/job-portal';
 import type { Profile } from '@/data/profile-fields';
 import type { AppUser } from '@/lib/auth';
+import { CvDesignPicker, useCvDesign } from '@/components/cv/design-picker';
 import { cvHtml, letterHtml } from '@/lib/cv';
 import type { HelperAction } from '@/lib/gov-types';
 import { sharePdfFromHtml } from '@/lib/images';
@@ -30,6 +31,7 @@ type CvProps = {
 
 // Step 3: a CV and cover letter written for this advert from My Details.
 export function CvStep({ job, profile, careerEmpty, writing, onWrite }: CvProps) {
+  const [design, setDesign] = useCvDesign();
   const router = useRouter();
   const application = job.application;
   const answers = cvAnswersFor(job.advert, profile);
@@ -71,13 +73,14 @@ export function CvStep({ job, profile, careerEmpty, writing, onWrite }: CvProps)
             <Text style={styles.item}>{application.cv.coverLetter}</Text>
           </Card>
           {application.mode === 'sample' && <Note>Written from a template until the AI is switched on.</Note>}
+          <CvDesignPicker design={design} onChange={setDesign} />
           <View style={styles.row}>
-            <Button label="CV (PDF)" icon="download" onPress={() => sharePdfFromHtml(cvHtml(application.cv, answers))} />
+            <Button label="CV (PDF)" icon="download" onPress={() => sharePdfFromHtml(cvHtml(application.cv, answers, design))} />
             <Button
               label="Letter (PDF)"
               icon="mail"
               variant="secondary"
-              onPress={() => sharePdfFromHtml(letterHtml(application.cv, answers))}
+              onPress={() => sharePdfFromHtml(letterHtml(application.cv, answers, design))}
             />
           </View>
         </>
@@ -128,6 +131,7 @@ const isImage = (file: StoredFile) => file.mimeType.startsWith('image/');
 // Step 4: the application pack, the email draft, and the form helper for
 // online portals.
 export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePortal, onHelperAction, onApplied }: ApplyProps) {
+  const [design] = useCvDesign();
   const router = useRouter();
   const { advert, application } = job;
   const how = advert.howToApply;
@@ -157,7 +161,7 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
           .filter((file) => picked.includes(file.path) && isImage(file))
           .map(async (file) => ({ name: file.name, dataUrl: await fileDataUrl(file) })),
       );
-      await sharePdfFromHtml(packHtml(application.cv, answers, images));
+      await sharePdfFromHtml(packHtml(application.cv, answers, images, design));
     } catch {
       setPackProblem('Couldn’t add one of the Locker files. Check your connection and try again.');
     } finally {

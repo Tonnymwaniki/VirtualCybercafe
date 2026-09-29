@@ -184,6 +184,17 @@ function escape(text: string) {
     .replace(/"/g, '&quot;');
 }
 
+// Three designs. "Blue" is the original; "Classic" is plain black serif
+// that prints well on any printer and suits formal jobs; "Modern" has a
+// navy side column for contacts and skills. All are one column of real
+// text (no pictures of text) so job portals can read them.
+export type CvDesign = 'blue' | 'classic' | 'modern';
+export const cvDesigns: { id: CvDesign; label: string; note: string }[] = [
+  { id: 'blue', label: 'Blue', note: 'Clean with blue headings' },
+  { id: 'classic', label: 'Classic', note: 'Black and white, formal' },
+  { id: 'modern', label: 'Modern', note: 'Navy side column' },
+];
+
 const baseStyle = `
   @page { size: A4; margin: 18mm; }
   body { font-family: Helvetica, Arial, sans-serif; color: #0F172A; font-size: 11pt; line-height: 1.45; }
@@ -191,7 +202,7 @@ const baseStyle = `
   h2 { font-size: 12pt; text-transform: uppercase; letter-spacing: 1px; color: #1E5EFF; border-bottom: 1px solid #E3E8F4; padding-bottom: 4px; margin: 18px 0 8px; }
   .headline { font-size: 13pt; color: #334155; margin-top: 2px; }
   .contact { color: #64748B; margin-top: 6px; }
-  .item { margin-bottom: 10px; }
+  .item { margin-bottom: 10px; page-break-inside: avoid; }
   .item-title { font-weight: bold; }
   .muted { color: #64748B; }
   ul { margin: 4px 0 0 18px; padding: 0; }
@@ -200,7 +211,58 @@ const baseStyle = `
   p { margin: 0 0 12px; white-space: pre-line; }
 `;
 
-export function cvHtml(cv: CvDocument, answers: CvAnswers) {
+const classicStyle = `
+  @page { size: A4; margin: 20mm; }
+  body { font-family: Georgia, 'Times New Roman', Times, serif; color: #111; font-size: 11pt; line-height: 1.4; }
+  h1 { font-size: 20pt; margin: 0; text-align: center; letter-spacing: 1px; text-transform: uppercase; font-weight: normal; }
+  h2 { font-size: 11pt; text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #111; padding-bottom: 2px; margin: 16px 0 8px; }
+  .headline { font-size: 12pt; text-align: center; font-style: italic; margin-top: 4px; }
+  .contact { text-align: center; margin-top: 4px; font-size: 10pt; }
+  .item { margin-bottom: 10px; page-break-inside: avoid; }
+  .item-title { font-weight: bold; }
+  .muted { color: #444; font-style: italic; }
+  ul { margin: 4px 0 0 18px; padding: 0; }
+  .skills { }
+  .skill:not(:last-child)::after { content: ' · '; }
+  p { margin: 0 0 12px; white-space: pre-line; }
+  .letter-head { text-align: center; border-bottom: 1px solid #111; padding-bottom: 8px; margin-bottom: 16px; }
+`;
+
+const modernStyle = `
+  @page { size: A4; margin: 0; }
+  html, body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #1F2937; font-size: 10.5pt; line-height: 1.45; }
+  table.layout { width: 100%; border-collapse: collapse; min-height: 297mm; }
+  td.side { width: 62mm; background: #0B1E5B; color: #E2E8F0; vertical-align: top; padding: 16mm 7mm 16mm 9mm; }
+  td.main { vertical-align: top; padding: 16mm 12mm 16mm 10mm; }
+  h1 { font-size: 21pt; margin: 0; color: #0B1E5B; line-height: 1.15; }
+  h2 { font-size: 10.5pt; text-transform: uppercase; letter-spacing: 1.5px; color: #0B1E5B; margin: 16px 0 6px; }
+  h2::after { content: ''; display: block; width: 28px; border-bottom: 3px solid #1E5EFF; margin-top: 4px; }
+  td.side h2 { color: #FFFFFF; }
+  td.side h2::after { border-color: #60A5FA; }
+  .headline { font-size: 12pt; color: #1E5EFF; margin-top: 4px; font-weight: bold; }
+  .contact div { margin-bottom: 6px; word-break: break-word; }
+  .item { margin-bottom: 10px; page-break-inside: avoid; }
+  .item-title { font-weight: bold; color: #0F172A; }
+  .muted { color: #64748B; }
+  td.side .muted { color: #CBD5E1; }
+  td.side .item-title { color: #FFFFFF; }
+  ul { margin: 4px 0 0 16px; padding: 0; }
+  .skill { display: block; margin-bottom: 4px; }
+  p { margin: 0 0 12px; white-space: pre-line; }
+  .letter { padding: 18mm; }
+  .letter-head { border-left: 6px solid #1E5EFF; padding-left: 10px; margin-bottom: 18px; }
+`;
+
+const styles: Record<CvDesign, string> = { blue: baseStyle, classic: classicStyle, modern: modernStyle };
+
+function page(design: CvDesign, body: string) {
+  return `<!doctype html><html><head><meta charset="utf-8" /><style>${styles[design]}</style></head><body>
+${body}
+</body></html>`;
+}
+
+export function cvHtml(cv: CvDocument, answers: CvAnswers, design: CvDesign = 'blue') {
   const contact = [answers.phone, answers.email, answers.location].map((c) => c.trim()).filter(Boolean);
   const experience = cv.experience
     .map(
@@ -215,25 +277,53 @@ ${job.bullets.length ? `<ul>${job.bullets.map((b) => `<li>${escape(b)}</li>`).jo
 <div class="muted">${escape([e.institution, e.year].filter(Boolean).join(' · '))}</div></div>`,
     )
     .join('');
-  return `<!doctype html><html><head><meta charset="utf-8" /><style>${baseStyle}</style></head><body>
-<h1>${escape(answers.fullName.trim())}</h1>
-${cv.headline ? `<div class="headline">${escape(cv.headline)}</div>` : ''}
+  const skills = cv.skills.length ? `<h2>Skills</h2><div class="skills">${cv.skills.map((s) => `<span class="skill">${escape(s)}</span>`).join('')}</div>` : '';
+  const name = escape(answers.fullName.trim());
+  const headline = cv.headline ? `<div class="headline">${escape(cv.headline)}</div>` : '';
+
+  if (design === 'modern') {
+    return page(
+      design,
+      `<table class="layout"><tr>
+<td class="side">
+<h2>Contact</h2><div class="contact">${contact.map((c) => `<div>${escape(c)}</div>`).join('')}</div>
+${skills}
+${education ? `<h2>Education</h2>${education}` : ''}
+<h2>Referees</h2><div class="muted">Available on request.</div>
+</td>
+<td class="main">
+<h1>${name}</h1>
+${headline}
+<h2>Profile</h2><p>${escape(cv.summary)}</p>
+${experience ? `<h2>Experience</h2>${experience}` : ''}
+</td>
+</tr></table>`,
+    );
+  }
+  return page(
+    design,
+    `<h1>${name}</h1>
+${headline}
 <div class="contact">${contact.map(escape).join(' · ')}</div>
 <h2>Profile</h2><p>${escape(cv.summary)}</p>
 ${experience ? `<h2>Experience</h2>${experience}` : ''}
 ${education ? `<h2>Education</h2>${education}` : ''}
-${cv.skills.length ? `<h2>Skills</h2><div class="skills">${cv.skills.map((s) => `<span class="skill">${escape(s)}</span>`).join('')}</div>` : ''}
-<h2>Referees</h2><p>Available on request.</p>
-</body></html>`;
+${skills}
+<h2>Referees</h2><p>Available on request.</p>`,
+  );
 }
 
-export function letterHtml(cv: CvDocument, answers: CvAnswers) {
+export function letterHtml(cv: CvDocument, answers: CvAnswers, design: CvDesign = 'blue') {
   const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
   const contact = [answers.phone, answers.email, answers.location].map((c) => c.trim()).filter(Boolean);
-  return `<!doctype html><html><head><meta charset="utf-8" /><style>${baseStyle}</style></head><body>
-<div><strong>${escape(answers.fullName.trim())}</strong></div>
-<div class="muted">${contact.map(escape).join('<br />')}</div>
+  const head =
+    design === 'blue'
+      ? `<div><strong>${escape(answers.fullName.trim())}</strong></div>
+<div class="muted">${contact.map(escape).join('<br />')}</div>`
+      : `<div class="letter-head"><h1>${escape(answers.fullName.trim())}</h1>
+<div class="contact">${contact.map(escape).join(' · ')}</div></div>`;
+  const body = `${head}
 <p style="margin-top:18px">${escape(date)}</p>
-${cv.coverLetter.split(/\n\s*\n/).map((para) => `<p>${escape(para)}</p>`).join('')}
-</body></html>`;
+${cv.coverLetter.split(/\n\s*\n/).map((para) => `<p>${escape(para)}</p>`).join('')}`;
+  return page(design, design === 'modern' ? `<div class="letter">${body}</div>` : body);
 }

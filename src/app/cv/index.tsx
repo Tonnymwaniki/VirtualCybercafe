@@ -6,6 +6,7 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { CvDesignPicker, useCvDesign } from '@/components/cv/design-picker';
 import { cvHtml, cvQuestions, letterHtml, type CvAnswers, type CvResponse } from '@/lib/cv';
 import { requestCv } from '@/lib/cv-client';
 import { useAuth } from '@/lib/auth';
@@ -15,6 +16,7 @@ import { GUEST_ID, loadProfile, saveProfile } from '@/lib/profile-store';
 const emptyAnswers = Object.fromEntries(cvQuestions.map((q) => [q.key, ''])) as CvAnswers;
 
 export default function CvBuilderScreen() {
+  const [design, setDesign] = useCvDesign();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
   const [answers, setAnswers] = useState<CvAnswers>(emptyAnswers);
@@ -175,13 +177,14 @@ export default function CvBuilderScreen() {
             <Text style={styles.previewText}>{result.cv.skills.join(' · ')}</Text>
           </View>
 
+          <CvDesignPicker design={design} onChange={setDesign} />
           <View style={styles.row}>
-            <Button label="CV (PDF)" icon="download" onPress={() => sharePdfFromHtml(cvHtml(result.cv, answers))} />
+            <Button label="CV (PDF)" icon="download" onPress={() => sharePdfFromHtml(cvHtml(result.cv, answers, design))} />
             <Button
               label="Letter (PDF)"
               icon="mail"
               variant="secondary"
-              onPress={() => sharePdfFromHtml(letterHtml(result.cv, answers))}
+              onPress={() => sharePdfFromHtml(letterHtml(result.cv, answers, design))}
             />
           </View>
           <Pressable onPress={back} style={styles.linkRow}>
