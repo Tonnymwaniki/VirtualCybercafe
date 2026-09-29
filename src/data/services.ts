@@ -2,6 +2,8 @@ import type { Href } from 'expo-router';
 import type { ComponentProps } from 'react';
 import type Ionicons from '@expo/vector-icons/Ionicons';
 
+import { isLiveWorkspace } from '@/data/launch';
+
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
 export type Service = {
@@ -60,7 +62,8 @@ export const services: Service[] = [
     description: 'Print, photocopy, scan, lamination',
     icon: 'print',
     color: '#F59E0B',
-    route: '/print',
+    // Until the Print Hub partner shops launch, printing is by QR code at any cyber.
+    route: isLiveWorkspace('print') ? '/print' : '/studio/print',
   },
   {
     id: 'business',

@@ -25,6 +25,8 @@ const serviceWorkspace: Record<string, Workspace> = {
 };
 
 export function isLiveService(serviceId: string) {
+  // The Print tile works in version one: it opens Print at any cyber.
+  if (serviceId === 'print') return true;
   const workspace = serviceWorkspace[serviceId];
   return workspace ? isLiveWorkspace(workspace) : false;
 }
