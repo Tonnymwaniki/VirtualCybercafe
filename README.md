@@ -39,7 +39,7 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 
 ## Government Services
 
-The Government tile opens a workspace for four tasks: Certificate of Good Conduct, KRA PIN, passport and replacing a lost ID (`src/data/gov-tasks.ts`). Each task has five steps:
+The Government tile opens a workspace for nine tasks (`src/data/gov-tasks.ts`): Certificate of Good Conduct, KRA PIN, KRA tax returns, passport, replacing a lost ID, NTSA driving licence, birth certificate, SHA registration and business name registration. Each task has five steps:
 1. **What you need**: Claude searches only the official sites for the current requirements and fee (`src/server/gov-agent.ts`). Results are reused for 3 days.
 2. **Are you ready?**: a checklist that finds matching documents in the Locker, with upload and Document Studio shortcuts.
 3. **Your details**: a photo of the National ID fills the form answers (Claude reads it; the photo isn't stored). Answers are checked for mistakes and each has a Copy button.

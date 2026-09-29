@@ -17,6 +17,11 @@ const taskColors: Record<GovTaskId, string> = {
   kra_pin: '#16A34A',
   passport: '#6366F1',
   lost_id: '#F59E0B',
+  driving_licence: '#EF4444',
+  birth_certificate: '#14B8A6',
+  sha: '#EC4899',
+  business_name: '#22C55E',
+  kra_returns: '#0EA5E9',
 };
 
 function statusText(stages: string[], progress: TaskProgress | undefined) {
@@ -77,7 +82,7 @@ export default function GovernmentScreen() {
         onPress={() => router.push({ pathname: '/chat', params: { q: 'I need help with another government service' } })}
         style={({ pressed }) => [styles.other, pressed && styles.dim]}>
         <Ionicons name="chatbubbles" size={18} color={Colors.primary} />
-        <Text style={styles.otherText}>Another service (NTSA, SHA, birth certificate...)? Ask the attendant</Text>
+        <Text style={styles.otherText}>Another service? Ask the attendant</Text>
       </Pressable>
     </Screen>
   );

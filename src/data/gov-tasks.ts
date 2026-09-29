@@ -10,7 +10,16 @@ import type { FieldKind } from '@/data/profile-fields';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
-export type GovTaskId = 'good_conduct' | 'kra_pin' | 'passport' | 'lost_id';
+export type GovTaskId =
+  | 'good_conduct'
+  | 'kra_pin'
+  | 'passport'
+  | 'lost_id'
+  | 'driving_licence'
+  | 'birth_certificate'
+  | 'sha'
+  | 'business_name'
+  | 'kra_returns';
 
 export type Requirement = {
   id: string;
@@ -189,10 +198,10 @@ export const govTasks: GovTask[] = [
       { key: 'placeOfBirth', label: 'Place of birth' },
       ...contactFields,
       { key: 'passportType', label: 'Passport type', placeholder: '34, 50 or 66 pages' },
-      { key: 'fatherName', label: 'Father’s full name' },
-      { key: 'fatherId', label: 'Father’s ID number', kind: 'idNumber', optional: true },
-      { key: 'motherName', label: 'Mother’s full name' },
-      { key: 'motherId', label: 'Mother’s ID number', kind: 'idNumber', optional: true },
+      { key: 'certFatherName', label: 'Father’s full name' },
+      { key: 'certFatherId', label: 'Father’s ID number', kind: 'idNumber', optional: true },
+      { key: 'certMotherName', label: 'Mother’s full name' },
+      { key: 'certMotherId', label: 'Mother’s ID number', kind: 'idNumber', optional: true },
       { key: 'recommenderName', label: 'Recommender’s full name' },
       { key: 'recommenderId', label: 'Recommender’s ID number', kind: 'idNumber' },
       { key: 'recommenderPhone', label: 'Recommender’s phone', kind: 'phone' },
@@ -250,6 +259,231 @@ export const govTasks: GovTask[] = [
       ],
     },
     stages: ['Police abstract obtained', 'Applied for replacement', 'Paid', 'Photo and fingerprints taken', 'New ID ready', 'Collected'],
+  },
+  {
+    id: 'driving_licence',
+    title: 'Driving licence (NTSA)',
+    description: 'Renew or apply for a smart driving licence',
+    icon: 'car',
+    agency: 'National Transport and Safety Authority (NTSA) on eCitizen',
+    portal: { label: 'Open eCitizen (NTSA)', url: 'https://accounts.ecitizen.go.ke' },
+    officialDomains: ['ntsa.go.ke', 'ecitizen.go.ke'],
+    requirements: [
+      idScan,
+      {
+        id: 'current_licence',
+        label: 'Current driving licence, or your driving school certificate and test results for a first licence',
+        lockerName: 'driving-licence',
+        lockerCategory: 'Documents',
+      },
+      {
+        id: 'passport_photo',
+        label: 'Passport photo (for a new smart licence)',
+        lockerName: 'passport-photo',
+        lockerCategory: 'Photos',
+        fix: { label: 'Make passport photo', route: '/studio/passport' },
+      },
+      { id: 'ecitizen_account', label: 'An eCitizen account you can sign in to' },
+      { id: 'fee', label: 'Licence fee (paid on eCitizen)' },
+    ],
+    steps: [
+      'Sign in to eCitizen and open the NTSA service.',
+      'Choose Driving Licence, then renewal, smart licence application, or first licence.',
+      'Check your details, choose the licence period if renewing, and upload what is asked.',
+      'Pay the fee and download the receipt or interim licence.',
+      'For a smart licence, collect it from the NTSA or Huduma office you picked when you get the message.',
+    ],
+    fields: [
+      ...idFields,
+      ...contactFields,
+      { key: 'licenceNumber', label: 'Current licence number', optional: true },
+      { key: 'licenceClasses', label: 'Licence classes', placeholder: 'e.g. B, C1' },
+      { key: 'renewalPeriod', label: 'Renewal period', optional: true, placeholder: '1 or 3 years' },
+      { key: 'collectionCentre', label: 'Where you will collect it', optional: true, placeholder: 'e.g. Huduma Centre GPO' },
+    ],
+    payment: { howTo: eCitizenPayment },
+    stages: ['Applied on eCitizen', 'Paid', 'Receipt or interim licence downloaded', 'Licence ready', 'Collected'],
+  },
+  {
+    id: 'birth_certificate',
+    title: 'Birth certificate',
+    description: 'Apply for a birth certificate or a copy',
+    icon: 'document-text',
+    agency: 'Civil Registration Services on eCitizen',
+    portal: { label: 'Open eCitizen (Civil Registration)', url: 'https://accounts.ecitizen.go.ke' },
+    officialDomains: ['ecitizen.go.ke', 'crs.go.ke', 'immigration.go.ke', 'hudumakenya.go.ke'],
+    requirements: [
+      {
+        id: 'birth_notification',
+        label: 'Birth notification from the hospital, or a letter from the chief for a home birth',
+        lockerName: 'birth-notification',
+        lockerCategory: 'Documents',
+        fix: { label: 'Turn photos into a PDF', route: '/studio/photos-to-pdf' },
+      },
+      {
+        id: 'parents_ids',
+        label: 'Parents’ ID copies',
+        lockerName: 'parents-ids',
+        lockerCategory: 'Documents',
+        fix: { label: 'Turn photos into a PDF', route: '/studio/photos-to-pdf' },
+      },
+      { id: 'ecitizen_account', label: 'An eCitizen account (the applicant or a parent)' },
+      { id: 'fee', label: 'Certificate fee (paid on eCitizen)' },
+    ],
+    steps: [
+      'Sign in to eCitizen and open Civil Registration Services.',
+      'Choose Birth Certificate: a first application, a late registration, or a copy of one you already had.',
+      'Fill in the child’s and parents’ details and upload the documents.',
+      'Pay the fee and keep the receipt.',
+      'Collect the certificate at the registration office you picked when you get the message.',
+    ],
+    // Keys differ from My Details on purpose: the person on the certificate is
+    // often the user's child, so the user's own parents mustn't be filled in.
+    fields: [
+      { key: 'childName', label: 'Full name of the person on the certificate' },
+      { key: 'childDateOfBirth', label: 'Their date of birth', kind: 'date', placeholder: 'YYYY-MM-DD' },
+      { key: 'childPlaceOfBirth', label: 'Place of birth (hospital or village)' },
+      { key: 'birthEntryNumber', label: 'Birth notification or entry number', optional: true },
+      { key: 'certFatherName', label: 'Father’s full name' },
+      { key: 'certFatherId', label: 'Father’s ID number', kind: 'idNumber', optional: true },
+      { key: 'certMotherName', label: 'Mother’s full name' },
+      { key: 'certMotherId', label: 'Mother’s ID number', kind: 'idNumber', optional: true },
+      ...contactFields,
+      { key: 'county', label: 'County of birth' },
+    ],
+    payment: { howTo: eCitizenPayment },
+    stages: ['Applied on eCitizen', 'Paid', 'Certificate ready', 'Collected'],
+  },
+  {
+    id: 'sha',
+    title: 'SHA registration',
+    description: 'Register for the Social Health Authority cover',
+    icon: 'medkit',
+    agency: 'Social Health Authority (SHA)',
+    portal: { label: 'Open SHA', url: 'https://sha.go.ke' },
+    officialDomains: ['sha.go.ke', 'health.go.ke'],
+    requirements: [
+      { id: 'id_number', label: 'Your National ID number' },
+      { id: 'phone', label: 'A phone number registered in your name (for the confirmation code)' },
+      { id: 'household', label: 'Details of your spouse and children: names, ID or birth certificate numbers' },
+      { id: 'income', label: 'Your income source and roughly what you earn (for the contribution assessment)' },
+    ],
+    steps: [
+      'Register on the SHA website or dial *147# on your phone.',
+      'Enter your ID number and confirm with the code sent to your phone.',
+      'Add your household members.',
+      'Answer the income questions so SHA can work out your monthly contribution.',
+      'Pay the contribution as shown by SHA (salaried workers pay through their employer).',
+    ],
+    fields: [
+      ...idFields,
+      ...contactFields,
+      { key: 'county', label: 'County' },
+      { key: 'occupation', label: 'Occupation' },
+      { key: 'employer', label: 'Employer (if employed)', optional: true },
+      { key: 'incomeSource', label: 'Main income source' },
+      { key: 'householdMembers', label: 'Household members (name, relationship, ID or birth cert number)', optional: true },
+    ],
+    payment: {
+      howTo: [
+        'If you are salaried, your employer deducts the contribution from your pay.',
+        'Otherwise, pay the monthly amount SHA gives you, using only the Paybill and account shown by SHA.',
+        'Type your M-Pesa PIN only on your own phone. Never share it.',
+        'Keep the M-Pesa message as proof of payment.',
+      ],
+    },
+    stages: ['Registered', 'Household members added', 'Contribution assessed', 'First contribution paid', 'Cover active'],
+  },
+  {
+    id: 'business_name',
+    title: 'Business name registration',
+    description: 'Register a business name with BRS',
+    icon: 'storefront',
+    agency: 'Business Registration Service (BRS) on eCitizen',
+    portal: { label: 'Open eCitizen (BRS)', url: 'https://accounts.ecitizen.go.ke' },
+    officialDomains: ['brs.go.ke', 'ecitizen.go.ke'],
+    requirements: [
+      idScan,
+      { id: 'kra_pin', label: 'KRA PIN of every owner', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
+      {
+        id: 'passport_photo',
+        label: 'Passport photo of every owner',
+        lockerName: 'passport-photo',
+        lockerCategory: 'Photos',
+        fix: { label: 'Make passport photo', route: '/studio/passport' },
+      },
+      { id: 'name_options', label: 'Three name options, in order of preference' },
+      { id: 'address', label: 'Business location and postal address' },
+      { id: 'fee', label: 'Name search and registration fees (paid on eCitizen)' },
+    ],
+    steps: [
+      'Sign in to eCitizen and open Business Registration Service.',
+      'Search your name options and reserve one that is available.',
+      'Register the business name with the owners’ details, nature of business and address.',
+      'Pay the fees.',
+      'Download the business name certificate when it is approved.',
+    ],
+    fields: [
+      ...idFields,
+      { key: 'kraPin', label: 'Your KRA PIN', kind: 'kraPin' },
+      ...contactFields,
+      { key: 'nameOption1', label: 'Business name, first choice' },
+      { key: 'nameOption2', label: 'Second choice' },
+      { key: 'nameOption3', label: 'Third choice' },
+      { key: 'businessNature', label: 'What the business does', placeholder: 'e.g. Retail shop selling groceries' },
+      { key: 'county', label: 'County' },
+      { key: 'town', label: 'Town' },
+      { key: 'businessLocation', label: 'Street or building', optional: true },
+      { key: 'postalAddress', label: 'Postal address and code', optional: true, placeholder: 'P.O. Box 123-00100' },
+    ],
+    payment: { howTo: eCitizenPayment },
+    stages: ['Name reserved', 'Registration submitted', 'Paid', 'Approved', 'Certificate saved to Locker'],
+  },
+  {
+    id: 'kra_returns',
+    title: 'KRA tax returns',
+    description: 'File a nil or employment return on iTax',
+    icon: 'receipt',
+    agency: 'Kenya Revenue Authority (iTax)',
+    portal: { label: 'Open iTax', url: 'https://itax.kra.go.ke' },
+    officialDomains: ['kra.go.ke'],
+    requirements: [
+      { id: 'kra_pin', label: 'Your KRA PIN and iTax password (never share the password)' },
+      {
+        id: 'p9',
+        label: 'P9 form from your employer, if you were employed that year',
+        lockerName: 'p9-form',
+        lockerCategory: 'Documents',
+      },
+      { id: 'deadline', label: 'File by 30 June for the previous year to avoid a penalty' },
+    ],
+    steps: [
+      'Sign in to iTax with your KRA PIN and password.',
+      'Go to Returns, then File Return, and choose Income Tax - Resident Individual.',
+      'Choose Nil return if you had no income, or fill in the employment income from your P9.',
+      'Submit and download the e-return receipt.',
+      'If tax is due, generate a payment slip and pay it.',
+    ],
+    fields: [
+      { key: 'fullName', label: 'Full name' },
+      { key: 'kraPin', label: 'KRA PIN', kind: 'kraPin' },
+      { key: 'idNumber', label: 'ID number', kind: 'idNumber' },
+      { key: 'returnYear', label: 'Year of the return', placeholder: 'e.g. 2025' },
+      { key: 'returnType', label: 'Return type', placeholder: 'Nil or Employment' },
+      { key: 'employer', label: 'Employer', optional: true },
+      { key: 'employerPin', label: 'Employer’s KRA PIN (from P9)', optional: true, kind: 'kraPin' },
+      { key: 'grossPay', label: 'Total gross pay (from P9)', optional: true },
+      { key: 'payeDeducted', label: 'PAYE deducted (from P9)', optional: true },
+    ],
+    payment: {
+      free: true,
+      howTo: [
+        'Filing a return is free.',
+        'If iTax shows tax to pay, generate a payment slip on iTax and pay by M-Pesa using the Paybill and payment registration number on the slip.',
+        'Type your M-Pesa PIN only on your own phone. Never share it or your iTax password.',
+      ],
+    },
+    stages: ['P9 received (or nil)', 'Return filed', 'E-return receipt saved', 'Tax paid (if any was due)'],
   },
 ];
 
