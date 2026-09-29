@@ -47,6 +47,12 @@ const groups: { title: string; tools: Tool[] }[] = [
       { title: 'PDF to JPG', description: 'Pages as pictures, for JPG-only forms', icon: 'images', color: '#14B8A6', href: '/studio/pdf-to-jpg' },
     ],
   },
+  {
+    title: 'Print it',
+    tools: [
+      { title: 'Print at any cyber', description: 'A QR code and short code any cyber can print from', icon: 'qr-code', color: '#0B1E5B', href: '/studio/print' },
+    ],
+  },
 ];
 
 export default function WorkbenchScreen() {

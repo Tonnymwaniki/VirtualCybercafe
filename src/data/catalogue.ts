@@ -161,6 +161,15 @@ const toolEntries: CatalogueEntry[] = [
     help: 'Pick the size limit, choose the PDF and tap Shrink. Scanned PDFs get much smaller; the pages become pictures, so check they are still easy to read.',
   },
   {
+    id: 'print_qr',
+    title: 'Print at any cyber',
+    description: 'Get a QR code and short code so any cyber can print your document, no account needed',
+    route: '/studio/print',
+    workspace: 'documents',
+    keywords: ['print', 'printing', 'print out', 'printout', 'qr code', 'print code', 'chapisha', 'printi', 'print at cyber', 'hard copy'],
+    help: 'Choose a PDF or photo, add a PIN if it is private, and tap Make print code. At the cyber, show the QR code or tell them the code; they open the print page, print, and tap Printed.',
+  },
+  {
     id: 'passport_photo',
     title: 'Passport photo',
     description: 'Crop and shrink a photo to passport size for online forms',

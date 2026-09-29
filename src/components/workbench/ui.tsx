@@ -2,10 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useRouter, type Href } from 'expo-router';
+
 import { Button } from '@/components/button';
 import { UseInApplication } from '@/components/jobs/use-in-application';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
+import { keepFile } from '@/lib/chat-files';
 import { GUEST_ID } from '@/lib/profile-store';
 import { fileUri, formatSize, saveToLocker, shareFile, size, type WorkFile } from '@/lib/workbench/files';
 
@@ -183,6 +186,17 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
   );
 }
 
+// Opens Print at any cyber with this file.
+function PrintByCode({ file }: { file: WorkFile }) {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.push(`/studio/print?file=${keepFile(file).id}` as Href)} style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}>
+      <Ionicons name="qr-code-outline" size={16} color={Colors.primary} />
+      <Text style={styles.moreText}>Print at any cyber</Text>
+    </Pressable>
+  );
+}
+
 // The finished file: what was measured, and what to do with it.
 export function ResultCard({ file, checks, note, title = 'Ready' }: { file: WorkFile; checks: Check[]; note?: string; title?: string }) {
   const allOk = checks.every((c) => c.ok);
@@ -207,7 +221,10 @@ export function ResultCard({ file, checks, note, title = 'Ready' }: { file: Work
       </View>
       {note && <Text style={styles.note}>{note}</Text>}
       <SaveButtons file={file} />
-      <UseInApplication file={file} />
+      <View style={styles.more}>
+        <UseInApplication file={file} />
+        <PrintByCode file={file} />
+      </View>
     </View>
   );
 }
@@ -337,6 +354,9 @@ const styles = StyleSheet.create({
   },
   resultWarn: { borderColor: '#DC2626' },
   resultHead: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  more: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', columnGap: Spacing.lg, rowGap: Spacing.xs },
+  moreLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
+  moreText: { fontSize: 14, fontWeight: '700', color: Colors.primary },
   resultTitle: { fontSize: 16, fontWeight: '800', color: Colors.success },
   warnText: { color: '#DC2626' },
   checks: { gap: 6 },
