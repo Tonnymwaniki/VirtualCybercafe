@@ -37,6 +37,15 @@ With the key, the attendant (`src/server/attendant-agent.ts`) works as an agent 
 
 It never submits forms or makes payments; the person does that. Tapping a service tile opens the chat with that service, so the same agent handles both.
 
+### The chat screen
+
+`src/app/chat.tsx` with the parts in `src/components/chat/`:
+- **Welcome** (`welcome.tsx`): an empty chat greets the person by the first name in My Details and the time of day, shows unfinished work, and suggests starters picked from their details (`src/lib/chat-suggest.ts`), such as a KRA PIN when none is saved or a passport that expires within 9 months. No AI call.
+- **Designed answers**: replies are Markdown (`markdown.tsx`). Under them come cards (`cards.tsx`): a service card with the service's icon and colour, a checklist that ticks items already in the Locker, numbered steps, a fee, an official site (with an "Official" badge for .go.ke, .ac.ke and .or.ke), a document with a paper preview and PDF / Locker / Print Hub buttons, and a red warning. The attendant makes them with `show_checklist`, `show_steps`, `show_fee` and `show_warning`.
+- **Chat history** (`history-panel.tsx`, `src/lib/chat-store.ts`): ☰ opens past chats grouped by day, with search, pin, rename and delete. It stays open on the left on screens 900px or wider. A signed-in person's chats are saved to their account as `task_progress` rows `chat:<id>` (no new SQL); guests keep them on the phone. Photos are not saved, only a note that one was sent.
+- **Chat basics**: typing dots, times and day separators, copy / read aloud / share on each reply (tap and hold your own message), follow-up chips after each reply, a box that grows to 5 lines (Enter sends on a computer), a jump-to-latest arrow, and "Not sent · Tap to retry" when the server can't be reached.
+- **Photos**: the + button takes or picks a photo (a screenshot of an eCitizen error, a document). It is shrunk on the phone and sent with the message; it costs a little more of the daily allowance.
+
 ### Finding your way (free, no AI)
 
 `src/data/catalogue.ts` lists everything the app does, with English, Swahili and Sheng keywords. `src/lib/route-intent.ts` matches what people type against it on the phone:
@@ -56,7 +65,7 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 - **Continue on Home** (`src/lib/continue.ts`): unfinished guided tasks, trips, jobs and tenders, each with its next step.
 - **One step at a time** (`src/components/stepper.tsx`): guided tasks, jobs and trips show "Step 2 of 5", a progress bar, dots to jump between steps, and Back/Next.
 - **English / Kiswahili** (`src/lib/i18n.tsx`): the EN/SW switch in the header changes Home, the menus, service tiles, buttons, step names and the chat. With Kiswahili on, the attendant answers in Swahili by default. Task details (requirements and steps) are still in English.
-- **Read aloud** (`expo-speech`): a "Read aloud" button under each attendant reply. Talking to type needs a development build, so the mic says it's coming soon.
+- **Read aloud** (`expo-speech`): a speaker button under each attendant reply. Talking to type needs a development build, so the mic says it's coming soon.
 - **Mascot** (`src/components/mascot.tsx`, an SVG robot) in its own section at the top of Home beside the greeting and a speech bubble, with first-visit tips under it, and the Services tab grouped by area with every task as a chip.
 
 ## Government Services

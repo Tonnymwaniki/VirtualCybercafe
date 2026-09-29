@@ -21,7 +21,9 @@ You get tasks done for people: government services (eCitizen, KRA, NTSA, passpor
 
 How to work:
 - Reply in the language the user writes in: Swahili, English or Sheng.
-- Keep replies short and phone-friendly: short lines, simple bullets, then one question or next step.
+- Keep replies short and phone-friendly. Write in Markdown: a short opening line, then **bold** for key words, "-" bullets or "1." steps, and "###" headings only when there are two or more sections. No tables. End with one question or next step.
+- Show structured information as cards instead of long text: show_checklist for documents or things they need, show_steps for a step-by-step process, show_fee for an amount to pay (with its source), show_warning for scams or safety risks. Don't repeat a card's contents in your text; just refer to it ("Here's what you need:").
+- If the user sends a photo (an error screen, a form, a document), read it and explain plainly what it shows and what to do. Never repeat ID numbers or other personal numbers from a photo back in full.
 - For a government or education process, call get_service_guide first and base your steps on it. If the user asks about current fees or deadlines, use web_search and say where the figure came from; otherwise tell them to check the official site.
 - The app has a screen for most tasks, listed below under "Screens in the app". When one fits, call open_screen so the user gets a button straight to it, and say in one line what it will do for them. Offer at most two buttons per reply. Pass what the user already told you (destination, customer, topic, search words) so the screen opens filled in.
 - The app's screens work from the user's saved details and Locker, track progress and warn about scams, so prefer them over long explanations.
@@ -63,6 +65,60 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
       required: ['screen'],
       additionalProperties: false,
     },
+  },
+  {
+    name: 'show_checklist',
+    description: 'Show a checklist card of documents or things the user needs. Items are short (a few words each).',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'e.g. "What you need"' },
+        items: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['title', 'items'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'show_steps',
+    description: 'Show a numbered steps card for a process. Each step is one short sentence.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        steps: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['title', 'steps'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'show_fee',
+    description: 'Show a fee card. Only for an amount from a guide or an official source you found; give the source.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        amount: { type: 'string', description: 'e.g. "KSh 1,050"' },
+        note: { type: 'string', description: 'What it covers and how to pay, one line.' },
+        source: { type: 'string', description: 'Where the figure came from, e.g. "ecitizen.go.ke" or "Our saved guide".' },
+      },
+      required: ['amount', 'note', 'source'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'show_warning',
+    description: 'Show a red warning card about a scam or a safety risk. One or two sentences.',
+    input_schema: {
+      type: 'object',
+      properties: { text: { type: 'string' } },
+      required: ['text'],
+      additionalProperties: false,
+    },
+    strict: true,
   },
   {
     name: 'get_my_details',
@@ -198,6 +254,29 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
       context.actions.push({ type: 'document', title, body });
       return `The document "${title}" is ready for the user to download as a PDF.`;
     }
+    case 'show_checklist': {
+      const items = (Array.isArray(input.items) ? input.items : []).map((i) => String(i).slice(0, 120)).slice(0, 12);
+      context.actions.push({ type: 'checklist', title: String(input.title ?? 'What you need').slice(0, 60), items });
+      return 'The checklist card is shown.';
+    }
+    case 'show_steps': {
+      const steps = (Array.isArray(input.steps) ? input.steps : []).map((i) => String(i).slice(0, 200)).slice(0, 12);
+      context.actions.push({ type: 'steps', title: String(input.title ?? 'Steps').slice(0, 60), steps });
+      return 'The steps card is shown.';
+    }
+    case 'show_fee': {
+      context.actions.push({
+        type: 'fee',
+        amount: String(input.amount ?? '').slice(0, 40),
+        note: String(input.note ?? '').slice(0, 200),
+        source: String(input.source ?? '').slice(0, 80),
+      });
+      return 'The fee card is shown.';
+    }
+    case 'show_warning': {
+      context.actions.push({ type: 'warning', text: String(input.text ?? '').slice(0, 300) });
+      return 'The warning card is shown.';
+    }
     case 'share_link': {
       const url = String(input.url ?? '');
       if (!/^https:\/\//.test(url)) return 'Only https links can be shared.';
@@ -233,15 +312,27 @@ export async function runAttendant(
   task?: GovTask,
   screen?: CatalogueEntry,
   language: 'en' | 'sw' = 'en',
+  // A JPEG (base64) sent with the latest message.
+  image?: string,
 ): Promise<{ reply: string; actions: ChatAction[] }> {
   const client = claude();
   const context: ToolContext = { accessToken, actions: [] };
 
-  const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
-    role: m.role,
-    content: m.text,
-  }));
+  const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m, index) => {
+    const isLast = index === history.length - 1;
+    if (isLast && m.role === 'user' && image) {
+      return {
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
+          { type: 'text', text: m.text || 'What does this show, and what should I do?' },
+        ],
+      };
+    }
+    return { role: m.role, content: m.hadImage ? `[Sent a photo] ${m.text}` : m.text };
+  });
 
+  const start = messages.length;
   for (let step = 0; step < MAX_STEPS; step++) {
     const response = await client.beta.messages.create({
       model: MODEL,
@@ -274,11 +365,15 @@ export async function runAttendant(
       (block): block is Anthropic.Beta.BetaToolUseBlock => block.type === 'tool_use',
     );
     if (response.stop_reason !== 'tool_use' || toolUses.length === 0) {
-      const reply = response.content
+      // Text written before a tool call ("Here's what you need:") is part of
+      // the answer too.
+      const reply = messages
+        .slice(start)
+        .flatMap((m) => (m.role === 'assistant' && Array.isArray(m.content) ? m.content : []))
         .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
-        .map((block) => block.text)
-        .join('\n')
-        .trim();
+        .map((block) => block.text.trim())
+        .filter(Boolean)
+        .join('\n\n');
       return { reply, actions: context.actions };
     }
 
