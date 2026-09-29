@@ -391,6 +391,12 @@ export const v1En = {
   'useApp.which': 'Add it to which job?',
   'useApp.none': 'No saved jobs yet. Save the job advert first, then come back to this file.',
   'useApp.openJobs': 'Open Jobs',
+
+  // Offline notice
+  'offline.title': 'You’re offline',
+  'offline.text': 'Photo and PDF tools still work on your phone. The attendant, Locker and printing codes need internet.',
+  'offline.retry': 'Try again',
+  'offline.hide': 'Hide',
 };
 
 export const v1Sw: Record<keyof typeof v1En, string> = {
@@ -782,4 +788,10 @@ export const v1Sw: Record<keyof typeof v1En, string> = {
   'useApp.which': 'Iongeze kwenye kazi gani?',
   'useApp.none': 'Bado hakuna kazi uliyohifadhi. Hifadhi tangazo la kazi kwanza, kisha urudi kwenye faili hii.',
   'useApp.openJobs': 'Fungua Kazi',
+
+  // Offline notice
+  'offline.title': 'Huna mtandao',
+  'offline.text': 'Zana za picha na PDF bado zinafanya kazi kwenye simu yako. Msaidizi, Locker na nambari za kuchapisha zinahitaji intaneti.',
+  'offline.retry': 'Jaribu tena',
+  'offline.hide': 'Ficha',
 };

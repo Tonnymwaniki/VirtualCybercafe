@@ -1,7 +1,8 @@
 // The page that runs inside the Workbench's hidden web view (phone) or
 // hidden frame (web). It draws PDF pages with pdf.js and cleans up scans on
 // a canvas, then posts the pictures back. pdf.js loads from cdnjs the first
-// time, so reading PDF pages needs a connection once.
+// time; on phones the app then keeps a copy (pdfjs-cache.ts) and hands it in
+// as window.__pdfCode, so reading PDF pages works offline after that.
 
 export const PDFJS_BASE = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
 
@@ -16,10 +17,24 @@ let library = null;
 function pdfjs() {
   if (!library) {
     library = new Promise((resolve, reject) => {
+      const kept = window.__pdfCode;
+      if (kept) {
+        try {
+          const tag = document.createElement('script');
+          tag.textContent = kept.main;
+          document.head.appendChild(tag);
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(new Blob([kept.worker], { type: 'text/javascript' }));
+          resolve(window.pdfjsLib);
+          return;
+        } catch (error) {
+          window.__pdfCode = null;
+        }
+      }
       const tag = document.createElement('script');
       tag.src = PDFJS + 'pdf.min.js';
       tag.onload = () => {
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js';
+        send({ type: 'pdfjs-from-web' });
         resolve(window.pdfjsLib);
       };
       tag.onerror = () => {

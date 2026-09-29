@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { isNetworkError, setOnline } from '@/lib/connection';
 import { eventPart, reportError, track } from '@/lib/stats';
 import { supabase } from '@/lib/supabase';
 
@@ -57,7 +58,14 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   headers.set('x-device-id', await getDeviceId());
   const token = await accessToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const response = await fetch(path, { ...init, headers });
+  let response: Response;
+  try {
+    response = await fetch(path, { ...init, headers });
+  } catch (error) {
+    if (isNetworkError(error)) setOnline(false);
+    throw error;
+  }
+  setOnline(true);
   const route = eventPart(path.replace(/^\/api\//, '').split(/[/?]/)[0]);
   track(response.status === 429 ? 'ai.limited' : response.status === 401 ? 'ai.sign_in' : `ai.${route}`);
   if (response.status >= 500) reportError(`api/${route}`, `HTTP ${response.status}`);

@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { OfflineNotice } from '@/components/offline-notice';
 import { SignInNotice } from '@/components/sign-in-notice';
 import { EngineProvider } from '@/components/workbench/engine';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -30,6 +31,7 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }} />
         </EngineProvider>
         <SignInNotice />
+        <OfflineNotice />
         <StatusBar style="dark" />
       </AuthProvider>
     </LanguageProvider>
