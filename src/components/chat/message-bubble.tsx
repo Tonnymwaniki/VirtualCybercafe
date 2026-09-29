@@ -9,6 +9,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { clockTime } from '@/lib/chat-store';
 import type { ActionState, ChatMessage } from '@/lib/chat-types';
 import { useLanguage } from '@/lib/i18n';
+import { formatSize } from '@/lib/workbench/files';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -57,12 +58,24 @@ export function MessageBubble({ message, lockerNames, menuOpen, speaking, copied
         <Pressable onLongPress={onToggleMenu} delayLongPress={350} style={[styles.bubble, styles.userBubble, message.failed && styles.failedBubble]}>
           {message.imageUri ? (
             <Image source={{ uri: message.imageUri }} style={styles.photo} resizeMode="cover" accessibilityLabel={t('chat.photo')} />
-          ) : message.hadImage ? (
+          ) : message.hadImage && !message.files?.length ? (
             <View style={styles.photoNote}>
               <Ionicons name="image" size={14} color={Colors.onDark} />
               <Text style={styles.photoNoteText}>{t('chat.photoSent')}</Text>
             </View>
           ) : null}
+          {!!message.files?.length && !(message.imageUri && message.files.length === 1) && (
+            <View style={styles.fileChips}>
+              {message.files.map((file) => (
+                <View key={file.id} style={styles.fileChip}>
+                  <Ionicons name={file.kind === 'pdf' ? 'document-text' : 'image'} size={14} color={Colors.onDark} />
+                  <Text style={styles.fileChipText} numberOfLines={1}>
+                    {file.name} · {formatSize(file.bytes)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
           {!!message.text && <Text style={styles.userText}>{message.text}</Text>}
         </Pressable>
         {message.failed ? (
@@ -124,6 +137,9 @@ export function DaySeparator({ label }: { label: string }) {
 }
 
 const styles = StyleSheet.create({
+  fileChips: { gap: 4 },
+  fileChip: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: Radius.sm, paddingHorizontal: 8, paddingVertical: 5 },
+  fileChipText: { flexShrink: 1, fontSize: 13, color: Colors.onDark },
   mineWrap: { alignItems: 'flex-end', gap: 4 },
   theirsWrap: { alignItems: 'flex-start' },
   theirsRow: { flexDirection: 'row', gap: Spacing.sm, width: '100%' },

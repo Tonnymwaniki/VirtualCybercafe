@@ -9,8 +9,9 @@ import { bizTasks, eduTasks, findGovTask, govTasks, travelTasks, type GovTask } 
 import { findEntry, liveCatalogue, routeWith, type CatalogueEntry } from '@/data/catalogue';
 import { guides } from '@/data/guides';
 import { FULL_APP, isLiveWorkspace } from '@/data/launch';
+import { presets } from '@/data/presets';
 import { cleanProfile, profileFields } from '@/data/profile-fields';
-import type { ChatAction, ChatMessage, ProposedAction } from '@/lib/chat-types';
+import type { ChatAction, ChatMessage, FileMeta, ProposedAction, WorkRequest } from '@/lib/chat-types';
 import { mergeSignals, scamSignals } from '@/lib/job-scam';
 import { effortOption, MODEL, modelOptions, webFetchType, webSearchType } from '@/server/model';
 import { claude } from '@/server/claude';
@@ -45,9 +46,19 @@ ${FULL_APP ? '  - track_trip when they plan travel with a destination.\n' : ''} 
 
 // Version one: only some services have screens yet.
 const VERSION_ONE = `This is version one of the app. What works in the app now: Jobs & CV (find and save job adverts, match, tailored CV, cover letter and application email, application pack, tracking, interview practice, scam checks), the Document Workbench (shrink a PDF or photo to an upload limit, resize to exact pixels, passport photo, scan a page, photos to PDF, join PDFs, pick or split pages, PDF to JPG; all on the phone), My Details and the Locker.
-Government services, education, business, travel, printing and payments are coming soon in the app. If someone asks about one of those, answer briefly (use get_service_guide for the steps and the official site), say plainly that the app will help with it soon, and offer what already works, such as a passport photo or a PDF of their documents. For a file task ("make this PDF under 1MB", "I need a 600x600 photo"), open the matching Workbench screen and say which size or limit to pick; you can't change the file yourself yet. Never say the app can do something it can't yet, and only offer screens from "Screens in the app".`;
+Government services, education, business, travel, printing and payments are coming soon in the app. If someone asks about one of those, answer briefly (use get_service_guide for the steps and the official site), say plainly that the app will help with it soon, and offer what already works, such as a passport photo or a PDF of their documents. For a file task ("make this PDF under 1MB", "I need a 600x600 photo"), work on the file with work_on_files if they sent it in this chat; if they haven't, ask them to tap + and send it, or open the matching Workbench screen. Never say the app can do something it can't yet, and only offer screens from "Screens in the app".`;
 
-const SYSTEM_PROMPT = FULL_APP ? FULL_PROMPT : `${FULL_PROMPT}\n\n${VERSION_ONE}`;
+// Files sent in the chat, and how the attendant works on them.
+const FILES_PROMPT = `Files: the user can send PDFs and photos in the chat with the + button. The files in this chat are listed under "Files in this chat" with their ids, newest last; files the phone made for them are listed too.
+- To change a file, call work_on_files. The phone does the work itself and shows a result card under your reply with the measured size, pixels and pages, plus Download and Save to Locker. Never state a final size or say it passed; the card shows the real numbers. Say in one line what you asked for.
+- Ops: shrink (max_kb) makes a PDF or photo smaller than a limit; resize (width, height, exact) sets a photo's pixels, optionally with max_kb; to_pdf puts photos and PDFs, in the order given, into one PDF, optionally under max_kb; pick_pages (pages like "1-3,5") keeps pages of one PDF; to_jpg turns PDF pages into JPG pictures (pages optional); check_rule (rule_id) checks the file against an upload rule and fixes what it can; scan (look: clean, bw or enhance) cleans a photo of a paper like a scanner.
+- When the user names a site with a rule below, use check_rule with that rule. Otherwise use their numbers. If they don't say a limit and the site isn't listed, ask for the limit shown on the upload page; never invent one.
+- Use the newest file unless they say otherwise. At most two file jobs per reply.
+- If a PDF is attached to the latest message you can read it too: answer questions about what it says, and never repeat ID numbers from it in full.
+Upload rules (rule_id: what it is):
+${presets.map((p) => `${p.id}: ${p.title}, ${p.where}`).join('\n')}`;
+
+const SYSTEM_PROMPT = `${FULL_APP ? FULL_PROMPT : `${FULL_PROMPT}\n\n${VERSION_ONE}`}\n\n${FILES_PROMPT}`;
 
 const allTools: Anthropic.Beta.BetaToolUnion[] = [
   {
@@ -284,6 +295,28 @@ const allTools: Anthropic.Beta.BetaToolUnion[] = [
     strict: true,
   },
   {
+    name: 'work_on_files',
+    description:
+      'Work on files the user sent in this chat, on their phone: shrink under a size, resize a photo, make a PDF, pick pages, PDF to JPG, check against an upload rule, or clean up a scan. The result card shows the measured result.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        op: { type: 'string', enum: ['shrink', 'resize', 'to_pdf', 'pick_pages', 'to_jpg', 'check_rule', 'scan'] },
+        file_ids: { type: 'array', items: { type: 'string' }, description: 'Ids from "Files in this chat", in order.' },
+        max_kb: { type: 'integer', description: 'Size limit in KB (1 MB = 1024).' },
+        width: { type: 'integer' },
+        height: { type: 'integer' },
+        exact: { type: 'boolean', description: 'resize: crop to exactly width x height (true) or fit inside it (false).' },
+        pages: { type: 'string', description: 'Pages like "1-3,5".' },
+        rule_id: { type: 'string', enum: presets.map((p) => p.id) },
+        look: { type: 'string', enum: ['clean', 'bw', 'enhance'] },
+      },
+      required: ['op', 'file_ids'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
     type: webFetchType,
     name: 'web_fetch',
     max_uses: 2,
@@ -305,7 +338,51 @@ const tools = FULL_APP ? allTools : allTools.filter((tool) => !('name' in tool) 
 type ToolContext = {
   accessToken: string | null;
   actions: ChatAction[];
+  files: FileMeta[];
 };
+
+const whole = (value: unknown, min: number, max: number) =>
+  typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max ? Math.round(value) : undefined;
+
+// Turns the model's tool input into a request the phone can run, or says
+// what is missing.
+function workRequest(input: Record<string, unknown>, files: FileMeta[]): WorkRequest | string {
+  const ids = Array.isArray(input.file_ids) ? input.file_ids.filter((id): id is string => typeof id === 'string') : [];
+  const fileIds = ids.filter((id) => files.some((f) => f.id === id));
+  if (!fileIds.length) return `Unknown file ids. Use ids from "Files in this chat": ${files.map((f) => f.id).join(', ')}.`;
+  const chosen = fileIds.map((id) => files.find((f) => f.id === id)!);
+  const maxKB = whole(input.max_kb, 10, 50 * 1024);
+  const pages = typeof input.pages === 'string' && input.pages.trim() ? input.pages.trim().slice(0, 60) : undefined;
+  switch (input.op) {
+    case 'shrink':
+      return maxKB ? { op: 'shrink', fileIds, maxKB } : 'Give max_kb, the limit in KB. Ask the user if they did not say it.';
+    case 'resize': {
+      const width = whole(input.width, 16, 8000);
+      const height = whole(input.height, 16, 8000);
+      if (!width || !height) return 'Give width and height in pixels.';
+      if (chosen.some((f) => f.kind !== 'image')) return 'resize works on photos only.';
+      return { op: 'resize', fileIds, width, height, exact: input.exact !== false, ...(maxKB ? { maxKB } : {}) };
+    }
+    case 'to_pdf':
+      return { op: 'to_pdf', fileIds, ...(maxKB ? { maxKB } : {}) };
+    case 'pick_pages':
+      if (!pages) return 'Give pages, like "1-3,5".';
+      if (chosen[0].kind !== 'pdf') return 'pick_pages works on a PDF.';
+      return { op: 'pick_pages', fileIds: [fileIds[0]], pages };
+    case 'to_jpg':
+      if (chosen.some((f) => f.kind !== 'pdf')) return 'to_jpg works on PDFs only.';
+      return { op: 'to_jpg', fileIds, ...(pages ? { pages } : {}) };
+    case 'check_rule': {
+      const rule = presets.find((p) => p.id === input.rule_id);
+      return rule ? { op: 'check_rule', fileIds, ruleId: rule.id } : 'Give rule_id from the upload rules list.';
+    }
+    case 'scan':
+      if (chosen.some((f) => f.kind !== 'image')) return 'scan works on photos only.';
+      return { op: 'scan', fileIds, look: input.look === 'bw' || input.look === 'enhance' ? input.look : 'clean' };
+    default:
+      return 'Unknown op.';
+  }
+}
 
 // A Supabase client acting as the signed-in user, so row-level security
 // limits it to their own data. Returns a message string when that's not possible.
@@ -477,6 +554,14 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
       if (!title) return 'A reminder needs a title.';
       return offer(context, { kind: 'reminder', title, date, route: entry ? routeWith(entry) : '' });
     }
+    case 'work_on_files': {
+      if (!context.files.length) return 'No files are in this chat yet. Ask the user to tap + and send the file.';
+      if (context.actions.filter((a) => a.type === 'work').length >= 2) return 'Only two file jobs per reply; do the rest next time.';
+      const request = workRequest(input, context.files);
+      if (typeof request === 'string') return request;
+      context.actions.push({ type: 'work', id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, request });
+      return 'The phone is doing this now and will show the measured result under your reply. Do not say the final size or that it passed.';
+    }
     case 'share_link': {
       const url = String(input.url ?? '');
       if (!/^https:\/\//.test(url)) return 'Only https links can be shared.';
@@ -501,6 +586,18 @@ function screenFocus(entry: CatalogueEntry) {
 Help them use that screen: explain the next thing to do there in plain steps. Only offer other screens if that one can't do what they need.`;
 }
 
+function describe(file: FileMeta & { newest?: boolean }) {
+  const size = file.bytes >= 1024 * 1024 ? `${(file.bytes / (1024 * 1024)).toFixed(2)} MB` : `${Math.round(file.bytes / 1024)} KB`;
+  const extra = file.kind === 'pdf'
+    ? file.pages ? `, ${file.pages} page${file.pages === 1 ? '' : 's'}` : ''
+    : file.width ? `, ${file.width} x ${file.height} px` : '';
+  return `${file.id}: ${file.name} (${file.kind === 'pdf' ? 'PDF' : 'photo'}, ${size}${extra})${file.newest ? ' [sent with the latest message]' : ''}`;
+}
+
+function filesText(files: (FileMeta & { newest?: boolean })[]) {
+  return `Files in this chat (id: name), newest last:\n${files.map(describe).join('\n')}`;
+}
+
 const catalogueText = liveCatalogue
   .map((e) => `${e.id}: ${e.title}. ${e.description}`)
   .join('\n');
@@ -513,18 +610,23 @@ export async function runAttendant(
   language: 'en' | 'sw' = 'en',
   // A JPEG (base64) sent with the latest message.
   image?: string,
+  // The files in this chat (newest last), and a PDF (base64) sent with the
+  // latest message.
+  files: (FileMeta & { newest?: boolean })[] = [],
+  pdf?: string,
 ): Promise<{ reply: string; actions: ChatAction[] }> {
   const client = claude();
-  const context: ToolContext = { accessToken, actions: [] };
+  const context: ToolContext = { accessToken, actions: [], files };
 
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m, index) => {
     const isLast = index === history.length - 1;
-    if (isLast && m.role === 'user' && image) {
+    if (isLast && m.role === 'user' && (image || pdf)) {
       return {
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image } },
-          { type: 'text', text: m.text || 'What does this show, and what should I do?' },
+          ...(pdf ? [{ type: 'document' as const, source: { type: 'base64' as const, media_type: 'application/pdf' as const, data: pdf } }] : []),
+          ...(image ? [{ type: 'image' as const, source: { type: 'base64' as const, media_type: 'image/jpeg' as const, data: image } }] : []),
+          { type: 'text', text: m.text || (pdf && !image ? 'What does this say, and what should I do?' : 'What does this show, and what should I do?') },
         ],
       };
     }
@@ -544,6 +646,7 @@ export async function runAttendant(
         { type: 'text', text: `Screens in the app (id: title):\n${catalogueText}`, cache_control: { type: 'ephemeral' } },
         ...(task ? [{ type: 'text' as const, text: taskFocus(task) }] : []),
         ...(screen && !task ? [{ type: 'text' as const, text: screenFocus(screen) }] : []),
+        ...(files.length ? [{ type: 'text' as const, text: filesText(files) }] : []),
         ...(language === 'sw'
           ? [{ type: 'text' as const, text: 'The user set the app to Kiswahili. Reply in Swahili unless they write to you in English.' }]
           : []),

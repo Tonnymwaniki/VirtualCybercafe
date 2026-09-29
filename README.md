@@ -75,6 +75,8 @@ Documents > Document Workbench gets files ready for online forms. Every tool run
 - **Make a PDF:** Scan a document (turn, then Original, Brighter, Clean or Black & white), Photos to PDF and Join PDFs (PDFs and photos, in any order).
 - **Change a PDF:** Pick or split pages (keep, remove, or one file per page, with page previews) and PDF to JPG.
 
+- **From the chat:** tap + in the attendant chat to send PDFs and photos (several at once), then say what you need. Clear requests are done on the phone straight away and cost nothing: "under 1MB", "600x600", "put these in one PDF", "pages 1-3", "to JPG", "scan it" or "for HELB" (`src/lib/file-intent.ts`). Anything else goes to the attendant, which sees a list of the files (and can read a PDF up to 3 MB or the first photo) and asks the phone to do the work with its `work_on_files` tool. Either way the phone runs the Workbench tool (`src/lib/workbench/run.ts`) and the reply shows the same result card, with numbers measured on the real file. Files stay on the phone only while the app is open; saved chats keep their names and sizes, so use Download or Save to Locker to keep a file.
+
 How it works: `src/lib/workbench/` holds the tools (`pdf-lib` for PDFs, `expo-image-manipulator` for photos). Reading PDF pages (PDF to JPG, previews, shrinking scans) and scan clean-up run in a hidden web page (`react-native-webview` on the phone, a hidden frame on the web) with pdf.js from cdnjs, so the first use needs internet. Shrink a PDF first re-saves the file losslessly; if that isn't enough, it redraws the pages as pictures at the best quality that fits, and says so. Text PDFs will shrink better with the small server planned for launch.
 
 ## Look and feel

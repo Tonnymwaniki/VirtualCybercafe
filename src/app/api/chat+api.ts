@@ -2,12 +2,34 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { entryForPath } from '@/data/catalogue';
 import { findGovTask } from '@/data/gov-tasks';
-import type { ChatMessage, ChatResponse } from '@/lib/chat-types';
+import type { ChatMessage, ChatResponse, FileMeta } from '@/lib/chat-types';
 import { sampleReply } from '@/lib/sample-attendant';
 import { runAttendant } from '@/server/attendant-agent';
 import { withUsage } from '@/server/usage';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
+const MAX_PDF_BASE64 = 4_300_000;
+
+type ChatFile = FileMeta & { newest?: boolean };
+
+const count = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.round(value) : undefined);
+
+// Descriptions of the files in the chat (the files stay on the phone).
+function cleanFiles(raw: unknown): ChatFile[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((f) => !!f && typeof f.id === 'string' && typeof f.name === 'string' && (f.kind === 'pdf' || f.kind === 'image'))
+    .slice(-12)
+    .map((f) => ({
+      id: String(f.id).slice(0, 40),
+      name: String(f.name).replace(/[\r\n]+/g, ' ').slice(0, 120),
+      kind: f.kind,
+      bytes: count(f.bytes) ?? 0,
+      ...(count(f.pages) ? { pages: count(f.pages) } : {}),
+      ...(count(f.width) ? { width: count(f.width), height: count(f.height) } : {}),
+      ...(f.newest === true ? { newest: true } : {}),
+    }));
+}
 
 // Keep only well-formed turns, cap their size, and make sure the history
 // starts with the user, as the API requires.
@@ -34,6 +56,8 @@ async function handle(request: Request) {
   let screenPath: unknown;
   let language: 'en' | 'sw' = 'en';
   let image: string | undefined;
+  let files: ChatFile[] = [];
+  let pdf: string | undefined;
   try {
     const body = await request.json();
     messages = cleanHistory(body?.messages);
@@ -43,6 +67,11 @@ async function handle(request: Request) {
     if (typeof body?.image === 'string' && body.image) {
       if (body.image.length > MAX_IMAGE_BASE64) return Response.json({ error: 'That photo is too large' }, { status: 413 });
       image = body.image;
+    }
+    files = cleanFiles(body?.files);
+    if (typeof body?.pdf === 'string' && body.pdf) {
+      if (body.pdf.length > MAX_PDF_BASE64) return Response.json({ error: 'That PDF is too large to read' }, { status: 413 });
+      pdf = body.pdf;
     }
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
@@ -55,6 +84,13 @@ async function handle(request: Request) {
 
   // Until an API key is configured, answer with canned sample replies.
   if (!process.env.ANTHROPIC_API_KEY) {
+    if (files.some((f) => f.newest)) {
+      const reply =
+        language === 'sw'
+          ? 'Nimepokea faili yako. Niambie wazi unachotaka, kwa mfano **"punguza chini ya 1MB"**, **"600x600"**, **"iwe PDF moja"**, **"kurasa 1-3"** au **"kwa HELB"**, nami nitaifanya hapa kwenye simu.'
+          : 'I got your file. Tell me plainly what you need, for example **"under 1MB"**, **"600x600"**, **"make one PDF"**, **"pages 1-3"** or **"for HELB"**, and I’ll do it right here on your phone.';
+      return Response.json({ reply, actions: [], mode: 'sample' } satisfies ChatResponse);
+    }
     if (image) {
       const reply =
         language === 'sw'
@@ -72,7 +108,7 @@ async function handle(request: Request) {
     // From a "Help me here" button: the screen the user was on.
     const screen = typeof screenPath === 'string' ? entryForPath(screenPath.slice(0, 200)) : undefined;
     const task = findGovTask(typeof taskId === 'string' ? taskId : screen?.id);
-    const { reply, actions } = await runAttendant(messages, accessToken, task, screen, language, image);
+    const { reply, actions } = await runAttendant(messages, accessToken, task, screen, language, image, files, pdf);
     return Response.json({ reply, actions, mode: 'ai' } satisfies ChatResponse);
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {

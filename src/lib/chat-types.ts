@@ -22,6 +22,39 @@ export type ActionState = {
   note?: string;
 };
 
+// A file in the chat: sent by the person or made by the Workbench. The bytes
+// stay on the phone (lib/chat-files.ts); only this description is sent to
+// the server and kept in the saved chat.
+export type FileMeta = {
+  id: string;
+  name: string;
+  kind: 'pdf' | 'image';
+  bytes: number;
+  pages?: number;
+  width?: number;
+  height?: number;
+};
+
+// Workbench work the attendant (or the phone's own quick matcher) asks for.
+// It runs on the phone as soon as the reply arrives; it only makes new
+// files, so it needs no "Do it".
+export type WorkRequest =
+  | { op: 'shrink'; fileIds: string[]; maxKB: number }
+  | { op: 'resize'; fileIds: string[]; width: number; height: number; exact: boolean; maxKB?: number }
+  | { op: 'to_pdf'; fileIds: string[]; maxKB?: number }
+  | { op: 'pick_pages'; fileIds: string[]; pages: string }
+  | { op: 'to_jpg'; fileIds: string[]; pages?: string }
+  | { op: 'check_rule'; fileIds: string[]; ruleId: string }
+  | { op: 'scan'; fileIds: string[]; look: 'clean' | 'bw' | 'enhance' };
+
+export type WorkOutcome = {
+  status: 'done' | 'failed';
+  // The new files, with what was measured on each.
+  outputs: { file: FileMeta; checks: { ok: boolean; label: string }[] }[];
+  notes: string[];
+  error?: string;
+};
+
 // Things the attendant hands back, shown as cards under its reply.
 export type ChatAction =
   | { type: 'open'; label: string; route: string }
@@ -31,7 +64,8 @@ export type ChatAction =
   | { type: 'steps'; title: string; steps: string[] }
   | { type: 'fee'; amount: string; note: string; source: string }
   | { type: 'warning'; text: string }
-  | { type: 'confirm'; id: string; action: ProposedAction; state?: ActionState };
+  | { type: 'confirm'; id: string; action: ProposedAction; state?: ActionState }
+  | { type: 'work'; id: string; request: WorkRequest; outcome?: WorkOutcome };
 
 export type ChatMessage = {
   id?: string;
@@ -44,6 +78,8 @@ export type ChatMessage = {
   // open; only `hadImage` is kept in the saved history.
   imageUri?: string;
   hadImage?: boolean;
+  // Files sent with the message.
+  files?: FileMeta[];
   // The message could not be sent; the chat offers a retry.
   failed?: boolean;
 };

@@ -1,18 +1,22 @@
 import { apiFetch } from '@/lib/api';
-import type { ChatMessage, ChatResponse } from '@/lib/chat-types';
+import type { ChatMessage, ChatResponse, FileMeta } from '@/lib/chat-types';
 import { supabase } from '@/lib/supabase';
 
 // Asks the server's /api/chat route. taskId narrows the attendant to one
 // guided task; screen is the path of the screen whose "Help me here" button
 // opened the chat; image is a JPEG (base64) sent with the last message.
 // When the server can't be reached the answer comes back with
-// `offline: true` and the chat offers a retry.
+// `offline: true` and the chat offers a retry. files describes the files in
+// the chat (they stay on the phone); pdf is a PDF (base64) sent with the
+// last message, for the attendant to read.
 export async function askAttendant(
   messages: ChatMessage[],
   taskId?: string,
   screen?: string,
   language: 'en' | 'sw' = 'en',
   image?: string,
+  files: (FileMeta & { newest?: boolean })[] = [],
+  pdf?: string,
 ): Promise<ChatResponse> {
   try {
     // Lets the attendant look inside the signed-in user's Locker.
@@ -24,15 +28,17 @@ export async function askAttendant(
         ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
       body: JSON.stringify({
-        messages: messages.map(({ role, text, hadImage, imageUri }) => ({
+        messages: messages.map(({ role, text, hadImage, imageUri, files: sent, actions }) => ({
           role,
-          text,
-          ...(hadImage || imageUri ? { hadImage: true } : {}),
+          text: withFiles(text, sent, actions),
+          ...((hadImage || imageUri) && !sent?.length ? { hadImage: true } : {}),
         })),
         taskId,
         screen,
         language,
         ...(image ? { image } : {}),
+        ...(files.length ? { files } : {}),
+        ...(pdf ? { pdf } : {}),
       }),
     });
     if (response.status === 429 || response.status === 413) {
@@ -49,4 +55,16 @@ export async function askAttendant(
   } catch {
     return { reply: '', actions: [], mode: 'sample', offline: true };
   }
+}
+
+// Names the files sent with a message, and the files the phone made for a
+// reply, so the attendant can follow the conversation.
+function withFiles(text: string, sent?: FileMeta[], actions?: ChatMessage['actions']) {
+  const made = (actions ?? []).flatMap((a) => (a.type === 'work' && a.outcome?.status === 'done' ? a.outcome.outputs.map((o) => o.file) : []));
+  const parts = [
+    ...(sent?.length ? [`[Sent: ${sent.map((f) => `${f.name} (${f.id})`).join(', ')}]`] : []),
+    text,
+    ...(made.length ? [`[The phone made: ${made.map((f) => `${f.name} (${f.id})`).join(', ')}]`] : []),
+  ];
+  return parts.filter(Boolean).join(' ');
 }

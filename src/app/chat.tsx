@@ -26,11 +26,13 @@ import { DaySeparator, MessageBubble } from '@/components/chat/message-bubble';
 import { TypingDots } from '@/components/chat/typing-dots';
 import { ChatWelcome } from '@/components/chat/welcome';
 import { Mascot } from '@/components/mascot';
+import { useEngine } from '@/components/workbench/engine';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { entryForPath } from '@/data/catalogue';
 import { findGovTask } from '@/data/gov-tasks';
 import type { Profile } from '@/data/profile-fields';
 import { askAttendant } from '@/lib/attendant-client';
+import { fileById, keepFile } from '@/lib/chat-files';
 import { useAuth } from '@/lib/auth';
 import {
   dayGroup,
@@ -42,15 +44,20 @@ import {
   titleFrom,
 } from '@/lib/chat-store';
 import { followUps, starterSuggestions } from '@/lib/chat-suggest';
-import type { ActionState, ChatMessage, ChatResponse, Conversation } from '@/lib/chat-types';
+import type { ActionState, ChatAction, ChatMessage, ChatResponse, Conversation, FileMeta, WorkRequest } from '@/lib/chat-types';
 import { loadContinueItems, type ContinueItem } from '@/lib/continue';
+import { fileIntent, workIntro } from '@/lib/file-intent';
 import { useLanguage, type TextKey } from '@/lib/i18n';
-import { canUseCamera, pickImages, processImage } from '@/lib/images';
+import { canUseCamera, pickImages } from '@/lib/images';
 import { listFiles } from '@/lib/locker-store';
 import { GUEST_ID, loadProfile, usesCloud } from '@/lib/profile-store';
 import { newId } from '@/lib/record-store';
 import { confidentIntent, localReply } from '@/lib/route-intent';
 import { isSwahili } from '@/lib/swahili';
+import { fileUri, formatSize, pickFiles, toBase64, type WorkFile } from '@/lib/workbench/files';
+import { imageFromPicked, shrinkImage } from '@/lib/workbench/image';
+import { pageCount } from '@/lib/workbench/pdf';
+import { runWork } from '@/lib/workbench/run';
 
 const statusKey = {
   ai: 'chat.online',
@@ -61,7 +68,54 @@ const statusKey = {
 } as const;
 
 type Status = ChatResponse['mode'] | 'limited' | 'offline';
-type Attachment = { uri: string; base64: string };
+// A file waiting to be sent, already kept for the chat.
+type Attachment = { meta: FileMeta; file: WorkFile };
+
+const MAX_ATTACHMENTS = 10;
+// PDFs up to this size are also sent for the attendant to read.
+const READABLE_PDF = 3 * 1024 * 1024;
+
+// The files in a chat, oldest first: those the user sent and those the phone
+// made. Only files still on the phone are listed.
+function chatFiles(messages: ChatMessage[]) {
+  const seen = new Map<string, FileMeta>();
+  for (const m of messages) {
+    for (const f of m.files ?? []) seen.set(f.id, f);
+    for (const a of m.actions ?? []) {
+      if (a.type === 'work' && a.outcome?.status === 'done') a.outcome.outputs.forEach((o) => seen.set(o.file.id, o.file));
+    }
+  }
+  return [...seen.values()].filter((f) => fileById(f.id));
+}
+
+// The files a short request like "make it smaller" is about: the ones the
+// user sent last, or the ones the phone made last, whichever is newer.
+function latestFiles(messages: ChatMessage[]): FileMeta[] {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    const made = (m.actions ?? []).flatMap((a) => (a.type === 'work' && a.outcome?.status === 'done' ? a.outcome.outputs.map((o) => o.file) : []));
+    const found = (m.files?.length ? m.files : made).filter((f) => fileById(f.id));
+    if (found.length) return found;
+  }
+  return [];
+}
+
+// Work that never finished (the app closed) can't be picked up again.
+function settleWork(conversation: Conversation): Conversation {
+  const open = conversation.messages.some((m) => m.actions?.some((a) => a.type === 'work' && !a.outcome));
+  if (!open) return conversation;
+  return {
+    ...conversation,
+    messages: conversation.messages.map((m) => ({
+      ...m,
+      actions: m.actions?.map((a) =>
+        a.type === 'work' && !a.outcome
+          ? { ...a, outcome: { status: 'failed' as const, outputs: [], notes: [], error: 'This stopped before it finished. Send the file again.' } }
+          : a,
+      ),
+    })),
+  };
+}
 
 const WIDE = 900;
 const LINE = 21;
@@ -90,10 +144,13 @@ export default function ChatScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [draft, setDraft] = useState('');
   const [inputHeight, setInputHeight] = useState(LINE + 18);
-  const [attachment, setAttachment] = useState<Attachment | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachMenu, setAttachMenu] = useState(false);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [waiting, setWaiting] = useState(false);
+  // Workbench jobs from the chat still running.
+  const [working, setWorking] = useState(0);
+  const engine = useEngine();
   const [status, setStatus] = useState<Status>('local');
   const [speaking, setSpeaking] = useState<string | null>(null);
   const [menuFor, setMenuFor] = useState<string | null>(null);
@@ -106,8 +163,8 @@ export default function ChatScreen() {
   const [continueItems, setContinueItems] = useState<ContinueItem[]>([]);
   // Once the AI has joined a conversation, it answers everything after.
   const usedAi = useRef(false);
-  // Photos of messages that failed to send, for the retry.
-  const failedPhotos = useRef<Record<string, string>>({});
+  // Files of messages that failed to send, for the retry.
+  const failedFiles = useRef<Record<string, Attachment[]>>({});
   const scrollRef = useRef<ScrollView>(null);
   const sentInitial = useRef(false);
   // Follow new messages down unless the person has scrolled up to read.
@@ -163,58 +220,117 @@ export default function ChatScreen() {
     return next;
   };
 
-  const send = async (text: string, photo?: Attachment | null) => {
+  // Changes a chat that may no longer be the open one (the user switched
+  // while a slow job ran), and saves it.
+  const patch = (conversationId: string, change: (conversation: Conversation) => Conversation) => {
+    if (currentRef.current.id === conversationId) {
+      update(change, true);
+      return;
+    }
+    setConversations((list) =>
+      list.map((c) => {
+        if (c.id !== conversationId) return c;
+        const next = change(c);
+        saveConversation(userId, next).catch(() => {});
+        return next;
+      }),
+    );
+  };
+
+  // Runs Workbench jobs on the phone and puts the measured results on their cards.
+  const runJobs = async (conversationId: string, messageId: string, jobs: { id: string; request: WorkRequest }[]) => {
+    for (const job of jobs) {
+      setWorking((n) => n + 1);
+      const outcome = await runWork(job.request, engine);
+      setWorking((n) => n - 1);
+      patch(conversationId, (c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === messageId
+            ? { ...m, actions: m.actions?.map((a) => (a.type === 'work' && a.id === job.id ? { ...a, outcome } : a)) }
+            : m,
+        ),
+      }));
+    }
+  };
+
+  const addReply = (conversationId: string, text: string, actions: ChatAction[]) => {
+    const id = newId();
+    update((c) => ({ ...c, messages: [...c.messages, { id, role: 'assistant', text, actions, at: new Date().toISOString() }] }), true);
+    const jobs = actions.flatMap((a) => (a.type === 'work' && !a.outcome ? [{ id: a.id, request: a.request }] : []));
+    if (jobs.length) runJobs(conversationId, id, jobs);
+  };
+
+  const send = async (text: string, files: Attachment[] = []) => {
     const trimmed = text.trim();
-    if ((!trimmed && !photo) || waiting) return;
+    if ((!trimmed && !files.length) || waiting) return;
     const conversationId = currentRef.current.id;
+    const firstImage = files.find((f) => f.file.kind === 'image');
+    const metas = files.map((f) => f.meta);
     const message: ChatMessage = {
       id: newId(),
       role: 'user',
       text: trimmed,
       at: new Date().toISOString(),
-      ...(photo ? { imageUri: photo.uri } : {}),
+      ...(firstImage ? { imageUri: fileUri(firstImage.file) } : {}),
+      ...(metas.length ? { files: metas } : {}),
     };
     const withUser = update((c) => ({
       ...c,
-      title: c.title || titleFrom(trimmed, !!photo),
+      title: c.title || titleFrom(trimmed || metas[0]?.name || '', !!firstImage),
       messages: [...c.messages, message],
     }));
     setDraft('');
     setInputHeight(LINE + 18);
-    setAttachment(null);
+    setAttachments([]);
+    setAttachMenu(false);
     stick.current = true;
     setAtBottom(true);
 
+    // A clear file request ("under 1MB", "600x600", "for HELB") is done on
+    // the phone straight away, free.
+    const targets = metas.length ? metas : latestFiles(currentRef.current.messages.slice(0, -1));
+    const request = trimmed ? fileIntent(trimmed, targets) : null;
+    if (request) {
+      const id = newId();
+      addReply(conversationId, workIntro(request, language), [{ type: 'work', id, request }]);
+      return;
+    }
+
     // A short request that clearly names a screen is answered here, free.
-    const match = !usedAi.current && !photo && !task && !screenEntry ? confidentIntent(trimmed) : null;
+    const match = !usedAi.current && !files.length && !task && !screenEntry ? confidentIntent(trimmed) : null;
     if (match) {
       const local = localReply(trimmed, match, language);
-      update((c) => ({
-        ...c,
-        messages: [...c.messages, { id: newId(), role: 'assistant', text: local.reply, actions: local.actions, at: new Date().toISOString() }],
-      }), true);
+      addReply(conversationId, local.reply, local.actions);
       return;
     }
 
     setWaiting(true);
     const history = withUser.messages.filter((m) => !m.failed);
-    const response = await askAttendant(history, task?.id, screenEntry ? current.screen : undefined, language, photo?.base64);
+    const known = chatFiles(history).map((f) => (metas.some((m) => m.id === f.id) ? { ...f, newest: true } : f));
+    let image: string | undefined;
+    let pdf: string | undefined;
+    try {
+      if (firstImage) image = toBase64((await shrinkImage(firstImage.file, 1_200_000, { maxSide: 1600 })).file.bytes);
+      const readable = files.find((f) => f.file.kind === 'pdf' && f.file.bytes.byteLength <= READABLE_PDF);
+      if (readable) pdf = toBase64(readable.file.bytes);
+    } catch {
+      // The attendant still gets the file's description.
+    }
+    const response = await askAttendant(history, task?.id, screenEntry ? current.screen : undefined, language, image, known, pdf);
     setWaiting(false);
     // The user switched to another chat while waiting: drop the late reply.
     if (currentRef.current.id !== conversationId) return;
 
     if (response.offline) {
-      if (photo) failedPhotos.current[message.id!] = photo.base64;
+      if (files.length) failedFiles.current[message.id!] = files;
       setStatus('offline');
       update((c) => ({ ...c, messages: c.messages.map((m) => (m.id === message.id ? { ...m, failed: true } : m)) }));
       return;
     }
     usedAi.current = response.mode === 'ai';
     setStatus(response.limited ? 'limited' : response.mode);
-    update((c) => ({
-      ...c,
-      messages: [...c.messages, { id: newId(), role: 'assistant', text: response.reply, actions: response.actions, at: new Date().toISOString() }],
-    }), true);
+    addReply(conversationId, response.reply, response.actions);
   };
 
   // A confirm card was done, undone or skipped: keep that in the saved chat.
@@ -235,10 +351,10 @@ export default function ChatScreen() {
   };
 
   const retry = (message: ChatMessage) => {
-    const base64 = failedPhotos.current[message.id!];
-    delete failedPhotos.current[message.id!];
+    const files = failedFiles.current[message.id!] ?? [];
+    delete failedFiles.current[message.id!];
     update((c) => ({ ...c, messages: c.messages.filter((m) => m.id !== message.id) }));
-    send(message.text, base64 && message.imageUri ? { uri: message.imageUri, base64 } : null);
+    send(message.text, files);
   };
 
   // A request typed on the Home screen arrives as ?q= and is sent straight away.
@@ -255,7 +371,8 @@ export default function ChatScreen() {
     setSpeaking(null);
     setMenuFor(null);
     setDraft('');
-    setAttachment(null);
+    setAttachments([]);
+    setAttachMenu(false);
     setStatus('local');
     stick.current = true;
     setAtBottom(true);
@@ -265,7 +382,7 @@ export default function ChatScreen() {
   function open(conversation: Conversation) {
     resetView();
     usedAi.current = conversation.messages.some((m) => m.role === 'assistant' && !m.actions?.every((a) => a.type === 'open'));
-    replace(conversation);
+    replace(settleWork(conversation));
   }
 
   const startNew = () => {
@@ -333,16 +450,24 @@ export default function ChatScreen() {
     }
   };
 
-  const attach = async (source: 'camera' | 'library') => {
+  const attach = async (source: 'camera' | 'library' | 'file') => {
     setAttachMenu(false);
-    const [picked] = await pickImages(source);
-    if (!picked) return;
     setPreparingPhoto(true);
     try {
-      const photo = await processImage(picked, { maxSide: 1600, maxBytes: 1_500_000 });
-      setAttachment({ uri: photo.uri, base64: photo.base64 });
+      const picked =
+        source === 'file'
+          ? await pickFiles({ pdf: true, images: true, multiple: true })
+          : await Promise.all((await pickImages(source, source === 'library')).map(imageFromPicked));
+      const room = MAX_ATTACHMENTS - attachments.length;
+      const added: Attachment[] = [];
+      for (const file of picked.slice(0, room)) {
+        // The page count helps the attendant; a locked PDF is still sent.
+        if (file.kind === 'pdf') await pageCount(file).catch(() => {});
+        added.push({ meta: keepFile(file), file });
+      }
+      setAttachments((list) => [...list, ...added]);
     } catch {
-      // The picker gave something that isn't a readable photo.
+      // The picker gave something that can't be read.
     } finally {
       setPreparingPhoto(false);
     }
@@ -363,11 +488,11 @@ export default function ChatScreen() {
       // On a computer, Enter sends and Shift+Enter adds a line.
       if (Platform.OS === 'web' && event.nativeEvent.key === 'Enter' && !event.nativeEvent.shiftKey) {
         event.preventDefault?.();
-        send(draft, attachment);
+        send(draft, attachments);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft, attachment, waiting],
+    [draft, attachments, waiting],
   );
 
   const greeting = task
@@ -377,14 +502,14 @@ export default function ChatScreen() {
       : null;
   const suggestions = useMemo(() => starterSuggestions(profile), [profile]);
   const lastMessage = messages[messages.length - 1];
-  const chips: TextKey[] = waiting
+  const chips: TextKey[] = waiting || working
     ? []
     : lastMessage?.role === 'assistant'
       ? followUps(lastMessage.text, lastMessage.actions)
       : !messages.length && greeting
         ? ['follow.documents', 'follow.cost', 'follow.howLong']
         : [];
-  const canSend = !!draft.trim() || !!attachment;
+  const canSend = !!draft.trim() || attachments.length > 0;
   const title = task ? task.title : screenEntry ? screenEntry.title : current.title || t('chat.title');
 
   const panel = (
@@ -425,7 +550,7 @@ export default function ChatScreen() {
                 {title}
               </Text>
               <Text style={[styles.headerStatus, status === 'offline' && styles.offline]}>
-                {waiting ? t('chat.typing') : t(statusKey[status])}
+                {working ? t('chat.working') : waiting ? t('chat.typing') : t(statusKey[status])}
               </Text>
             </View>
             <Pressable accessibilityLabel={t('chat.new')} hitSlop={8} onPress={startNew} style={styles.newChat}>
@@ -487,7 +612,7 @@ export default function ChatScreen() {
                   </View>
                 );
               })}
-              {waiting && <TypingDots label={t('chat.typing')} />}
+              {(waiting || working > 0) && <TypingDots label={t('chat.typing')} />}
               {chips.length > 0 && (
                 <View style={styles.followRow}>
                   {chips.map((key) => (
@@ -515,34 +640,49 @@ export default function ChatScreen() {
             <View style={styles.inputBar}>
               <View style={styles.inputInner}>
                 {micNote && <Text style={styles.note}>{t('chat.mic')}</Text>}
-                {(attachment || preparingPhoto) && (
-                  <View style={styles.attachmentRow}>
-                    {attachment ? (
-                      <View>
-                        <Image source={{ uri: attachment.uri }} style={styles.thumb} />
-                        <Pressable
-                          accessibilityLabel="Remove photo"
-                          onPress={() => setAttachment(null)}
-                          hitSlop={6}
-                          style={styles.thumbRemove}>
-                          <Ionicons name="close" size={14} color={Colors.onDark} />
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <ActivityIndicator color={Colors.primary} />
-                    )}
-                    <Text style={styles.noteLeft}>{t('chat.photoNote')}</Text>
+                {(attachments.length > 0 || preparingPhoto) && (
+                  <View style={styles.attachmentBlock}>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.attachmentRow}>
+                      {attachments.map(({ meta, file }) => (
+                        <View key={meta.id} style={styles.attachmentItem}>
+                          {file.kind === 'image' ? (
+                            <Image source={{ uri: fileUri(file) }} style={styles.thumb} />
+                          ) : (
+                            <View style={[styles.thumb, styles.pdfThumb]}>
+                              <Ionicons name="document-text" size={22} color={Colors.primary} />
+                              <Text style={styles.pdfName} numberOfLines={1}>{meta.name}</Text>
+                              <Text style={styles.pdfSize}>{formatSize(meta.bytes)}</Text>
+                            </View>
+                          )}
+                          <Pressable
+                            accessibilityLabel={`Remove ${meta.name}`}
+                            onPress={() => setAttachments((list) => list.filter((a) => a.meta.id !== meta.id))}
+                            hitSlop={6}
+                            style={styles.thumbRemove}>
+                            <Ionicons name="close" size={14} color={Colors.onDark} />
+                          </Pressable>
+                        </View>
+                      ))}
+                      {preparingPhoto && <ActivityIndicator color={Colors.primary} style={styles.thumbLoading} />}
+                    </ScrollView>
+                    <Text style={styles.noteLeft}>{t('chat.fileNote')}</Text>
                   </View>
                 )}
                 {attachMenu && (
                   <View style={styles.attachMenu}>
-                    <Pressable onPress={() => attach('camera')} style={styles.attachOption}>
-                      <Ionicons name="camera" size={18} color={Colors.primary} />
-                      <Text style={styles.attachText}>{t('chat.camera')}</Text>
-                    </Pressable>
+                    {canUseCamera && (
+                      <Pressable onPress={() => attach('camera')} style={styles.attachOption}>
+                        <Ionicons name="camera" size={18} color={Colors.primary} />
+                        <Text style={styles.attachText}>{t('chat.camera')}</Text>
+                      </Pressable>
+                    )}
                     <Pressable onPress={() => attach('library')} style={styles.attachOption}>
                       <Ionicons name="images" size={18} color={Colors.primary} />
                       <Text style={styles.attachText}>{t('chat.library')}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => attach('file')} style={styles.attachOption}>
+                      <Ionicons name="document-attach" size={18} color={Colors.primary} />
+                      <Text style={styles.attachText}>{t('chat.file')}</Text>
                     </Pressable>
                   </View>
                 )}
@@ -550,7 +690,7 @@ export default function ChatScreen() {
                   <Pressable
                     accessibilityLabel={t('chat.attach')}
                     hitSlop={8}
-                    onPress={() => (canUseCamera ? setAttachMenu((v) => !v) : attach('library'))}
+                    onPress={() => setAttachMenu((v) => !v)}
                     style={styles.iconButton}>
                     <Ionicons name={attachMenu ? 'close' : 'add-circle-outline'} size={24} color={Colors.primary} />
                   </Pressable>
@@ -568,7 +708,7 @@ export default function ChatScreen() {
                   {canSend ? (
                     <Pressable
                       accessibilityLabel="Send"
-                      onPress={() => send(draft, attachment)}
+                      onPress={() => send(draft, attachments)}
                       disabled={waiting}
                       style={({ pressed }) => [styles.sendButton, (pressed || waiting) && styles.dim]}>
                       <Ionicons name="arrow-up" size={20} color={Colors.onDark} />
@@ -655,8 +795,14 @@ const styles = StyleSheet.create({
   inputInner: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', gap: Spacing.sm },
   note: { fontSize: 13, color: Colors.textMuted, textAlign: 'center' },
   noteLeft: { flex: 1, fontSize: 12, color: Colors.textMuted },
-  attachmentRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
+  attachmentBlock: { gap: 6 },
+  attachmentRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingTop: 6, paddingRight: 6 },
+  attachmentItem: { position: 'relative' },
   thumb: { width: 56, height: 56, borderRadius: Radius.sm, backgroundColor: Colors.primarySoft },
+  pdfThumb: { width: 96, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  pdfName: { fontSize: 10, fontWeight: '600', color: Colors.text, maxWidth: 88 },
+  pdfSize: { fontSize: 10, color: Colors.textMuted },
+  thumbLoading: { width: 56, height: 56 },
   thumbRemove: {
     position: 'absolute',
     top: -6,
@@ -668,7 +814,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  attachMenu: { flexDirection: 'row', gap: Spacing.sm },
+  attachMenu: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   attachOption: {
     flexDirection: 'row',
     alignItems: 'center',
