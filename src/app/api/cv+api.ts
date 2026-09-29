@@ -8,6 +8,7 @@ import {
   type CvDocument,
   type CvResponse,
 } from '@/lib/cv';
+import { effortOption, MODEL, modelOptions } from '@/server/model';
 
 const SYSTEM_PROMPT = `You write CVs and cover letters for job seekers in Kenya, for the Virtual Cybercafe app.
 Turn the applicant's rough answers into a clean, honest, professional CV and a one-page cover letter in British English.
@@ -49,15 +50,13 @@ export async function POST(request: Request) {
   const client = new Anthropic();
   try {
     const response = await client.beta.messages.create({
-      model: 'claude-opus-5',
+      model: MODEL,
       max_tokens: 16000,
-      thinking: { type: 'adaptive' },
+      ...modelOptions,
       output_config: {
-        effort: 'medium',
+        ...effortOption,
         format: { type: 'json_schema', schema: cvDocumentSchema },
       },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
       system: SYSTEM_PROMPT,
       messages: [
         {

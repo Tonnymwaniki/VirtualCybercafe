@@ -8,11 +8,17 @@ if (!process.env.ANTHROPIC_API_KEY) {
   ok = false;
 } else {
   try {
-    const model = await new Anthropic().models.retrieve('claude-opus-5');
-    console.log(`✓ Anthropic key works (${model.display_name}). The AI attendant is on.`);
+    const modelId = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5';
+    const client = new Anthropic();
+    const model = await client.models.retrieve(modelId);
+    // A tiny real request (a fraction of a US cent) confirms there is credit.
+    await client.messages.create({ model: modelId, max_tokens: 5, messages: [{ role: 'user', content: 'Hi' }] });
+    console.log(`✓ Anthropic key works with ${model.display_name}. The AI attendant is on.`);
   } catch (error) {
     ok = false;
-    if (error instanceof Anthropic.AuthenticationError) console.log('✗ Anthropic key was rejected. Copy it again from console.anthropic.com.');
+    if (error instanceof Anthropic.BadRequestError && /credit/i.test(error.message)) console.log('✗ Anthropic key works but has no credit. Add credit under Billing in the console.');
+    else if (error instanceof Anthropic.NotFoundError) console.log('✗ The model in ANTHROPIC_MODEL was not found. Remove that line to use Claude Haiku 4.5.');
+    else if (error instanceof Anthropic.AuthenticationError) console.log('✗ Anthropic key was rejected. Copy it again from console.anthropic.com.');
     else if (error instanceof Anthropic.PermissionDeniedError) console.log('✗ Anthropic key has no access. Check billing/credits in the console.');
     else console.log(`✗ Could not reach Anthropic: ${error.message}`);
   }

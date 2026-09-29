@@ -24,8 +24,9 @@ The chat and the CV builder talk to small server routes (`src/app/api/`) that ca
 
 To turn on the real AI:
 1. Add `ANTHROPIC_API_KEY=sk-ant-...` to `.env` (key from https://console.anthropic.com). The key stays on the server and never ships inside the app.
-2. Run `npm run check-keys` to confirm the key (and Supabase) work.
-3. Restart with `npx expo start --clear`. The chat header stops saying "sample replies".
+2. Optional: the attendant uses Claude Haiku 4.5, the cheapest model. To switch, add `ANTHROPIC_MODEL=claude-sonnet-5-5` (or another model id).
+3. Run `npm run check-keys` to confirm the key (and Supabase) work.
+4. Restart with `npx expo start --clear`. The chat header stops saying "sample replies".
 
 With the key, the attendant (`src/server/attendant-agent.ts`) works as an agent that can use tools:
 - **Service guides** (`src/data/guides.ts`): passport, KRA PIN, good conduct, HELB, KUCCPS, driving licence, business name, job applications.

@@ -8,8 +8,8 @@ import { createClient } from '@supabase/supabase-js';
 import { appTools, guides, type AppToolId } from '@/data/guides';
 import { services } from '@/data/services';
 import type { ChatAction, ChatMessage } from '@/lib/chat-types';
+import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
 
-const MODEL = 'claude-opus-5';
 // Upper bound on model calls per user message, to cap cost and latency.
 const MAX_STEPS = 6;
 
@@ -91,7 +91,7 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     strict: true,
   },
   {
-    type: 'web_search_20260209',
+    type: webSearchType,
     name: 'web_search',
     max_uses: 3,
     user_location: { type: 'approximate', country: 'KE', timezone: 'Africa/Nairobi' },
@@ -178,10 +178,8 @@ export async function runAttendant(
     const response = await client.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
-      thinking: { type: 'adaptive' },
-      output_config: { effort: 'medium' },
-      betas: ['server-side-fallback-2026-07-01'],
-      fallbacks: 'default',
+      ...modelOptions,
+      ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
       system: [
         { type: 'text', text: SYSTEM_PROMPT },
         { type: 'text', text: `Services in the app:\n${serviceList}`, cache_control: { type: 'ephemeral' } },
