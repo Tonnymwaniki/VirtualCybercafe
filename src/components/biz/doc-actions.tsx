@@ -5,11 +5,15 @@ import { StyleSheet, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Note } from '@/components/gov/ui';
 import { Spacing } from '@/constants/theme';
+import { isLiveWorkspace } from '@/data/launch';
 import { useAuth } from '@/lib/auth';
 import { sharePdfFromHtml } from '@/lib/images';
 import { canMakePdfFile, savePdfToLocker, sendPdfToPrint } from '@/lib/pdf-file';
 import { GUEST_ID } from '@/lib/profile-store';
 import { supabase } from '@/lib/supabase';
+
+// Print Hub is not part of version one; printing by QR code comes later.
+const printLive = isLiveWorkspace('print');
 
 // Share the document as a PDF, keep it in the Locker, or print it at a
 // partner shop.
@@ -56,11 +60,13 @@ export function DocActions({ html, fileName }: { html: string; fileName: string 
         {canMakePdfFile && (
           <>
             <Button label="Save to Locker" icon="cloud-upload" variant="secondary" onPress={toLocker} busy={busy === 'locker'} />
-            <Button label="Print Hub" icon="print" variant="secondary" onPress={toPrint} busy={busy === 'print'} />
+            {printLive && <Button label="Print Hub" icon="print" variant="secondary" onPress={toPrint} busy={busy === 'print'} />}
           </>
         )}
       </View>
-      {!canMakePdfFile && <Note>On the phone app you can also save this to your Locker or send it to Print Hub.</Note>}
+      {!canMakePdfFile && (
+        <Note>{printLive ? 'On the phone app you can also save this to your Locker or send it to Print Hub.' : 'On the phone app you can also save this to your Locker.'}</Note>
+      )}
       {message && <Note tone={message.tone}>{message.text}</Note>}
     </View>
   );

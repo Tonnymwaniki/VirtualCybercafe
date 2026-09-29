@@ -1,7 +1,7 @@
 // Free, instant routing: matches what someone types against the catalogue
 // with plain keyword scoring, on the phone, with no AI call.
 
-import { catalogue, routeWith, type CatalogueEntry } from '@/data/catalogue';
+import { liveCatalogue, routeWith, type CatalogueEntry } from '@/data/catalogue';
 import type { ChatAction } from '@/lib/chat-types';
 import { isSwahili } from '@/lib/swahili';
 
@@ -20,15 +20,13 @@ function words(text: string) {
 }
 
 // Precomputed once: the phrases and words each entry answers to.
-const index = catalogue
-  .filter((entry) => !entry.hidden)
-  .map((entry) => ({
-    entry,
-    phrases: [...new Set([entry.title, ...entry.keywords].map(normalise))].filter((p) => p.trim().length > 1),
-    titleWords: words(entry.title),
-    keywordWords: new Set(entry.keywords.flatMap(words)),
-    descriptionWords: new Set(words(entry.description)),
-  }));
+const index = liveCatalogue.map((entry) => ({
+  entry,
+  phrases: [...new Set([entry.title, ...entry.keywords].map(normalise))].filter((p) => p.trim().length > 1),
+  titleWords: words(entry.title),
+  keywordWords: new Set(entry.keywords.flatMap(words)),
+  descriptionWords: new Set(words(entry.description)),
+}));
 
 export type IntentMatch = { entry: CatalogueEntry; score: number };
 

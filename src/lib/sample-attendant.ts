@@ -3,6 +3,7 @@
 // offers the same action buttons the AI attendant would.
 
 import { appTools, type AppToolId } from '@/data/guides';
+import { isLivePath } from '@/data/launch';
 import type { ChatAction } from '@/lib/chat-types';
 import { matchIntent, openAction } from '@/lib/route-intent';
 import { isSwahili } from '@/lib/swahili';
@@ -91,7 +92,9 @@ export function sampleReply(text: string, preferred: 'en' | 'sw' = 'en'): { repl
   const lower = text.toLowerCase();
   const language = isSwahili(text) ? 'sw' : preferred;
   const topic = topics.find((t) => t.keywords.some((k) => lower.includes(k)));
-  const actions: ChatAction[] = (topic?.tools ?? []).map((tool) => ({ type: 'open', ...appTools[tool] }));
+  const actions: ChatAction[] = (topic?.tools ?? [])
+    .filter((tool) => isLivePath(appTools[tool].route))
+    .map((tool) => ({ type: 'open', ...appTools[tool] }));
   // Point to the screen that does it, when the words clearly name one.
   const [match] = matchIntent(text, 1);
   if (match && match.score >= 4 && !actions.some((a) => a.type === 'open' && a.route === match.entry.route)) {

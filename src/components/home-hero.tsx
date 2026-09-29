@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Mascot } from '@/components/mascot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { FULL_APP } from '@/data/launch';
 import { useLanguage } from '@/lib/i18n';
 
 const SEEN_KEY = 'vc-welcome-seen';
@@ -16,12 +17,19 @@ const points = [
   { icon: 'help-circle', text: 'welcome.point3' },
 ] as const;
 
-const starters = [
-  { label: 'welcome.kra', route: '/gov/kra_pin' },
-  { label: 'welcome.job', route: '/jobs' },
-  { label: 'welcome.travel', route: '/travel' },
-  { label: 'welcome.print', route: '/print' },
-] as const;
+const starters = FULL_APP
+  ? ([
+      { label: 'welcome.kra', route: '/gov/kra_pin' },
+      { label: 'welcome.job', route: '/jobs' },
+      { label: 'welcome.travel', route: '/travel' },
+      { label: 'welcome.print', route: '/print' },
+    ] as const)
+  : ([
+      { label: 'welcome.job', route: '/jobs' },
+      { label: 'welcome.cv', route: '/cv' },
+      { label: 'welcome.photo', route: '/studio/passport' },
+      { label: 'welcome.details', route: '/profile' },
+    ] as const);
 
 // The top of Home: the greeting beside the attendant robot and its speech
 // bubble. On the first visit it also shows how the app works and starter

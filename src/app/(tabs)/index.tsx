@@ -8,6 +8,7 @@ import { HomeHero } from '@/components/home-hero';
 import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { FULL_APP, isLiveService } from '@/data/launch';
 import { services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
 import { loadContinueItems, shortDate, type ContinueItem } from '@/lib/continue';
@@ -27,7 +28,12 @@ const trustPoints = [
   { icon: 'location', title: 'trust.local', text: 'trust.localText' },
 ] as const;
 
-const examplePrompts = ['example.passport', 'example.cv', 'example.print', 'example.job'] as const;
+const examplePrompts = FULL_APP
+  ? (['example.passport', 'example.cv', 'example.print', 'example.job'] as const)
+  : (['example.cv', 'example.job', 'example.passportPhoto', 'example.shrink'] as const);
+
+// Live services first; the rest show "Coming soon".
+const orderedServices = [...services].sort((a, b) => Number(isLiveService(b.id)) - Number(isLiveService(a.id)));
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -111,21 +117,33 @@ export default function HomeScreen() {
 
       <Text style={styles.sectionTitle}>{t('home.quickServices')}</Text>
       <View style={styles.grid}>
-        {services.map((service) => (
-          <Pressable
-            key={service.id}
-            onPress={() =>
-              service.route
-                ? router.push(service.route)
-                : router.push({ pathname: '/chat', params: { q: serviceText(t, service.id).title } })
-            }
-            style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
-            <IconBadge icon={service.icon} color={service.color} size={44} />
-            <Text style={styles.gridLabel} numberOfLines={1}>
-              {serviceText(t, service.id).short}
-            </Text>
-          </Pressable>
-        ))}
+        {orderedServices.map((service) =>
+          isLiveService(service.id) ? (
+            <Pressable
+              key={service.id}
+              onPress={() =>
+                service.route
+                  ? router.push(service.route)
+                  : router.push({ pathname: '/chat', params: { q: serviceText(t, service.id).title } })
+              }
+              style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
+              <IconBadge icon={service.icon} color={service.color} size={44} />
+              <Text style={styles.gridLabel} numberOfLines={1}>
+                {serviceText(t, service.id).short}
+              </Text>
+            </Pressable>
+          ) : (
+            <View key={service.id} style={[styles.gridItem, styles.soonItem]} accessibilityLabel={`${serviceText(t, service.id).title}, ${t('soon.badge')}`}>
+              <IconBadge icon={service.icon} color={Colors.textMuted} size={44} />
+              <Text style={[styles.gridLabel, styles.soonLabel]} numberOfLines={1}>
+                {serviceText(t, service.id).short}
+              </Text>
+              <Text style={styles.soonBadge} numberOfLines={1}>
+                {t('soon.badge')}
+              </Text>
+            </View>
+          ),
+        )}
       </View>
 
       <Pressable
@@ -217,6 +235,9 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: Spacing.lg },
   gridItem: { width: '25%', alignItems: 'center', gap: Spacing.sm },
   gridLabel: { fontSize: 12, color: Colors.text },
+  soonItem: { opacity: 0.75, gap: 4 },
+  soonLabel: { color: Colors.textMuted },
+  soonBadge: { fontSize: 10, fontWeight: '700', color: Colors.primary, marginTop: -2 },
   moreRow: {
     flexDirection: 'row',
     alignItems: 'center',

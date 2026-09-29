@@ -5,6 +5,7 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
 
 import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
+import { isLivePath } from '@/data/launch';
 import { taskColors } from '@/data/task-colors';
 import { tripStages } from '@/data/visa-form';
 import { TENDER_KEY, tenderStatuses, type SavedTender } from '@/lib/biz-types';
@@ -111,13 +112,14 @@ export async function loadContinueItems(userId: string, limit = 3): Promise<Cont
       title: r.title,
       next: '',
       due: r.date,
-      route: r.route || '/chat',
+      route: r.route && isLivePath(r.route) ? r.route : '/chat',
       icon: 'alarm',
       color: '#F59E0B',
       at: r.createdAt,
     }));
 
-  return [...due, ...items.sort((a, b) => (b.at || '').localeCompare(a.at || ''))].slice(0, limit);
+  const live = items.filter((item) => isLivePath(item.route));
+  return [...due, ...live.sort((a, b) => (b.at || '').localeCompare(a.at || ''))].slice(0, limit);
 }
 
 // "30 Oct" for a YYYY-MM-DD date.

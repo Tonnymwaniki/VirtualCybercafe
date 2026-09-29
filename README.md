@@ -2,6 +2,10 @@
 
 Virtual Cybercafe is a mobile app for Android and iOS. It is an AI-powered cybercafe in your pocket: tell an attendant what you need, and it helps with government services, CVs, documents, printing and payments. The same code runs as an Android app, an iOS app and a website.
 
+## Version one
+
+The first public version is a "digital cyber desk": the AI attendant, Documents, Jobs & CV, My Details and the Locker (plan: step 1 of 10 is done). Government, Education, Business, Travel, Print Hub and Payments stay in the code but show "Coming soon" on Home and Services, their screens show a Coming soon page, and the attendant only offers what is live. The switch lives in `src/data/launch.ts`; add `EXPO_PUBLIC_FULL_APP=1` to `.env` to turn every service back on while developing.
+
 ## Stack
 
 - [Expo](https://expo.dev) (React Native)

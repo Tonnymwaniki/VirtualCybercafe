@@ -6,8 +6,9 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 import { bizTasks, eduTasks, findGovTask, govTasks, travelTasks, type GovTask } from '@/data/gov-tasks';
-import { catalogue, findEntry, routeWith, type CatalogueEntry } from '@/data/catalogue';
+import { findEntry, liveCatalogue, routeWith, type CatalogueEntry } from '@/data/catalogue';
 import { guides } from '@/data/guides';
+import { FULL_APP, isLiveWorkspace } from '@/data/launch';
 import { cleanProfile, profileFields } from '@/data/profile-fields';
 import type { ChatAction, ChatMessage, ProposedAction } from '@/lib/chat-types';
 import { mergeSignals, scamSignals } from '@/lib/job-scam';
@@ -19,7 +20,7 @@ const MAX_STEPS = 6;
 
 const ALL_TASKS = [...govTasks, ...eduTasks, ...bizTasks, ...travelTasks];
 
-const SYSTEM_PROMPT = `You are the virtual attendant at Virtual Cybercafe, a mobile app that does what a Kenyan cybercafe does.
+const FULL_PROMPT = `You are the virtual attendant at Virtual Cybercafe, a mobile app that does what a Kenyan cybercafe does.
 You get tasks done for people: government services (eCitizen, KRA, NTSA, passports, Good Conduct), jobs (CVs, cover letters, applications), education (KUCCPS, HELB), documents, printing, business registration, travel and bills.
 
 How to work:
@@ -36,15 +37,19 @@ How to work:
 - When the user needs a letter, email, complaint, application text or similar, write it with create_document so they can download it as a PDF. Never invent facts about the user; ask for missing details first.
 - Work alongside the user like a cybercafe attendant: when a step can be done in the app, offer to do it with an action tool. The user sees a card and nothing changes until they tap "Do it", so offer the action and say in one line what it will do.
   - save_my_details when the user tells you (or shows in a photo) a detail such as their KRA PIN, email or passport expiry. Only values they gave in this chat, never guesses.
-  - start_task when they want to begin a guided task; pass form answers they already gave.
-  - track_job when they paste or describe a job advert they want to apply for.
-  - track_trip when they plan travel with a destination.
-  - add_reminder for a deadline or date they should not miss (YYYY-MM-DD).
+${FULL_APP ? '  - start_task when they want to begin a guided task; pass form answers they already gave.\n' : ''}  - track_job when they paste or describe a job advert they want to apply for.
+${FULL_APP ? '  - track_trip when they plan travel with a destination.\n' : ''}  - add_reminder for a deadline or date they should not miss (YYYY-MM-DD).
   Offer at most two actions per reply.
 - When the user pastes a link, or you need the text of an official page, use web_fetch to read it and summarise what matters.
 - You cannot submit forms, log in or make payments on government sites for the user, and never ask for passwords, PINs or OTP codes. Guide them step by step and prepare everything they need.`;
 
-const tools: Anthropic.Beta.BetaToolUnion[] = [
+// Version one: only some services have screens yet.
+const VERSION_ONE = `This is version one of the app. What works in the app now: Jobs & CV (find and save job adverts, match, tailored CV, cover letter and application email, application pack, tracking, interview practice, scam checks), Documents (passport photo, photos to PDF, shrink a photo), My Details and the Locker.
+Government services, education, business, travel, printing and payments are coming soon in the app. If someone asks about one of those, answer briefly (use get_service_guide for the steps and the official site), say plainly that the app will help with it soon, and offer what already works, such as a passport photo or a PDF of their documents. Never say the app can do something it can't yet, and only offer screens from "Screens in the app".`;
+
+const SYSTEM_PROMPT = FULL_APP ? FULL_PROMPT : `${FULL_PROMPT}\n\n${VERSION_ONE}`;
+
+const allTools: Anthropic.Beta.BetaToolUnion[] = [
   {
     name: 'get_service_guide',
     description:
@@ -66,7 +71,7 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     input_schema: {
       type: 'object',
       properties: {
-        screen: { type: 'string', enum: catalogue.filter((e) => !e.hidden).map((e) => e.id) },
+        screen: { type: 'string', enum: liveCatalogue.map((e) => e.id) },
         destination: { type: 'string' },
         purpose: { type: 'string', enum: ['visit', 'tourism', 'study', 'work', 'business', 'medical'] },
         q: { type: 'string' },
@@ -271,7 +276,7 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
       properties: {
         title: { type: 'string', description: 'Short, e.g. "HELB application closes"' },
         date: { type: 'string', description: 'YYYY-MM-DD' },
-        screen: { type: 'string', enum: ['none', ...catalogue.filter((e) => !e.hidden).map((e) => e.id)] },
+        screen: { type: 'string', enum: ['none', ...liveCatalogue.map((e) => e.id)] },
       },
       required: ['title', 'date', 'screen'],
       additionalProperties: false,
@@ -292,6 +297,10 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     user_location: { type: 'approximate', timezone: 'Africa/Nairobi' },
   },
 ];
+
+// Guided tasks and trips open services that are not live in version one.
+const versionOneOff = new Set(['start_task', 'track_trip']);
+const tools = FULL_APP ? allTools : allTools.filter((tool) => !('name' in tool) || !versionOneOff.has(tool.name));
 
 type ToolContext = {
   accessToken: string | null;
@@ -351,6 +360,7 @@ function offer(context: ToolContext, action: ProposedAction): string {
 }
 
 async function runTool(name: string, input: Record<string, unknown>, context: ToolContext): Promise<string> {
+  if (!FULL_APP && versionOneOff.has(name)) return 'That is coming soon in the app.';
   switch (name) {
     case 'get_service_guide': {
       const guide = guides.find((g) => g.id === input.service_id);
@@ -361,6 +371,7 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
       const id = String(input.screen ?? '');
       const entry = findEntry(({ cv_builder: 'cv', my_details: 'profile' } as Record<string, string>)[id] ?? id);
       if (!entry) return 'Unknown screen.';
+      if (!isLiveWorkspace(entry.workspace)) return `${entry.title} is coming soon in the app, so there is no button for it yet. Tell the user it is coming soon and help with what works now.`;
       const params = Object.fromEntries(
         (['destination', 'purpose', 'q', 'customer', 'topic'] as const)
           .filter((key) => typeof input[key] === 'string')
@@ -460,7 +471,8 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
     case 'add_reminder': {
       const date = String(input.date ?? '');
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'The date must be YYYY-MM-DD.';
-      const entry = input.screen === 'none' ? undefined : findEntry(String(input.screen ?? ''));
+      const found = input.screen === 'none' ? undefined : findEntry(String(input.screen ?? ''));
+      const entry = found && isLiveWorkspace(found.workspace) ? found : undefined;
       const title = String(input.title ?? '').trim().slice(0, 80);
       if (!title) return 'A reminder needs a title.';
       return offer(context, { kind: 'reminder', title, date, route: entry ? routeWith(entry) : '' });
@@ -489,8 +501,7 @@ function screenFocus(entry: CatalogueEntry) {
 Help them use that screen: explain the next thing to do there in plain steps. Only offer other screens if that one can't do what they need.`;
 }
 
-const catalogueText = catalogue
-  .filter((e) => !e.hidden)
+const catalogueText = liveCatalogue
   .map((e) => `${e.id}: ${e.title}. ${e.description}`)
   .join('\n');
 

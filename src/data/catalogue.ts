@@ -2,6 +2,7 @@
 // It powers the free keyword search on Home and in chat, the attendant's
 // open_screen tool, the "Help me here" button and the next-step suggestions.
 
+import { isLiveWorkspace } from '@/data/launch';
 import { bizTasks, eduTasks, govTasks, travelTasks, type GovTask } from '@/data/gov-tasks';
 
 export type Workspace = 'government' | 'jobs' | 'education' | 'documents' | 'print' | 'business' | 'travel' | 'account';
@@ -324,6 +325,9 @@ const toolEntries: CatalogueEntry[] = [
 ];
 
 export const catalogue: CatalogueEntry[] = [...toolEntries, ...taskEntries];
+
+// What people can be pointed to: live services only, no detail screens.
+export const liveCatalogue = catalogue.filter((entry) => !entry.hidden && isLiveWorkspace(entry.workspace));
 
 export function findEntry(id: string | undefined) {
   return catalogue.find((entry) => entry.id === id);

@@ -6,7 +6,8 @@ import { AppHeader } from '@/components/app-header';
 import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { catalogue, type Workspace } from '@/data/catalogue';
+import { liveCatalogue, type Workspace } from '@/data/catalogue';
+import { isLiveService } from '@/data/launch';
 import { services, type Service } from '@/data/services';
 import { serviceText, useLanguage } from '@/lib/i18n';
 
@@ -36,13 +37,14 @@ export default function ServicesScreen() {
   const router = useRouter();
   const { t } = useLanguage();
 
-  const groups = [...services, accountService].map((service) => {
+  const all = [...services, accountService];
+  const groups = all.filter((service) => isLiveService(service.id)).map((service) => {
     const workspace = service.id === 'account' ? 'account' : workspaceOf[service.id];
-    const entries = workspace
-      ? catalogue.filter((e) => e.workspace === workspace && !e.hidden && e.route !== service.route)
-      : [];
+    const entries = workspace ? liveCatalogue.filter((e) => e.workspace === workspace && e.route !== service.route) : [];
     return { service, entries };
   });
+  // Services still being finished: shown so people see where the app is going.
+  const soon = all.filter((service) => !isLiveService(service.id));
 
   const open = (service: Service) =>
     service.route
@@ -82,6 +84,30 @@ export default function ServicesScreen() {
           );
         })}
       </View>
+      {soon.length > 0 && (
+        <>
+          <Text style={styles.soonTitle}>{t('services.soon')}</Text>
+          <View style={styles.list}>
+            {soon.map((service) => {
+              const text = serviceText(t, service.id);
+              return (
+                <View key={service.id} style={[styles.card, styles.soonCard]}>
+                  <View style={styles.head}>
+                    <IconBadge icon={service.icon} color={Colors.textMuted} />
+                    <View style={styles.cardText}>
+                      <Text style={styles.cardTitle}>{text.title}</Text>
+                      <Text style={styles.cardDescription}>{text.description}</Text>
+                    </View>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{t('soon.badge')}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        </>
+      )}
     </Screen>
   );
 }
@@ -105,4 +131,8 @@ const styles = StyleSheet.create({
   chip: { borderRadius: Radius.pill, backgroundColor: Colors.primarySoft, paddingHorizontal: Spacing.md, paddingVertical: 6 },
   chipText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
   pressed: { opacity: 0.7 },
+  soonTitle: { fontSize: 13, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  soonCard: { backgroundColor: Colors.background, borderStyle: 'dashed' },
+  badge: { borderRadius: Radius.pill, backgroundColor: Colors.primarySoft, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
+  badgeText: { fontSize: 11, fontWeight: '700', color: Colors.primary },
 });
