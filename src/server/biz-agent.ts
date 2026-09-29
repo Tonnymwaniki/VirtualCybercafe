@@ -10,6 +10,8 @@ import type { Profile } from '@/data/profile-fields';
 import { tenderScamSignals } from '@/lib/biz-sample';
 import type { Tender, TenderGroup, TenderSearch, WriteBrief, WrittenContent, WrittenKind } from '@/lib/biz-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { persistentCache } from '@/server/cache';
+import { claude } from '@/server/claude';
 
 // tenders.go.ke (the Public Procurement Information Portal) is where public
 // bodies must publish their tenders.
@@ -85,7 +87,7 @@ Offer or price to mention: ${brief.extra || '(none)'}`;
 }
 
 export async function writeDoc(kind: WrittenKind, brief: WriteBrief, profile: Profile): Promise<WrittenContent | null> {
-  const client = new Anthropic();
+  const client = claude();
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: kind === 'plan' ? 6000 : 1500,
@@ -108,8 +110,7 @@ export async function writeDoc(kind: WrittenKind, brief: WriteBrief, profile: Pr
 // ---- Tenders ----
 
 const TENDER_CACHE_MS = 12 * 60 * 60 * 1000;
-const globalCache = globalThis as { tenderCache?: Map<string, { value: TenderSearch; expires: number }> };
-const tenderCache = (globalCache.tenderCache ??= new Map());
+const tenderCache = persistentCache<TenderSearch>('tenders');
 
 const groups: TenderGroup[] = ['open', 'youth', 'women', 'pwd', 'agpo'];
 
@@ -153,7 +154,7 @@ export async function findTenders(query: string, county: string, agpoCategory: s
   const cached = tenderCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const client = new Anthropic();
+  const client = claude();
   const today = new Date().toISOString().slice(0, 10);
   const agpo = agpoCategory
     ? `The business holds an AGPO certificate for ${agpoCategory}; include tenders reserved for that group and open tenders.`

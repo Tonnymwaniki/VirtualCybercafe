@@ -16,9 +16,18 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatActions } from '@/components/chat-actions';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { entryForPath } from '@/data/catalogue';
 import { findGovTask } from '@/data/gov-tasks';
 import { askAttendant } from '@/lib/attendant-client';
-import type { ChatMessage } from '@/lib/chat-types';
+import type { ChatMessage, ChatResponse } from '@/lib/chat-types';
+import { confidentIntent, localReply } from '@/lib/route-intent';
+
+const statusText = {
+  ai: 'Online',
+  local: 'Online',
+  sample: 'Online · sample replies',
+  limited: 'Resting until tomorrow',
+};
 
 const defaultGreeting: ChatMessage = {
   role: 'assistant',
@@ -27,15 +36,24 @@ const defaultGreeting: ChatMessage = {
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { q, task: taskId } = useLocalSearchParams<{ q?: string; task?: string }>();
-  const task = findGovTask(taskId);
+  const { q, task: taskId, from: screen } = useLocalSearchParams<{ q?: string; task?: string; from?: string }>();
+  // Opened with "Help me here": the screen the user was on.
+  const screenEntry = screen ? entryForPath(screen) : undefined;
+  const task = findGovTask(taskId ?? screenEntry?.id);
   const greeting: ChatMessage = task
     ? { role: 'assistant', text: `Ask me anything about ${task.title}: documents, fees, where to go, or what to do next.` }
-    : defaultGreeting;
+    : screenEntry
+      ? {
+          role: 'assistant',
+          text: `You’re on ${screenEntry.title}. ${screenEntry.help ?? screenEntry.description}\n\nWhat would you like to do here?`,
+        }
+      : defaultGreeting;
   const [messages, setMessages] = useState<ChatMessage[]>([greeting]);
   const [draft, setDraft] = useState('');
   const [waiting, setWaiting] = useState(false);
-  const [sampleMode, setSampleMode] = useState(false);
+  const [mode, setMode] = useState<ChatResponse['mode'] | 'limited'>('local');
+  // Once the AI has joined the conversation, it answers everything after.
+  const usedAi = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const sentInitial = useRef(false);
 
@@ -46,9 +64,17 @@ export default function ChatScreen() {
     const history = [...messages.slice(1), { role: 'user' as const, text: trimmed }];
     setMessages([greeting, ...history]);
     setDraft('');
+    // A short request that clearly names a screen is answered here, free.
+    const match = !usedAi.current && !task && !screenEntry ? confidentIntent(trimmed) : null;
+    if (match) {
+      const local = localReply(trimmed, match);
+      setMessages((current) => [...current, { role: 'assistant', text: local.reply, actions: local.actions }]);
+      return;
+    }
     setWaiting(true);
-    const response = await askAttendant(history, task?.id);
-    setSampleMode(response.mode === 'sample');
+    const response = await askAttendant(history, task?.id, screenEntry ? screen : undefined);
+    usedAi.current = true;
+    setMode(response.limited ? 'limited' : response.mode);
     setMessages((current) => [
       ...current,
       { role: 'assistant', text: response.reply, actions: response.actions },
@@ -79,7 +105,7 @@ export default function ChatScreen() {
         </View>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>{task ? task.title : 'Virtual Attendant'}</Text>
-          <Text style={styles.headerStatus}>{sampleMode ? 'Online · sample replies' : 'Online'}</Text>
+          <Text style={styles.headerStatus}>{statusText[mode]}</Text>
         </View>
       </View>
 

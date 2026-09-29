@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -25,12 +25,14 @@ const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 // letters; plus work-abroad safety and the Kenya eTA for visitors.
 export default function TravelScreen() {
   const router = useRouter();
+  // The attendant can open this screen with the trip filled in.
+  const params = useLocalSearchParams<{ destination?: string; purpose?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
   const [profile, setProfile] = useState<Profile>({});
   const [trips, setTrips] = useState<Trip[]>([]);
-  const [destination, setDestination] = useState('');
-  const [purpose, setPurpose] = useState<TripPurpose>('visit');
+  const [destination, setDestination] = useState(params.destination?.slice(0, 80) ?? '');
+  const [purpose, setPurpose] = useState<TripPurpose>(tripPurposes.find((p) => p === params.purpose) ?? 'visit');
   const [departDate, setDepartDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [problem, setProblem] = useState('');

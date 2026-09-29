@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/api';
 import { sampleAdvert, sampleApplication, sampleMatch, sampleQuestions } from '@/lib/jobs-sample';
 import type {
   AdvertInput,
@@ -10,7 +11,7 @@ import type {
 } from '@/lib/jobs-types';
 
 async function post<T>(body: object): Promise<T> {
-  const response = await fetch('/api/jobs', {
+  const response = await apiFetch('/api/jobs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

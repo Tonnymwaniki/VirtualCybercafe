@@ -4,6 +4,7 @@ import { sampleCourses, sampleDemand, sampleLetter } from '@/lib/edu-sample';
 import type { CourseQuery, ReadLetterResult } from '@/lib/edu-types';
 import { levels, type Level } from '@/lib/kcse';
 import { courseDemand, readLetter, suggestCourses } from '@/server/edu-agent';
+import { withUsage } from '@/server/usage';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 
@@ -11,7 +12,11 @@ function str(value: unknown, max: number) {
   return typeof value === 'string' ? value.slice(0, max).trim() : '';
 }
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'education', () => handle(request));
+}
+
+async function handle(request: Request) {
   let body: Record<string, unknown>;
   try {
     body = await request.json();

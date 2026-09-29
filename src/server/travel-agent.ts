@@ -22,6 +22,8 @@ import {
   type VisaNeed,
 } from '@/lib/travel-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { persistentCache } from '@/server/cache';
+import { claude } from '@/server/claude';
 
 export const AGENCY_SITES = ['nea.go.ke', 'labour.go.ke', 'mfa.go.ke'];
 
@@ -44,7 +46,7 @@ type ToolLoop = { system: string; prompt: string; tool: Anthropic.Beta.BetaTool;
 
 // Searches the web, then reads the report tool's input.
 async function searchAndReport<T>({ system, prompt, tool, allowedDomains }: ToolLoop): Promise<T | null> {
-  const client = new Anthropic();
+  const client = claude();
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: 'user', content: prompt }];
   for (let step = 0; step < 4; step++) {
     const response = await client.beta.messages.create({
@@ -74,12 +76,8 @@ async function searchAndReport<T>({ system, prompt, tool, allowedDomains }: Tool
 // ---- Visa check ----
 
 const VISA_CACHE_MS = 3 * 24 * 60 * 60 * 1000;
-const globalCache = globalThis as {
-  visaCache?: Map<string, { value: VisaCheck; expires: number }>;
-  agencyCache?: Map<string, { value: AgencyCheck; expires: number }>;
-};
-const visaCache = (globalCache.visaCache ??= new Map());
-const agencyCache = (globalCache.agencyCache ??= new Map());
+const visaCache = persistentCache<VisaCheck>('visa');
+const agencyCache = persistentCache<AgencyCheck>('agency');
 
 const needs: VisaNeed[] = ['no', 'on_arrival', 'eta', 'evisa', 'embassy', 'unknown'];
 
@@ -160,7 +158,7 @@ function travellerText(profile: Profile) {
 }
 
 export async function writeLetter(kind: LetterKind, trip: Trip, profile: Profile, notes: string): Promise<TripLetter | null> {
-  const client = new Anthropic();
+  const client = claude();
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 2500,

@@ -1,8 +1,10 @@
+import { useRouter, type Href } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
-import { Card, CheckRow, Note, openUrl } from '@/components/gov/ui';
+import { Card, CheckRow, LinkButton, Note, openUrl } from '@/components/gov/ui';
 import { Colors, Spacing } from '@/constants/theme';
+import { findEntry } from '@/data/catalogue';
 import type { GovTask } from '@/data/gov-tasks';
 import type { RequirementsCheck, TaskProgress } from '@/lib/gov-types';
 
@@ -66,11 +68,34 @@ export function TrackStep({ task, progress, onSetStage }: TrackProps) {
         })}
       </Card>
       {done ? (
-        <Note tone="good">Well done! Keep a copy of the result in your Locker.</Note>
+        <>
+          <Note tone="good">Well done! Keep a copy of the result in your Locker.</Note>
+          <NextSteps taskId={task.id} />
+        </>
       ) : (
         <Note>Tick each stage as you finish it. Your progress is saved, so you can come back any time.</Note>
       )}
     </>
+  );
+}
+
+// What people often do after this task, e.g. a business permit after the
+// business name.
+function NextSteps({ taskId }: { taskId: string }) {
+  const router = useRouter();
+  const next = (findEntry(taskId)?.next ?? []).map(findEntry).filter((entry) => !!entry);
+  if (!next.length) return null;
+  return (
+    <Card title="What’s next">
+      {next.map((entry) => (
+        <LinkButton
+          key={entry.id}
+          label={`${entry.title}: ${entry.description}`}
+          icon="arrow-forward-circle"
+          onPress={() => router.push(entry.route as Href)}
+        />
+      ))}
+    </Card>
   );
 }
 

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter, type Href } from 'expo-router';
+import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -9,6 +9,7 @@ import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { examplePrompts, services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
+import { matchIntent } from '@/lib/route-intent';
 
 function greeting(date = new Date()) {
   const hour = date.getHours();
@@ -28,6 +29,8 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const firstName = user?.fullName?.split(' ')[0];
   const [request, setRequest] = useState('');
+  // Matching screens as the user types, found on the phone for free.
+  const suggestions = useMemo(() => (request.trim().length >= 3 ? matchIntent(request, 3) : []), [request]);
 
   // Opens the attendant chat with the request already sent.
   const send = (text: string) => {
@@ -69,6 +72,29 @@ export default function HomeScreen() {
             <Ionicons name="send" size={18} color={Colors.onDark} />
           </Pressable>
         </View>
+
+        {suggestions.length > 0 && (
+          <View style={styles.suggestions}>
+            <Text style={styles.examplesLabel}>Go straight there</Text>
+            {suggestions.map(({ entry }) => (
+              <Pressable
+                key={entry.id}
+                onPress={() => {
+                  setRequest('');
+                  router.push(entry.route as Href);
+                }}
+                style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]}>
+                <Ionicons name="arrow-forward-circle" size={20} color={Colors.primary} />
+                <View style={styles.suggestionText}>
+                  <Text style={styles.suggestionTitle}>{entry.title}</Text>
+                  <Text style={styles.suggestionDescription} numberOfLines={1}>
+                    {entry.description}
+                  </Text>
+                </View>
+              </Pressable>
+            ))}
+          </View>
+        )}
 
         <Text style={styles.examplesLabel}>Examples</Text>
         <View style={styles.chips}>
@@ -164,6 +190,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  suggestions: { gap: Spacing.sm },
+  suggestion: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primarySoft,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  suggestionText: { flex: 1 },
+  suggestionTitle: { fontSize: 14, fontWeight: '600', color: Colors.primary },
+  suggestionDescription: { fontSize: 12, color: Colors.textMuted },
   examplesLabel: { fontSize: 13, color: Colors.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: {

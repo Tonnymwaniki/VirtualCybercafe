@@ -12,6 +12,7 @@ import {
   type TripPurpose,
 } from '@/lib/travel-types';
 import { checkAgency, checkVisa, writeLetter } from '@/server/travel-agent';
+import { withUsage } from '@/server/usage';
 
 function str(value: unknown, max = 300) {
   return typeof value === 'string' ? value.trim().slice(0, max) : '';
@@ -47,7 +48,11 @@ function tripFrom(value: unknown): Trip | null {
   };
 }
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'travel', () => handle(request));
+}
+
+async function handle(request: Request) {
   let body: Record<string, unknown>;
   try {
     body = await request.json();

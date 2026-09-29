@@ -4,6 +4,7 @@ import { cleanProfile } from '@/data/profile-fields';
 import { emptyAdvert, sampleAdvert, sampleApplication, sampleMatch, sampleQuestions } from '@/lib/jobs-sample';
 import type { FindJobsResult, JobAdvert, ReadAdvertResult } from '@/lib/jobs-types';
 import { findJobs, interviewQuestions, JOB_SITES, matchJob, readAdvert, tailorApplication } from '@/server/jobs-agent';
+import { withUsage } from '@/server/usage';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 const methods = ['email', 'portal', 'in_person', 'post', 'unknown'] as const;
@@ -49,7 +50,11 @@ function profileFrom(value: unknown) {
   return cleanProfile(value as Record<string, unknown>);
 }
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'jobs', () => handle(request));
+}
+
+async function handle(request: Request) {
   let body: Record<string, unknown>;
   try {
     body = await request.json();

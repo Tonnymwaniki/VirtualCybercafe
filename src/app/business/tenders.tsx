@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -20,6 +20,8 @@ import { loadRecords, newId, saveRecord } from '@/lib/record-store';
 // Tenders: search official tender sites and track the ones worth bidding for.
 export default function TendersScreen() {
   const router = useRouter();
+  // The attendant can open this screen with the search filled in.
+  const params = useLocalSearchParams<{ q?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
 
@@ -34,13 +36,13 @@ export default function TendersScreen() {
     useCallback(() => {
       loadProfile(userId).then((p) => {
         setProfile(p);
-        setQuery((q) => q || p.businessNature || '');
+        setQuery((q) => q || params.q?.slice(0, 120) || p.businessNature || '');
         setCounty((c) => c || p.county || '');
       });
       loadRecords<SavedTender>(userId, TENDER_KEY).then((records) =>
         setSaved(Object.values(records).sort((a, b) => (a.tender.closingDate || '9').localeCompare(b.tender.closingDate || '9'))),
       );
-    }, [userId]),
+    }, [userId, params.q]),
   );
 
   const search = async () => {

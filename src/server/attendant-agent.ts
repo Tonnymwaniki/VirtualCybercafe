@@ -6,11 +6,12 @@ import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
 import type { GovTask } from '@/data/gov-tasks';
-import { appTools, guides, type AppToolId } from '@/data/guides';
+import { catalogue, findEntry, routeWith, type CatalogueEntry } from '@/data/catalogue';
+import { guides } from '@/data/guides';
 import { cleanProfile, profileFields } from '@/data/profile-fields';
-import { services } from '@/data/services';
 import type { ChatAction, ChatMessage } from '@/lib/chat-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { claude } from '@/server/claude';
 
 // Upper bound on model calls per user message, to cap cost and latency.
 const MAX_STEPS = 6;
@@ -22,13 +23,9 @@ How to work:
 - Reply in the language the user writes in: Swahili, English or Sheng.
 - Keep replies short and phone-friendly: short lines, simple bullets, then one question or next step.
 - For a government or education process, call get_service_guide first and base your steps on it. If the user asks about current fees or deadlines, use web_search and say where the figure came from; otherwise tell them to check the official site.
-- When one of the app's tools would do part of the job (passport photo, photos to PDF, shrinking a photo, CV builder, Locker), call open_app_tool so the user gets a button. Offer at most two buttons per reply.
-- For a Certificate of Good Conduct, KRA PIN, KRA tax returns, passport, replacing a lost ID, NTSA driving licence, birth certificate, or SHA registration, also call open_app_tool with government: the Government Services workspace walks them through it with their saved details and tracks progress.
-- For KUCCPS course choice, student funding (HEF, HELB loans or scholarships), a HELB compliance certificate, replacing a KCSE certificate, or an admission letter or fee structure, call open_app_tool with education: the Education workspace uses their saved KCSE grades and details.
-- For a business: registering a business name or company, a county business permit, turnover tax, an AGPO certificate, invoices, receipts, quotations, price lists, posters, social media posts, a business plan for a loan, or government tenders, call open_app_tool with business: the Business workspace fills everything from their saved business details. Warn plainly that no one can sell a tender or LPO.
-- For travel abroad: visa rules for a country, a visa form, an embassy cover, invitation or sponsor letter, an itinerary, a Kenya eTA for a visitor, or a job abroad or recruitment agent, call open_app_tool with travel: the Travel workspace checks official sites, fills the visa form from their passport details and checks agencies on the National Employment Authority list. Warn plainly that working on a visitor visa is illegal and no agent can guarantee a visa.
-- When the user needs something printed, call open_app_tool with print: Print Hub sends a Locker or phone file to a partner print shop, gives a pickup code, and they pay the shop when they collect.
-- For a job advert, applying for a specific job, finding jobs, or interview practice, call open_app_tool with jobs: the Jobs workspace reads the advert, checks the match, writes a CV and letter for that job, warns about scams and tracks the application. Warn plainly if an advert asks for any fee.
+- The app has a screen for most tasks, listed below under "Screens in the app". When one fits, call open_screen so the user gets a button straight to it, and say in one line what it will do for them. Offer at most two buttons per reply. Pass what the user already told you (destination, customer, topic, search words) so the screen opens filled in.
+- The app's screens work from the user's saved details and Locker, track progress and warn about scams, so prefer them over long explanations.
+- Warn plainly when it matters: no one can sell a tender or an LPO; working abroad on a visitor visa is illegal and no agent can guarantee a visa; any job advert that asks for a fee is a warning sign.
 - When filling a form, writing a letter or CV, or checking what a task needs, call get_my_details to use what the user already saved (ID, contacts, KRA PIN, family, education, work experience, skills, business and passport) instead of asking again. Never make up personal details; ask for what is missing.
 - When the user is signed in and a task needs documents, call check_locker to see what they already have, and say what is still missing.
 - When the user needs a letter, email, complaint, application text or similar, write it with create_document so they can download it as a PDF. Never invent facts about the user; ask for missing details first.
@@ -50,18 +47,22 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     strict: true,
   },
   {
-    name: 'open_app_tool',
+    name: 'open_screen',
     description:
-      'Show the user a button that opens one of the app’s own tools: passport_photo (crop and shrink a passport photo), photos_to_pdf (combine photos of documents into one PDF), shrink_photo (compress a photo to a size limit), cv_builder (guided CV and cover letter), locker (their private document storage), sign_in.',
+      'Show the user a button that opens a screen of the app, from "Screens in the app". Some screens can open filled in: pass destination and purpose for travel, q (search words) for jobs and tenders, customer for invoices, receipts and quotations, topic for posters, posts and business plans. Leave the others out.',
     input_schema: {
       type: 'object',
       properties: {
-        tool: { type: 'string', enum: Object.keys(appTools) },
+        screen: { type: 'string', enum: catalogue.filter((e) => !e.hidden).map((e) => e.id) },
+        destination: { type: 'string' },
+        purpose: { type: 'string', enum: ['visit', 'tourism', 'study', 'work', 'business', 'medical'] },
+        q: { type: 'string' },
+        customer: { type: 'string' },
+        topic: { type: 'string' },
       },
-      required: ['tool'],
+      required: ['screen'],
       additionalProperties: false,
     },
-    strict: true,
   },
   {
     name: 'get_my_details',
@@ -126,7 +127,7 @@ async function userClient(accessToken: string | null) {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anonKey) return 'Accounts are in demo mode on this server, so saved data is not available here.';
-  if (!accessToken) return 'The user is not signed in. Offer the sign_in tool if they want to use their saved data.';
+  if (!accessToken) return 'The user is not signed in. Offer open_screen sign_in if they want to use their saved data.';
 
   const supabase = createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
@@ -146,7 +147,7 @@ async function getMyDetails(accessToken: string | null): Promise<string> {
   const lines = profileFields.filter((f) => profile[f.key]).map((f) => `${f.label}: ${profile[f.key]}`);
   return lines.length
     ? `${lines.join('\n')}\n(Saved in My Details. The user can edit them under Locker > My Details.)`
-    : 'My Details is empty. Offer to open it with open_app_tool my_details.';
+    : 'My Details is empty. Offer to open it with open_screen profile.';
 }
 
 async function checkLocker(accessToken: string | null): Promise<string> {
@@ -171,13 +172,21 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
       const guide = guides.find((g) => g.id === input.service_id);
       return guide ? JSON.stringify(guide) : 'No guide for that service.';
     }
-    case 'open_app_tool': {
-      const tool = input.tool as AppToolId;
-      if (!appTools[tool]) return 'Unknown tool.';
-      if (!context.actions.some((a) => a.type === 'open' && a.tool === tool)) {
-        context.actions.push({ type: 'open', tool, ...appTools[tool] });
+    case 'open_screen': {
+      // Guides still name two tools by their old ids.
+      const id = String(input.screen ?? '');
+      const entry = findEntry(({ cv_builder: 'cv', my_details: 'profile' } as Record<string, string>)[id] ?? id);
+      if (!entry) return 'Unknown screen.';
+      const params = Object.fromEntries(
+        (['destination', 'purpose', 'q', 'customer', 'topic'] as const)
+          .filter((key) => typeof input[key] === 'string')
+          .map((key) => [key, input[key] as string]),
+      );
+      const route = routeWith(entry, params);
+      if (!context.actions.some((a) => a.type === 'open' && a.route === route)) {
+        context.actions.push({ type: 'open', label: `Open ${entry.title}`, route });
       }
-      return `A button for "${appTools[tool].label}" is shown to the user.`;
+      return `A button that opens ${entry.title} is shown to the user.`;
     }
     case 'check_locker':
       return checkLocker(context.accessToken);
@@ -207,14 +216,25 @@ The workspace already shows them: what they need, a readiness checklist with Loc
 Built-in steps for this task: ${task.steps.join(' ')}`;
 }
 
+// The user tapped "Help me here" on a screen.
+function screenFocus(entry: CatalogueEntry) {
+  return `The user opened this chat with the Help button on the "${entry.title}" screen (${entry.description}).${entry.help ? ` How that screen works: ${entry.help}` : ''}
+Help them use that screen: explain the next thing to do there in plain steps. Only offer other screens if that one can't do what they need.`;
+}
+
+const catalogueText = catalogue
+  .filter((e) => !e.hidden)
+  .map((e) => `${e.id}: ${e.title}. ${e.description}`)
+  .join('\n');
+
 export async function runAttendant(
   history: ChatMessage[],
   accessToken: string | null,
   task?: GovTask,
+  screen?: CatalogueEntry,
 ): Promise<{ reply: string; actions: ChatAction[] }> {
-  const client = new Anthropic();
+  const client = claude();
   const context: ToolContext = { accessToken, actions: [] };
-  const serviceList = services.map((s) => `${s.title}: ${s.description}`).join('\n');
 
   const messages: Anthropic.Beta.BetaMessageParam[] = history.map((m) => ({
     role: m.role,
@@ -229,8 +249,9 @@ export async function runAttendant(
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
       system: [
         { type: 'text', text: SYSTEM_PROMPT },
-        { type: 'text', text: `Services in the app:\n${serviceList}`, cache_control: { type: 'ephemeral' } },
+        { type: 'text', text: `Screens in the app (id: title):\n${catalogueText}`, cache_control: { type: 'ephemeral' } },
         ...(task ? [{ type: 'text' as const, text: taskFocus(task) }] : []),
+        ...(screen && !task ? [{ type: 'text' as const, text: screenFocus(screen) }] : []),
       ],
       tools,
       messages,

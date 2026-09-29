@@ -30,12 +30,26 @@ To turn on the real AI:
 
 With the key, the attendant (`src/server/attendant-agent.ts`) works as an agent that can use tools:
 - **Service guides** (`src/data/guides.ts`): passport, KRA PIN, good conduct, HELB, KUCCPS, driving licence, business name, job applications.
-- **Open app tools**: passport photo, photos to PDF, shrink photo, CV builder, Locker, sign-in. These appear as buttons under its reply.
+- **Open screens** (`src/data/catalogue.ts`): any workspace, guided task or tool, as a button under its reply. Some open filled in, e.g. Travel with the country, an invoice with the customer, Tenders or Jobs with the search words.
 - **Check the Locker**: lists the signed-in person's saved files (read-only).
 - **Write documents**: letters and forms-ready text the person downloads as a PDF.
 - **Web search** (Kenya-focused) and **official links**.
 
 It never submits forms or makes payments; the person does that. Tapping a service tile opens the chat with that service, so the same agent handles both.
+
+### Finding your way (free, no AI)
+
+`src/data/catalogue.ts` lists everything the app does, with English, Swahili and Sheng keywords. `src/lib/route-intent.ts` matches what people type against it on the phone:
+- On Home, matching screens appear under the box while you type ("Go straight there").
+- In chat, a short request that clearly names one screen ("KRA PIN", "nataka visa") is answered on the phone with a button, without calling the AI. Questions ("how much...?", "bei gani?") still go to the attendant.
+- Every screen has a **Help** button. It opens the chat already told which screen you are on, with a free explanation of that screen first.
+- When a guided task is done, the Track step suggests what to do next (e.g. a business permit after the business name).
+
+### AI costs and limits
+
+- Every Claude reply is logged to `.cache/usage.jsonl` (tokens, web searches and an estimated cost, per feature). Open `/api/usage?days=7` on the server for totals. The Anthropic Console shows the real bill.
+- AI results that rarely change (requirement checks, visa rules, job, course and tender searches) are cached in `.cache/ai-cache.json`, so they survive restarts and aren't paid for twice.
+- Each phone gets `AI_DAILY_LIMIT` AI requests a day (default 40), and the whole app stops calling the AI for the day once `AI_DAILY_BUDGET_USD` is spent (default 1). Answers from the cache don't count. Set either in `.env`.
 
 ## Government Services
 

@@ -1,8 +1,9 @@
+import { apiFetch } from '@/lib/api';
 import { sampleCourses, sampleDemand, sampleLetter } from '@/lib/edu-sample';
 import type { CourseQuery, CourseSearch, DemandReport, ReadLetterResult } from '@/lib/edu-types';
 
 async function post<T>(body: object): Promise<T> {
-  const response = await fetch('/api/education', {
+  const response = await apiFetch('/api/education', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

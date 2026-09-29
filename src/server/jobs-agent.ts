@@ -22,6 +22,8 @@ import type {
   TailoredApplication,
 } from '@/lib/jobs-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { persistentCache } from '@/server/cache';
+import { claude } from '@/server/claude';
 
 export const JOB_SITES = ['publicservice.go.ke', 'psckjobs.go.ke', 'brightermonday.co.ke', 'myjobmag.co.ke', 'fuzu.com'];
 
@@ -33,7 +35,7 @@ async function jsonCall<T>(
   schema: Record<string, unknown>,
   maxTokens = 3000,
 ): Promise<T | null> {
-  const client = new Anthropic();
+  const client = claude();
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: maxTokens,
@@ -188,8 +190,7 @@ export async function readAdvert(input: AdvertInput): Promise<ReadAdvertResult> 
 // ---- Finding jobs ----
 
 const FIND_CACHE_MS = 12 * 60 * 60 * 1000;
-const globalCache = globalThis as { jobSearchCache?: Map<string, { value: FindJobsResult; expires: number }> };
-const findCache = (globalCache.jobSearchCache ??= new Map());
+const findCache = persistentCache<FindJobsResult>('job-search');
 
 const reportJobsTool: Anthropic.Beta.BetaTool = {
   name: 'report_jobs',
@@ -226,7 +227,7 @@ export async function findJobs(query: string, county: string): Promise<FindJobsR
   const cached = findCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const client = new Anthropic();
+  const client = claude();
   const today = new Date().toISOString().slice(0, 10);
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {

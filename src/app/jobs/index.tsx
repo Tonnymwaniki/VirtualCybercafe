@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -33,6 +33,8 @@ function statusText(job: Job) {
 // The Jobs workspace: add or find a job, then work through each one.
 export default function JobsScreen() {
   const router = useRouter();
+  // The attendant can open this screen with the search filled in.
+  const params = useLocalSearchParams<{ q?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -41,7 +43,7 @@ export default function JobsScreen() {
   const [link, setLink] = useState('');
   const [reading, setReading] = useState(false);
   const [problem, setProblem] = useState('');
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(params.q?.slice(0, 120) ?? '');
   const [county, setCounty] = useState('');
   const [searching, setSearching] = useState(false);
   const [found, setFound] = useState<FoundJob[] | null>(null);

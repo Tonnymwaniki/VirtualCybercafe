@@ -43,13 +43,13 @@ const questions: Record<WrittenKind, { key: keyof WriteBrief; label: string; pla
 // the owner's answers and saved business details.
 export default function WriteScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string; kind?: string }>();
+  const params = useLocalSearchParams<{ id: string; kind?: string; topic?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
 
   const [profile, setProfile] = useState<Profile>({});
   const [kind, setKind] = useState<WrittenKind>(params.kind && isWrittenKind(params.kind) ? params.kind : 'poster');
-  const [brief, setBrief] = useState<WriteBrief>({ topic: '', extra: '', details: '' });
+  const [brief, setBrief] = useState<WriteBrief>({ topic: params.topic?.slice(0, 200) ?? '', extra: '', details: '' });
   const [doc, setDoc] = useState<WrittenDoc | null>(null);
   const [writing, setWriting] = useState(false);
   const [problem, setProblem] = useState('');

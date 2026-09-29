@@ -11,6 +11,7 @@ import { appTools, type AppToolId } from '@/data/guides';
 import { profileFields } from '@/data/profile-fields';
 import type { FieldUpdate, HelperAction, HelperRequest, HelperResponse } from '@/lib/gov-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { claude } from '@/server/claude';
 
 const MAX_STEPS = 5;
 
@@ -138,7 +139,7 @@ export function sampleHelp(task: FormTask, request: HelperRequest): HelperRespon
 }
 
 export async function runFormHelper(task: FormTask, request: HelperRequest): Promise<HelperResponse> {
-  const client = new Anthropic();
+  const client = claude();
   const updates: FieldUpdate[] = [];
   const actions: HelperAction[] = [];
   const fieldKeys = new Set(task.fields.map((f) => f.key));

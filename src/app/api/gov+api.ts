@@ -3,11 +3,16 @@ import Anthropic from '@anthropic-ai/sdk';
 import { findGovTask } from '@/data/gov-tasks';
 import type { IdReadResult } from '@/lib/gov-types';
 import { baselineRequirements, checkRequirements, readIdPhoto } from '@/server/gov-agent';
+import { withUsage } from '@/server/usage';
 
 // About 3.5 MB of image; the app shrinks photos well below this.
 const MAX_IMAGE_BASE64 = 5_000_000;
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'gov', () => handle(request));
+}
+
+async function handle(request: Request) {
   let body: { action?: string; taskId?: string; refresh?: boolean; image?: string; mediaType?: string };
   try {
     body = await request.json();

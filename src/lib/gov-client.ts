@@ -1,8 +1,9 @@
 import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
+import { apiFetch } from '@/lib/api';
 import type { HelperRequest, HelperResponse, IdReadResult, RequirementsCheck } from '@/lib/gov-types';
 
 async function post<T>(body: object, path = '/api/gov'): Promise<T> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

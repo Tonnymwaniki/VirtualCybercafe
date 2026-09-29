@@ -4,23 +4,8 @@
 
 import { appTools, type AppToolId } from '@/data/guides';
 import type { ChatAction } from '@/lib/chat-types';
-
-const swahiliWords = [
-  'nataka',
-  'nisaidie',
-  'naomba',
-  'habari',
-  'jinsi',
-  'kupata',
-  'kuapply',
-  'pasipoti',
-  'kazi',
-  'barua',
-  'chapisha',
-  'lipa',
-  'sawa',
-  'asante',
-];
+import { matchIntent, openAction } from '@/lib/route-intent';
+import { isSwahili } from '@/lib/swahili';
 
 type Topic = {
   keywords: string[];
@@ -102,20 +87,16 @@ const fallback = {
   sw: 'Mimi ni mhudumu wako wa kidijitali. Naweza kukusaidia na huduma za serikali, CV na maombi ya kazi, nyaraka, uchapishaji na malipo. Unahitaji nini?',
 };
 
-export function isSwahili(text: string) {
-  const words = text.toLowerCase().split(/[^a-z']+/);
-  return words.some((word) => swahiliWords.includes(word));
-}
-
 export function sampleReply(text: string): { reply: string; actions: ChatAction[] } {
   const lower = text.toLowerCase();
   const language = isSwahili(text) ? 'sw' : 'en';
   const topic = topics.find((t) => t.keywords.some((k) => lower.includes(k)));
-  const actions: ChatAction[] = (topic?.tools ?? []).map((tool) => ({
-    type: 'open',
-    tool,
-    ...appTools[tool],
-  }));
+  const actions: ChatAction[] = (topic?.tools ?? []).map((tool) => ({ type: 'open', ...appTools[tool] }));
+  // Point to the screen that does it, when the words clearly name one.
+  const [match] = matchIntent(text, 1);
+  if (match && match.score >= 4 && !actions.some((a) => a.type === 'open' && a.route === match.entry.route)) {
+    actions.unshift(openAction(match.entry));
+  }
   if (topic?.link) actions.push({ type: 'link', ...topic.link });
-  return { reply: (topic ?? fallback)[language], actions };
+  return { reply: (topic ?? fallback)[language], actions: actions.slice(0, 3) };
 }

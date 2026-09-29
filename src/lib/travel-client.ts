@@ -1,9 +1,10 @@
 import type { Profile } from '@/data/profile-fields';
+import { apiFetch } from '@/lib/api';
 import { sampleLetter } from '@/lib/travel-sample';
 import type { AgencyCheck, LetterKind, LetterResult, Trip, TripPurpose, VisaCheck } from '@/lib/travel-types';
 
 async function post<T>(body: object): Promise<T> {
-  const response = await fetch('/api/travel', {
+  const response = await apiFetch('/api/travel', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

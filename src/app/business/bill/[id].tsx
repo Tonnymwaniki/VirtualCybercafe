@@ -35,7 +35,7 @@ function toItems(items: ItemText[]) {
 // with the business details from My Details.
 export default function BillScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string; kind?: string; from?: string }>();
+  const params = useLocalSearchParams<{ id: string; kind?: string; from?: string; customer?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
 
@@ -67,7 +67,7 @@ export default function BillScreen() {
         kind,
         number: nextNumber(kind, all),
         date: today(),
-        customer: from?.customer ?? '',
+        customer: from?.customer ?? params.customer?.slice(0, 120) ?? '',
         customerContact: from?.customerContact ?? '',
         items: from?.items ?? [],
         paidBy: '',
@@ -82,7 +82,7 @@ export default function BillScreen() {
           : [{ description: '', quantity: '1', price: '' }],
       );
     })();
-  }, [userId, params.id, params.kind, params.from]);
+  }, [userId, params.id, params.kind, params.from, params.customer]);
 
   if (missing) {
     return (

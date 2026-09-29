@@ -58,7 +58,7 @@ export default function SignInScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Sign in" />
+      <SubHeader title="Sign in" help={false} />
 
       <View style={styles.hero}>
         <View style={styles.heroIcon}>

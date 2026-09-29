@@ -1,9 +1,10 @@
 import type { Profile } from '@/data/profile-fields';
+import { apiFetch } from '@/lib/api';
 import { sampleWritten } from '@/lib/biz-sample';
 import type { TenderSearch, WriteBrief, WriteResult, WrittenKind } from '@/lib/biz-types';
 
 async function post<T>(body: object): Promise<T> {
-  const response = await fetch('/api/business', {
+  const response = await apiFetch('/api/business', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),

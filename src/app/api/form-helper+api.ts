@@ -6,6 +6,7 @@ import { cleanProfile } from '@/data/profile-fields';
 import { visaFormTask } from '@/data/visa-form';
 import type { HelperMessage, HelperRequest } from '@/lib/gov-types';
 import { runFormHelper, sampleHelp } from '@/server/form-helper';
+import { withUsage } from '@/server/usage';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 
@@ -18,7 +19,11 @@ function strings(value: unknown, max = 200): Record<string, string> {
   );
 }
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'form-helper', () => handle(request));
+}
+
+async function handle(request: Request) {
   let body: Partial<HelperRequest>;
   try {
     body = await request.json();

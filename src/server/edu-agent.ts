@@ -10,12 +10,13 @@ import type { AdmissionLetter, CourseDemand, CourseQuery, CourseSearch, CourseSu
 import { JOB_SITES } from '@/server/jobs-agent';
 import { mergeSignals } from '@/lib/job-scam';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { persistentCache } from '@/server/cache';
+import { claude } from '@/server/claude';
 
 export const KUCCPS_SITES = ['kuccps.ac.ke', 'kuccps.net'];
 
 const CACHE_MS = 24 * 60 * 60 * 1000;
-const globalCache = globalThis as { courseCache?: Map<string, { value: CourseSearch; expires: number }> };
-const cache = (globalCache.courseCache ??= new Map());
+const cache = persistentCache<CourseSearch>('edu-courses');
 
 const reportTool: Anthropic.Beta.BetaTool = {
   name: 'report_courses',
@@ -54,7 +55,7 @@ export async function suggestCourses(query: CourseQuery): Promise<CourseSearch> 
   const cached = cache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const client = new Anthropic();
+  const client = claude();
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
       role: 'user',
@@ -130,7 +131,7 @@ const letterSchema = {
 } as const;
 
 export async function readLetter(input: { text?: string; image?: string }): Promise<ReadLetterResult> {
-  const client = new Anthropic();
+  const client = claude();
   const content: Anthropic.Beta.BetaContentBlockParam[] = input.image
     ? [
         { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: input.image } },
@@ -166,8 +167,7 @@ export async function readLetter(input: { text?: string; image?: string }): Prom
 // ---- Job market check ----
 
 const DEMAND_SITES = [...JOB_SITES, 'knbs.or.ke', 'kuccps.ac.ke'];
-const demandCache = ((globalThis as { courseDemandCache?: Map<string, { value: DemandReport; expires: number }> }).courseDemandCache ??=
-  new Map());
+const demandCache = persistentCache<DemandReport>('edu-demand');
 
 const demandTool: Anthropic.Beta.BetaTool = {
   name: 'report_demand',
@@ -224,7 +224,7 @@ export async function courseDemand(programmes: string[], meanGrade: string): Pro
   const cached = demandCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
-  const client = new Anthropic();
+  const client = claude();
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
       role: 'user',

@@ -8,13 +8,13 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { GovTask } from '@/data/gov-tasks';
 import type { IdDetails, IdReadResult, RequirementsCheck } from '@/lib/gov-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { persistentCache } from '@/server/cache';
+import { claude } from '@/server/claude';
 
 const MAX_STEPS = 5;
 // Requirements and fees rarely change within days; reuse a check to save cost.
 const CACHE_MS = 3 * 24 * 60 * 60 * 1000;
-// Kept on globalThis so the dev server's route reloads don't empty it.
-const globalCache = globalThis as { govRequirementsCache?: Map<string, { value: RequirementsCheck; expires: number }> };
-const cache = (globalCache.govRequirementsCache ??= new Map());
+const cache = persistentCache<RequirementsCheck>('gov-requirements');
 
 const reportTool: Anthropic.Beta.BetaTool = {
   name: 'report_requirements',
@@ -74,7 +74,7 @@ export async function checkRequirements(task: GovTask, refresh = false): Promise
   const cached = cache.get(task.id);
   if (!refresh && cached && cached.expires > Date.now()) return cached.value;
 
-  const client = new Anthropic();
+  const client = claude();
   const today = new Date().toISOString().slice(0, 10);
   const messages: Anthropic.Beta.BetaMessageParam[] = [
     {
@@ -156,7 +156,7 @@ const idSchema = {
 } as const;
 
 export async function readIdPhoto(base64: string, mediaType: 'image/jpeg' | 'image/png'): Promise<IdReadResult> {
-  const client = new Anthropic();
+  const client = claude();
   const response = await client.beta.messages.create({
     model: MODEL,
     max_tokens: 2000,

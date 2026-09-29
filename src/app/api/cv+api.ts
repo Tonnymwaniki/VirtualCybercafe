@@ -9,6 +9,8 @@ import {
   type CvResponse,
 } from '@/lib/cv';
 import { effortOption, MODEL, modelOptions } from '@/server/model';
+import { claude } from '@/server/claude';
+import { withUsage } from '@/server/usage';
 
 const SYSTEM_PROMPT = `You write CVs and cover letters for job seekers in Kenya, for the Virtual Cybercafe app.
 Turn the applicant's rough answers into a clean, honest, professional CV and a one-page cover letter in British English.
@@ -31,7 +33,11 @@ function readAnswers(body: unknown): CvAnswers | null {
   return answers;
 }
 
-export async function POST(request: Request) {
+export function POST(request: Request) {
+  return withUsage(request, 'cv', () => handle(request));
+}
+
+async function handle(request: Request) {
   let answers: CvAnswers | null = null;
   try {
     answers = readAnswers(await request.json());
@@ -47,7 +53,7 @@ export async function POST(request: Request) {
     return Response.json({ cv: sampleCv(answers), mode: 'sample' } satisfies CvResponse);
   }
 
-  const client = new Anthropic();
+  const client = claude();
   try {
     const response = await client.beta.messages.create({
       model: MODEL,
