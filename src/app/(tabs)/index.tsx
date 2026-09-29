@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { HomeHero } from '@/components/home-hero';
@@ -13,7 +13,6 @@ import { useAuth } from '@/lib/auth';
 import { loadContinueItems, type ContinueItem } from '@/lib/continue';
 import { serviceText, useLanguage } from '@/lib/i18n';
 import { GUEST_ID } from '@/lib/profile-store';
-import { matchIntent } from '@/lib/route-intent';
 
 function greetingKey(date = new Date()) {
   const hour = date.getHours();
@@ -36,8 +35,6 @@ export default function HomeScreen() {
   const firstName = user?.fullName?.split(' ')[0];
   const { t } = useLanguage();
   const userId = user?.id ?? GUEST_ID;
-  const [request, setRequest] = useState('');
-  const [micNote, setMicNote] = useState(false);
   const [continueItems, setContinueItems] = useState<ContinueItem[]>([]);
 
   useFocusEffect(
@@ -45,15 +42,11 @@ export default function HomeScreen() {
       loadContinueItems(userId).then(setContinueItems).catch(() => setContinueItems([]));
     }, [userId]),
   );
-  // Matching screens as the user types, found on the phone for free.
-  const suggestions = useMemo(() => (request.trim().length >= 3 ? matchIntent(request, 3) : []), [request]);
-
   // Opens the attendant chat with the request already sent.
   const send = (text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
     router.push({ pathname: '/chat', params: { q: trimmed } });
-    setRequest('');
   };
 
   return (
@@ -86,51 +79,21 @@ export default function HomeScreen() {
       )}
 
       <View style={styles.attendantCard}>
-        <View style={styles.inputRow}>
-          <TextInput
-            value={request}
-            onChangeText={setRequest}
-            onSubmitEditing={() => send(request)}
-            placeholder={t('home.placeholder')}
-            placeholderTextColor={Colors.textMuted}
-            style={styles.input}
-            returnKeyType="send"
-          />
-          <Pressable accessibilityLabel="Tap to speak" hitSlop={8} onPress={() => setMicNote((v) => !v)} style={styles.micButton}>
-            <Ionicons name="mic" size={20} color={Colors.primary} />
-          </Pressable>
-          <Pressable
-            accessibilityLabel="Send"
-            onPress={() => send(request)}
-            style={({ pressed }) => [styles.sendButton, pressed && styles.pressed]}>
-            <Ionicons name="send" size={18} color={Colors.onDark} />
-          </Pressable>
-        </View>
-
-        {micNote && <Text style={styles.micNote}>{t('chat.mic')}</Text>}
-
-        {suggestions.length > 0 && (
-          <View style={styles.suggestions}>
-            <Text style={styles.examplesLabel}>{t('home.goStraight')}</Text>
-            {suggestions.map(({ entry }) => (
-              <Pressable
-                key={entry.id}
-                onPress={() => {
-                  setRequest('');
-                  router.push(entry.route as Href);
-                }}
-                style={({ pressed }) => [styles.suggestion, pressed && styles.pressed]}>
-                <Ionicons name="arrow-forward-circle" size={20} color={Colors.primary} />
-                <View style={styles.suggestionText}>
-                  <Text style={styles.suggestionTitle}>{entry.title}</Text>
-                  <Text style={styles.suggestionDescription} numberOfLines={1}>
-                    {entry.description}
-                  </Text>
-                </View>
-              </Pressable>
-            ))}
+        {/* Tapping anywhere here opens the full chat screen. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('home.ask')}
+          onPress={() => router.push('/chat')}
+          style={({ pressed }) => [styles.inputRow, pressed && styles.pressed]}>
+          <Ionicons name="chatbubbles" size={20} color={Colors.primary} />
+          <Text style={styles.fakeInput} numberOfLines={1}>
+            {t('home.placeholder')}
+          </Text>
+          <View style={styles.askButton}>
+            <Text style={styles.askText}>{t('home.ask')}</Text>
+            <Ionicons name="arrow-forward" size={16} color={Colors.onDark} />
           </View>
-        )}
+        </Pressable>
 
         <Text style={styles.examplesLabel}>{t('home.examples')}</Text>
         <View style={styles.chips}>
@@ -208,20 +171,21 @@ const styles = StyleSheet.create({
     borderColor: Colors.primarySoft,
     backgroundColor: Colors.background,
     borderRadius: Radius.pill,
-    paddingLeft: Spacing.lg,
+    paddingLeft: Spacing.md,
     paddingRight: Spacing.xs,
     paddingVertical: Spacing.xs,
   },
-  input: { flex: 1, fontSize: 15, color: Colors.text, paddingVertical: Spacing.sm },
-  micButton: { padding: Spacing.xs },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: Radius.pill,
-    backgroundColor: Colors.primary,
+  fakeInput: { flex: 1, fontSize: 15, color: Colors.textMuted, paddingVertical: Spacing.sm },
+  askButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
   },
+  askText: { fontSize: 15, fontWeight: '700', color: Colors.onDark },
   continueBlock: { gap: Spacing.sm },
   continueCard: {
     flexDirection: 'row',
@@ -238,20 +202,6 @@ const styles = StyleSheet.create({
   continueText: { flex: 1, gap: 2 },
   continueTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
   continueNext: { fontSize: 13, fontWeight: '600', color: Colors.primary },
-  micNote: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
-  suggestions: { gap: Spacing.sm },
-  suggestion: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primarySoft,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  suggestionText: { flex: 1 },
-  suggestionTitle: { fontSize: 14, fontWeight: '600', color: Colors.primary },
-  suggestionDescription: { fontSize: 12, color: Colors.textMuted },
   examplesLabel: { fontSize: 13, color: Colors.textMuted },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   chip: {

@@ -49,7 +49,7 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 ### Finding your way (free, no AI)
 
 `src/data/catalogue.ts` lists everything the app does, with English, Swahili and Sheng keywords. `src/lib/route-intent.ts` matches what people type against it on the phone:
-- On Home, matching screens appear under the box while you type ("Go straight there").
+- Home has an **Ask** button (styled like a message box) that opens the full chat screen; the example chips under it open the chat with that request sent.
 - In chat, a short request that clearly names one screen ("KRA PIN", "nataka visa") is answered on the phone with a button, without calling the AI. Questions ("how much...?", "bei gani?") still go to the attendant.
 - Every screen has a **Help** button. It opens the chat already told which screen you are on, with a free explanation of that screen first.
 - When a guided task is done, the Track step suggests what to do next (e.g. a business permit after the business name).
