@@ -14,4 +14,8 @@ export const taskColors: Record<GovTaskId, string> = {
   student_funding: '#16A34A',
   helb_clearance: '#6366F1',
   knec_certificate: '#F59E0B',
+  business_permit: '#F59E0B',
+  turnover_tax: '#0EA5E9',
+  company_registration: '#6366F1',
+  agpo: '#EC4899',
 };

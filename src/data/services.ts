@@ -66,9 +66,10 @@ export const services: Service[] = [
     id: 'business',
     title: 'Business Services',
     shortTitle: 'Business',
-    description: 'Business registration, invoices, proposals',
+    description: 'Permits, tax, invoices, adverts and tenders',
     icon: 'bar-chart',
     color: '#22C55E',
+    route: '/business',
   },
   {
     id: 'travel',

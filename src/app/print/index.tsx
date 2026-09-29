@@ -13,7 +13,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { fileBytes, listFiles, readBytes, type StoredFile } from '@/lib/locker-store';
 import { countPdfPages } from '@/lib/pdf-pages';
-import { listShops, myJobs, sendJob } from '@/lib/print-store';
+import { listShops, myJobs, sendJob, takePendingPrint } from '@/lib/print-store';
 import { formatKsh, priceFor, type PrintJob, type PrintShop } from '@/lib/print-types';
 import { GUEST_ID, loadProfile } from '@/lib/profile-store';
 import { supabase } from '@/lib/supabase';
@@ -50,6 +50,10 @@ export default function PrintScreen() {
       listShops().then(setShops).catch(() => setProblem('Couldn’t load print shops. Check your connection.'));
       if (!needsSignIn) myJobs(userId).then(setJobs).catch(() => {});
       loadProfile(userId).then((profile) => setCounty(profile.county ?? ''));
+      const handed = takePendingPrint();
+      if (handed) choose(handed);
+      // choose only uses state setters.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userId, needsSignIn]),
   );
 

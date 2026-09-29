@@ -1,11 +1,12 @@
 // "My Details": what a person fills in once and every form reuses. Form
 // fields with the same key as a profile field are filled from, and saved
 // back to, the profile. The Career section is written once and reused by the
-// CV builder and every job application.
+// CV builder and every job application. The Business section fills every
+// business form, invoice and tender.
 
 export type FieldKind = 'text' | 'email' | 'phone' | 'date' | 'idNumber' | 'kraPin';
 
-export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education' | 'Career';
+export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education' | 'Career' | 'Business';
 
 export type ProfileField = {
   key: string;
@@ -18,7 +19,7 @@ export type ProfileField = {
 
 export type Profile = Record<string, string>;
 
-export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education', 'Career'];
+export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education', 'Career', 'Business'];
 
 export const profileFields: ProfileField[] = [
   { key: 'fullName', label: 'Full name (as on ID)', section: 'Identity' },
@@ -79,6 +80,17 @@ export const profileFields: ProfileField[] = [
   },
   { key: 'skills', label: 'Skills (separated by commas)', section: 'Career', multiline: true, placeholder: 'Customer service, MS Excel, driving' },
   { key: 'referees', label: 'Referees (name, role, phone), optional', section: 'Career', multiline: true },
+
+  { key: 'businessName', label: 'Business name', section: 'Business' },
+  { key: 'businessRegNo', label: 'Registration number', section: 'Business', placeholder: 'e.g. BN-ABC1234 or PVT-XYZ9876' },
+  { key: 'businessKraPin', label: 'Business KRA PIN (company PIN, or yours)', section: 'Business', kind: 'kraPin' },
+  { key: 'businessNature', label: 'What the business does', section: 'Business', placeholder: 'e.g. Retail shop selling groceries' },
+  { key: 'businessLocation', label: 'Business location (street, building)', section: 'Business' },
+  { key: 'businessPhone', label: 'Business phone', section: 'Business', kind: 'phone', placeholder: '07XX XXX XXX' },
+  { key: 'businessEmail', label: 'Business email', section: 'Business', kind: 'email' },
+  { key: 'mpesaTill', label: 'How customers pay you (M-Pesa)', section: 'Business', placeholder: 'e.g. Till 123456, or Paybill 222111 account 45' },
+  { key: 'agpoCategory', label: 'AGPO group, if any', section: 'Business', placeholder: 'Youth, Women or PWD' },
+  { key: 'agpoNumber', label: 'AGPO certificate number, if any', section: 'Business' },
 ];
 
 const profileKeys = new Set(profileFields.map((field) => field.key));

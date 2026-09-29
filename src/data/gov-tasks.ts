@@ -24,7 +24,12 @@ export type GovTaskId =
   // Education workspace instead of Government Services.
   | 'student_funding'
   | 'helb_clearance'
-  | 'knec_certificate';
+  | 'knec_certificate'
+  // Business tasks are listed in the Business workspace.
+  | 'business_permit'
+  | 'turnover_tax'
+  | 'company_registration'
+  | 'agpo';
 
 export type Requirement = {
   id: string;
@@ -404,51 +409,6 @@ export const govTasks: GovTask[] = [
     stages: ['Registered', 'Household members added', 'Contribution assessed', 'First contribution paid', 'Cover active'],
   },
   {
-    id: 'business_name',
-    title: 'Business name registration',
-    description: 'Register a business name with BRS',
-    icon: 'storefront',
-    agency: 'Business Registration Service (BRS) on eCitizen',
-    portal: { label: 'Open eCitizen (BRS)', url: 'https://accounts.ecitizen.go.ke' },
-    officialDomains: ['brs.go.ke', 'ecitizen.go.ke'],
-    requirements: [
-      idScan,
-      { id: 'kra_pin', label: 'KRA PIN of every owner', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
-      {
-        id: 'passport_photo',
-        label: 'Passport photo of every owner',
-        lockerName: 'passport-photo',
-        lockerCategory: 'Photos',
-        fix: { label: 'Make passport photo', route: '/studio/passport' },
-      },
-      { id: 'name_options', label: 'Three name options, in order of preference' },
-      { id: 'address', label: 'Business location and postal address' },
-      { id: 'fee', label: 'Name search and registration fees (paid on eCitizen)' },
-    ],
-    steps: [
-      'Sign in to eCitizen and open Business Registration Service.',
-      'Search your name options and reserve one that is available.',
-      'Register the business name with the owners’ details, nature of business and address.',
-      'Pay the fees.',
-      'Download the business name certificate when it is approved.',
-    ],
-    fields: [
-      ...idFields,
-      { key: 'kraPin', label: 'Your KRA PIN', kind: 'kraPin' },
-      ...contactFields,
-      { key: 'nameOption1', label: 'Business name, first choice' },
-      { key: 'nameOption2', label: 'Second choice' },
-      { key: 'nameOption3', label: 'Third choice' },
-      { key: 'businessNature', label: 'What the business does', placeholder: 'e.g. Retail shop selling groceries' },
-      { key: 'county', label: 'County' },
-      { key: 'town', label: 'Town' },
-      { key: 'businessLocation', label: 'Street or building', optional: true },
-      { key: 'postalAddress', label: 'Postal address and code', optional: true, placeholder: 'P.O. Box 123-00100' },
-    ],
-    payment: { howTo: eCitizenPayment },
-    stages: ['Name reserved', 'Registration submitted', 'Paid', 'Approved', 'Certificate saved to Locker'],
-  },
-  {
     id: 'kra_returns',
     title: 'KRA tax returns',
     description: 'File a nil or employment return on iTax',
@@ -622,6 +582,247 @@ export const eduTasks: GovTask[] = [
   },
 ];
 
+// Counties publish permit fees and forms on <county>.go.ke; the live check
+// and form helper may search any county's site.
+const countySites = [
+  'mombasa', 'kwale', 'kilifi', 'tanariver', 'lamu', 'taitataveta', 'garissa', 'wajir', 'mandera', 'marsabit',
+  'isiolo', 'meru', 'tharakanithi', 'embu', 'kitui', 'machakos', 'makueni', 'nyandarua', 'nyeri', 'kirinyaga',
+  'muranga', 'kiambu', 'turkana', 'westpokot', 'samburu', 'transnzoia', 'uasingishu', 'elgeyomarakwet', 'nandi',
+  'baringo', 'laikipia', 'nakuru', 'narok', 'kajiado', 'kericho', 'bomet', 'kakamega', 'vihiga', 'bungoma', 'busia',
+  'siaya', 'kisumu', 'homabay', 'migori', 'kisii', 'nyamira', 'nairobi',
+].map((county) => `${county}.go.ke`);
+
+const businessFields: FormField[] = [
+  { key: 'businessName', label: 'Business name' },
+  { key: 'businessRegNo', label: 'Registration number', placeholder: 'e.g. BN-ABC1234' },
+  { key: 'businessKraPin', label: 'Business KRA PIN', kind: 'kraPin' },
+  { key: 'businessNature', label: 'What the business does' },
+];
+
+const businessCertificate: Requirement = {
+  id: 'business_certificate',
+  label: 'Business registration certificate (business name or company)',
+  lockerName: 'business-certificate',
+  lockerCategory: 'Certificates',
+};
+
+export const bizTasks: GovTask[] = [
+  {
+    id: 'business_name',
+    title: 'Business name registration',
+    description: 'Register a business name with BRS',
+    icon: 'storefront',
+    agency: 'Business Registration Service (BRS) on eCitizen',
+    portal: { label: 'Open eCitizen (BRS)', url: 'https://accounts.ecitizen.go.ke' },
+    officialDomains: ['brs.go.ke', 'ecitizen.go.ke'],
+    requirements: [
+      idScan,
+      { id: 'kra_pin', label: 'KRA PIN of every owner', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
+      {
+        id: 'passport_photo',
+        label: 'Passport photo of every owner',
+        lockerName: 'passport-photo',
+        lockerCategory: 'Photos',
+        fix: { label: 'Make passport photo', route: '/studio/passport' },
+      },
+      { id: 'name_options', label: 'Three name options, in order of preference' },
+      { id: 'address', label: 'Business location and postal address' },
+      { id: 'fee', label: 'Name search and registration fees (paid on eCitizen)' },
+    ],
+    steps: [
+      'Sign in to eCitizen and open Business Registration Service.',
+      'Search your name options and reserve one that is available.',
+      'Register the business name with the owners’ details, nature of business and address.',
+      'Pay the fees.',
+      'Download the business name certificate when it is approved.',
+    ],
+    fields: [
+      ...idFields,
+      { key: 'kraPin', label: 'Your KRA PIN', kind: 'kraPin' },
+      ...contactFields,
+      { key: 'nameOption1', label: 'Business name, first choice' },
+      { key: 'nameOption2', label: 'Second choice' },
+      { key: 'nameOption3', label: 'Third choice' },
+      { key: 'businessNature', label: 'What the business does', placeholder: 'e.g. Retail shop selling groceries' },
+      { key: 'county', label: 'County' },
+      { key: 'town', label: 'Town' },
+      { key: 'businessLocation', label: 'Street or building', optional: true },
+      { key: 'postalAddress', label: 'Postal address and code', optional: true, placeholder: 'P.O. Box 123-00100' },
+    ],
+    payment: { howTo: eCitizenPayment },
+    stages: ['Name reserved', 'Registration submitted', 'Paid', 'Approved', 'Certificate saved to Locker'],
+  },
+  {
+    id: 'business_permit',
+    title: 'County business permit',
+    description: 'Single or Unified Business Permit from your county',
+    icon: 'document-lock',
+    agency: 'Your county government (revenue office or county website)',
+    portal: { label: 'Open the Council of Governors county list', url: 'https://cog.go.ke' },
+    officialDomains: ['cog.go.ke', 'nairobiservices.go.ke', ...countySites],
+    requirements: [
+      idScan,
+      { id: 'kra_pin', label: 'KRA PIN (the business’s or yours)', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
+      businessCertificate,
+      { id: 'location', label: 'Exact business location: plot number, building, street and ward' },
+      { id: 'size', label: 'Size of the premises and number of workers (the fee depends on them)' },
+      { id: 'fee', label: 'Permit fee, set by your county for your type and size of business' },
+    ],
+    steps: [
+      'Open your county’s revenue website or visit the county revenue office.',
+      'Register the business and choose the business activity that fits (the county’s fee list).',
+      'Fill in the location, size of the premises and number of workers.',
+      'Pay the invoice to the county’s official paybill and keep the receipt.',
+      'Download or collect the permit and display it at the business. Renew it every year.',
+    ],
+    fields: [
+      { key: 'fullName', label: 'Owner’s full name' },
+      { key: 'idNumber', label: 'Owner’s ID number', kind: 'idNumber' },
+      ...contactFields,
+      ...businessFields,
+      { key: 'county', label: 'County' },
+      { key: 'town', label: 'Town' },
+      { key: 'businessLocation', label: 'Street or building' },
+      { key: 'plotNumber', label: 'Plot number', optional: true },
+      { key: 'premisesSize', label: 'Size of the premises', optional: true, placeholder: 'e.g. 3m by 4m shop' },
+      { key: 'workers', label: 'Number of workers', optional: true },
+    ],
+    payment: {
+      howTo: [
+        'Pay only to the county paybill or bank account printed on the county invoice or county website.',
+        'Put the invoice or bill number as the account number, exactly as shown.',
+        'County officers should not ask for cash or payment to a personal number.',
+        mpesaPinWarning,
+      ],
+    },
+    stages: ['Applied', 'Invoice paid', 'Inspection (if needed)', 'Permit received', 'Permit saved to Locker'],
+  },
+  {
+    id: 'turnover_tax',
+    title: 'Turnover tax (TOT)',
+    description: 'Monthly return on iTax for small businesses',
+    icon: 'calculator',
+    agency: 'Kenya Revenue Authority (iTax)',
+    portal: { label: 'Open iTax', url: 'https://itax.kra.go.ke' },
+    officialDomains: ['kra.go.ke'],
+    requirements: [
+      { id: 'kra_pin', label: 'KRA PIN with the turnover tax obligation, and your iTax password (never share it)' },
+      { id: 'sales', label: 'Total sales for the month (from your records, invoices and M-Pesa statements)' },
+      { id: 'eligible', label: 'Turnover tax is for businesses whose yearly sales fall in the KRA turnover tax band' },
+      { id: 'deadline', label: 'File and pay by the 20th of the next month, even if sales were zero' },
+    ],
+    steps: [
+      'Add up the month’s sales from your records.',
+      'Sign in to iTax, go to Returns, then File Return, and choose Turnover Tax.',
+      'Enter the month and the total sales, then submit and download the receipt.',
+      'Generate a payment slip for the tax shown.',
+      'Pay by M-Pesa using KRA’s paybill and the payment registration number on the slip.',
+    ],
+    fields: [
+      { key: 'fullName', label: 'Owner’s full name' },
+      { key: 'businessKraPin', label: 'KRA PIN used for the business', kind: 'kraPin' },
+      { key: 'businessName', label: 'Business name', optional: true },
+      { key: 'taxMonth', label: 'Month of the return', placeholder: 'e.g. August 2026' },
+      { key: 'monthSales', label: 'Total sales that month (KSh)' },
+    ],
+    payment: {
+      howTo: [
+        'Filing is free. The tax is a percentage of the month’s sales; iTax works it out.',
+        'Generate a payment slip on iTax, then pay with M-Pesa to KRA’s paybill using the payment registration number on the slip.',
+        'Type your M-Pesa PIN only on your own phone. Never share it or your iTax password.',
+      ],
+    },
+    stages: ['Sales added up', 'Return filed', 'Payment slip generated', 'Tax paid', 'Receipt saved'],
+  },
+  {
+    id: 'company_registration',
+    title: 'Register a limited company',
+    description: 'Private limited company with BRS',
+    icon: 'business',
+    agency: 'Business Registration Service (BRS) on eCitizen',
+    portal: { label: 'Open eCitizen (BRS)', url: 'https://accounts.ecitizen.go.ke' },
+    officialDomains: ['brs.go.ke', 'ecitizen.go.ke'],
+    requirements: [
+      { ...idScan, label: 'National ID of every director and shareholder' },
+      { id: 'kra_pins', label: 'KRA PIN of every director and shareholder', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
+      {
+        id: 'passport_photo',
+        label: 'Passport photo of every director',
+        lockerName: 'passport-photo',
+        lockerCategory: 'Photos',
+        fix: { label: 'Make passport photo', route: '/studio/passport' },
+      },
+      { id: 'name_options', label: 'Company name options, in order of preference' },
+      { id: 'office', label: 'Registered office address (county, town, building, postal address)' },
+      { id: 'shares', label: 'Share capital and how many shares each shareholder holds' },
+      { id: 'contacts', label: 'Phone and email of every director (each one confirms on eCitizen)' },
+      { id: 'fee', label: 'Name reservation and registration fees (paid on eCitizen)' },
+    ],
+    steps: [
+      'Sign in to eCitizen and open Business Registration Service.',
+      'Search and reserve a company name.',
+      'Choose Private Limited Company and add the directors, shareholders, shares and registered office.',
+      'Pay the fees; every director then confirms the application from their own eCitizen account.',
+      'Download the certificate of incorporation and the CR12 when approved.',
+    ],
+    fields: [
+      ...idFields,
+      { key: 'kraPin', label: 'Your KRA PIN', kind: 'kraPin' },
+      ...contactFields,
+      { key: 'nameOption1', label: 'Company name, first choice' },
+      { key: 'nameOption2', label: 'Second choice' },
+      { key: 'businessNature', label: 'What the company will do' },
+      { key: 'shareCapital', label: 'Share capital (KSh)', placeholder: 'e.g. 100,000' },
+      { key: 'otherDirectors', label: 'Other directors (names and ID numbers)', optional: true },
+      { key: 'county', label: 'County' },
+      { key: 'town', label: 'Town' },
+      { key: 'businessLocation', label: 'Building and street of the office' },
+      { key: 'postalAddress', label: 'Postal address and code', optional: true, placeholder: 'P.O. Box 123-00100' },
+    ],
+    payment: { howTo: eCitizenPayment },
+    stages: ['Name reserved', 'Application filled', 'Paid', 'Directors confirmed', 'Certificate saved to Locker'],
+  },
+  {
+    id: 'agpo',
+    title: 'AGPO certificate',
+    description: 'Government tenders reserved for youth, women and PWD',
+    icon: 'ribbon',
+    agency: 'National Treasury, Access to Government Procurement Opportunities',
+    portal: { label: 'Open AGPO', url: 'https://agpo.go.ke' },
+    officialDomains: ['agpo.go.ke', 'treasury.go.ke', 'tenders.go.ke', 'ppra.go.ke'],
+    requirements: [
+      businessCertificate,
+      { id: 'ownership', label: 'Youth (18–35), women or persons with disability own and run the business (check AGPO’s ownership rule)' },
+      { id: 'owner_ids', label: 'National ID of every owner or director', lockerName: 'national-id', lockerCategory: 'Documents' },
+      { id: 'kra_pin', label: 'The business’s KRA PIN certificate', lockerName: 'kra-pin', lockerCategory: 'Certificates' },
+      { id: 'tcc', label: 'Tax compliance certificate from iTax', lockerName: 'tax-compliance', lockerCategory: 'Certificates' },
+      { id: 'cr12', label: 'CR12 or partnership deed, for companies and partnerships', lockerName: 'cr12', lockerCategory: 'Certificates' },
+      { id: 'ncpwd', label: 'NCPWD card, for persons with disability', lockerName: 'ncpwd', lockerCategory: 'Certificates' },
+    ],
+    steps: [
+      'Get a tax compliance certificate on iTax if you do not have a valid one.',
+      'Create an account on the AGPO portal.',
+      'Fill in the business and owners’ details and choose your group (youth, women or PWD).',
+      'Upload the documents and submit.',
+      'When approved, download the AGPO certificate and save it to your Locker.',
+    ],
+    fields: [
+      ...businessFields,
+      { key: 'agpoCategory', label: 'AGPO group', placeholder: 'Youth, Women or PWD' },
+      { key: 'fullName', label: 'Owner’s full name' },
+      { key: 'idNumber', label: 'Owner’s ID number', kind: 'idNumber' },
+      { key: 'dateOfBirth', label: 'Owner’s date of birth', kind: 'date', placeholder: 'YYYY-MM-DD' },
+      ...contactFields,
+      { key: 'county', label: 'County' },
+    ],
+    payment: {
+      free: true,
+      howTo: ['AGPO registration is free. Anyone asking you to pay to get an AGPO certificate or a tender is a conman.'],
+    },
+    stages: ['Tax compliance certificate', 'Account created', 'Submitted', 'Approved', 'Certificate saved to Locker'],
+  },
+];
+
 export function findGovTask(id: string | undefined): GovTask | undefined {
-  return govTasks.find((task) => task.id === id) ?? eduTasks.find((task) => task.id === id);
+  return [...govTasks, ...eduTasks, ...bizTasks].find((task) => task.id === id);
 }

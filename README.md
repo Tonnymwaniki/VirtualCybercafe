@@ -81,6 +81,16 @@ A cybercafe owner opens **Own a cybercafe? Open the shop screen** (`print/shop.t
 
 Run `supabase/migrations/0003_print.sql` in the Supabase SQL Editor once. It creates `print_shops`, `print_jobs` and a private `print` bucket. Customers see only their jobs, shops see only jobs sent to them, and a shop can open a file only while its job is open; the file is deleted when the job is collected or cancelled. Without Supabase, Print Hub runs on the device with a demo shop so both sides can be tried.
 
+## Business
+
+The Business tile (`src/app/business/`) fills everything from My Details > Business:
+
+- **Register and comply:** business name, county business permit, turnover tax, limited company and AGPO certificate. These use the same five guided steps and form helper as Government Services (`bizTasks` in `src/data/gov-tasks.ts`).
+- **Documents:** numbered invoices, receipts and quotations with totals and the M-Pesa till, price lists, and posters, social media posts and business plans written by the agent from the owner's answers (`src/server/biz-agent.ts`). On the phone each one can be saved to the Locker or sent straight to Print Hub.
+- **Tenders:** the agent searches tenders.go.ke and other official sites, checks the AGPO set-aside against the owner's group and flags fee requests and unofficial links (`src/lib/biz-sample.ts`).
+
+Documents and tenders are `biz:` rows in `task_progress`, so no new SQL is needed.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

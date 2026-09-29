@@ -310,3 +310,19 @@ export async function openJobFile(job: PrintJob): Promise<void> {
   if (Platform.OS === 'web') window.open(url, '_blank');
   else await Linking.openURL(url);
 }
+
+// A document another screen (like a Business invoice) hands to Print Hub.
+// The Print screen picks it up the next time it opens.
+export type PendingPrint = { name: string; mimeType: string; bytes: ArrayBuffer; localUri?: string };
+
+let pendingPrint: PendingPrint | null = null;
+
+export function setPendingPrint(file: PendingPrint) {
+  pendingPrint = file;
+}
+
+export function takePendingPrint(): PendingPrint | null {
+  const file = pendingPrint;
+  pendingPrint = null;
+  return file;
+}
