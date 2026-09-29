@@ -73,6 +73,14 @@ The Education tile opens `src/app/education/`:
 
 The KUCCPS plan and letters are stored in `task_progress` as `edu:` rows (`src/lib/record-store.ts`), so no new SQL is needed.
 
+## Print Hub
+
+The Print tile opens `src/app/print/`. A customer picks a file from the Locker or the phone (PDF pages are counted automatically), chooses copies, colour and sides, picks a partner shop and sees the price. Sending gives a pickup code (like `VC-4821`) with a QR code, and the status moves from Sent to Printing, Ready and Collected. The customer pays the shop at pickup.
+
+A cybercafe owner opens **Own a cybercafe? Open the shop screen** (`print/shop.tsx`) to register their shop and prices, see incoming jobs, open each file, mark jobs Printing and Ready, and check the customer's code at pickup.
+
+Run `supabase/migrations/0003_print.sql` in the Supabase SQL Editor once. It creates `print_shops`, `print_jobs` and a private `print` bucket. Customers see only their jobs, shops see only jobs sent to them, and a shop can open a file only while its job is open; the file is deleted when the job is collected or cancelled. Without Supabase, Print Hub runs on the device with a demo shop so both sides can be tried.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

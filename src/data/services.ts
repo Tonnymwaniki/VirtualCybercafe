@@ -60,6 +60,7 @@ export const services: Service[] = [
     description: 'Print, photocopy, scan, lamination',
     icon: 'print',
     color: '#F59E0B',
+    route: '/print',
   },
   {
     id: 'business',

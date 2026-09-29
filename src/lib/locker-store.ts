@@ -37,7 +37,7 @@ function safeName(name: string) {
   return name.replace(/[^\w.\- ]+/g, '_').slice(-80) || 'file';
 }
 
-async function readBytes(uri: string): Promise<ArrayBuffer> {
+export async function readBytes(uri: string): Promise<ArrayBuffer> {
   if (Platform.OS === 'web') return (await fetch(uri)).arrayBuffer();
   return new File(uri).arrayBuffer();
 }
@@ -119,9 +119,8 @@ function base64FromBytes(buffer: ArrayBuffer) {
   return btoa(binary);
 }
 
-// Downloads a Locker file as a data: URL, e.g. to put a certificate photo
-// into an application pack PDF.
-export async function fileDataUrl(file: StoredFile): Promise<string> {
+// Downloads a Locker file's bytes, e.g. to send it to a print shop.
+export async function fileBytes(file: StoredFile): Promise<ArrayBuffer> {
   let url = file.localUri;
   if (supabase) {
     const { data, error } = await supabase.storage.from(LOCKER_BUCKET).createSignedUrl(file.path, 120);
@@ -129,6 +128,11 @@ export async function fileDataUrl(file: StoredFile): Promise<string> {
     url = data.signedUrl;
   }
   if (!url) throw new Error('File not found');
-  const buffer = await (await fetch(url)).arrayBuffer();
-  return `data:${file.mimeType};base64,${base64FromBytes(buffer)}`;
+  return (await fetch(url)).arrayBuffer();
+}
+
+// Downloads a Locker file as a data: URL, e.g. to put a certificate photo
+// into an application pack PDF.
+export async function fileDataUrl(file: StoredFile): Promise<string> {
+  return `data:${file.mimeType};base64,${base64FromBytes(await fileBytes(file))}`;
 }
