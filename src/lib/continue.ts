@@ -13,7 +13,10 @@ import { REMINDER_KEY, type Reminder } from '@/lib/chat-actions';
 import { loadAllProgress } from '@/lib/gov-store';
 import { loadJobs } from '@/lib/jobs-store';
 import { jobStatuses } from '@/lib/jobs-types';
+import { GUEST_ID } from '@/lib/profile-store';
+import { displayCode, listQuickPrints, type QuickPrint } from '@/lib/quick-print';
 import { loadRecords } from '@/lib/record-store';
+import { supabase } from '@/lib/supabase';
 import { daysToTrip } from '@/lib/travel-sample';
 import { TRIP_KEY, type Trip } from '@/lib/travel-types';
 
@@ -33,12 +36,14 @@ export type ContinueItem = {
 };
 
 export async function loadContinueItems(userId: string, limit = 3): Promise<ContinueItem[]> {
-  const [reminders, progress, jobs, trips, tenders] = await Promise.all([
+  const [reminders, progress, jobs, trips, tenders, prints] = await Promise.all([
     loadRecords<Reminder>(userId, REMINDER_KEY),
     loadAllProgress(userId),
     loadJobs(userId),
     loadRecords<Trip>(userId, TRIP_KEY),
     loadRecords<SavedTender>(userId, TENDER_KEY),
+    // Print codes need an account once Supabase is on.
+    supabase && userId === GUEST_ID ? Promise.resolve([] as QuickPrint[]) : listQuickPrints().catch(() => [] as QuickPrint[]),
   ]);
   const items: ContinueItem[] = [];
 
@@ -118,8 +123,19 @@ export async function loadContinueItems(userId: string, limit = 3): Promise<Cont
       at: r.createdAt,
     }));
 
+  // Open print codes, so the code is one tap away at the cyber.
+  const codes: ContinueItem[] = prints.map((print) => ({
+    id: `print:${print.id}`,
+    title: `${displayCode(print.code)} · ${print.fileName}`,
+    next: print.openedAt ? 'Opened at a cyber' : 'Show it at any cyber',
+    route: '/studio/print',
+    icon: 'qr-code',
+    color: '#0B1E5B',
+    at: print.expiresAt,
+  }));
+
   const live = items.filter((item) => isLivePath(item.route));
-  return [...due, ...live.sort((a, b) => (b.at || '').localeCompare(a.at || ''))].slice(0, limit);
+  return [...due, ...codes, ...live.sort((a, b) => (b.at || '').localeCompare(a.at || ''))].slice(0, limit);
 }
 
 // "30 Oct" for a YYYY-MM-DD date.

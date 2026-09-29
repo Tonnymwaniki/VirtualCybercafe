@@ -32,6 +32,16 @@ const examplePrompts = FULL_APP
   ? (['example.passport', 'example.cv', 'example.print', 'example.job'] as const)
   : (['example.cv', 'example.job', 'example.passportPhoto', 'example.shrink'] as const);
 
+// Version one: the four things people come for, as big buttons.
+const homeActions = [
+  { title: 'home.actJob', text: 'home.actJobText', icon: 'briefcase', color: '#EF4444', ask: 'home.actJobAsk' },
+  { title: 'home.actFile', text: 'home.actFileText', icon: 'document-text', color: '#3B82F6', route: '/studio' },
+  { title: 'home.actPhoto', text: 'home.actPhotoText', icon: 'person-circle', color: '#F59E0B', route: '/studio/passport' },
+  { title: 'home.actPrint', text: 'home.actPrintText', icon: 'qr-code', color: '#0B1E5B', route: '/studio/print' },
+] as const;
+
+const soonServices = services.filter((service) => !isLiveService(service.id));
+
 // Live services first; the rest show "Coming soon".
 const orderedServices = [...services].sort((a, b) => Number(isLiveService(b.id)) - Number(isLiveService(a.id)));
 
@@ -60,29 +70,6 @@ export default function HomeScreen() {
       <AppHeader title="Virtual Cybercafe" />
 
       <HomeHero greeting={`${t(greetingKey())}${firstName ? `, ${firstName}` : ''} 👋`} />
-
-      {continueItems.length > 0 && (
-        <View style={styles.continueBlock}>
-          <Text style={styles.sectionTitle}>{t('continue.title')}</Text>
-          {continueItems.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => router.push(item.route as Href)}
-              style={({ pressed }) => [styles.continueCard, pressed && styles.pressed]}>
-              <IconBadge icon={item.icon} color={item.color} />
-              <View style={styles.continueText}>
-                <Text style={styles.continueTitle} numberOfLines={1}>
-                  {item.place ? t('continue.trip', { place: item.place }) : item.title}
-                </Text>
-                <Text style={styles.continueNext} numberOfLines={1}>
-                  {item.due ? t('continue.due', { date: shortDate(item.due) }) : item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
-            </Pressable>
-          ))}
-        </View>
-      )}
 
       <View style={styles.attendantCard}>
         {/* Tapping anywhere here opens the full chat screen. */}
@@ -115,43 +102,124 @@ export default function HomeScreen() {
 
       </View>
 
-      <Text style={styles.sectionTitle}>{t('home.quickServices')}</Text>
-      <View style={styles.grid}>
-        {orderedServices.map((service) =>
-          isLiveService(service.id) ? (
-            <Pressable
-              key={service.id}
-              onPress={() =>
-                service.route
-                  ? router.push(service.route)
-                  : router.push({ pathname: '/chat', params: { q: serviceText(t, service.id).title } })
-              }
-              style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
-              <IconBadge icon={service.icon} color={service.color} size={44} />
-              <Text style={styles.gridLabel} numberOfLines={1}>
-                {serviceText(t, service.id).short}
-              </Text>
-            </Pressable>
-          ) : (
-            <View key={service.id} style={[styles.gridItem, styles.soonItem]} accessibilityLabel={`${serviceText(t, service.id).title}, ${t('soon.badge')}`}>
-              <IconBadge icon={service.icon} color={Colors.textMuted} size={44} />
-              <Text style={[styles.gridLabel, styles.soonLabel]} numberOfLines={1}>
-                {serviceText(t, service.id).short}
-              </Text>
-              <Text style={styles.soonBadge} numberOfLines={1}>
-                {t('soon.badge')}
-              </Text>
+      {FULL_APP ? (
+        <>
+          {continueItems.length > 0 && (
+            <View style={styles.continueBlock}>
+              <Text style={styles.sectionTitle}>{t('continue.title')}</Text>
+              {continueItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => router.push(item.route as Href)}
+                  style={({ pressed }) => [styles.continueCard, pressed && styles.pressed]}>
+                  <IconBadge icon={item.icon} color={item.color} />
+                  <View style={styles.continueText}>
+                    <Text style={styles.continueTitle} numberOfLines={1}>
+                      {item.place ? t('continue.trip', { place: item.place }) : item.title}
+                    </Text>
+                    <Text style={styles.continueNext} numberOfLines={1}>
+                      {item.due ? t('continue.due', { date: shortDate(item.due) }) : item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+                </Pressable>
+              ))}
             </View>
-          ),
-        )}
-      </View>
+          )}
 
-      <Pressable
-        onPress={() => router.navigate('/services')}
-        style={({ pressed }) => [styles.moreRow, pressed && styles.pressed]}>
-        <Text style={styles.moreText}>{t('home.moreServices')}</Text>
-        <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
-      </Pressable>
+          <Text style={styles.sectionTitle}>{t('home.quickServices')}</Text>
+          <View style={styles.grid}>
+            {orderedServices.map((service) =>
+              isLiveService(service.id) ? (
+                <Pressable
+                  key={service.id}
+                  onPress={() =>
+                    service.route
+                      ? router.push(service.route)
+                      : router.push({ pathname: '/chat', params: { q: serviceText(t, service.id).title } })
+                  }
+                  style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
+                  <IconBadge icon={service.icon} color={service.color} size={44} />
+                  <Text style={styles.gridLabel} numberOfLines={1}>
+                    {serviceText(t, service.id).short}
+                  </Text>
+                </Pressable>
+              ) : (
+                <View key={service.id} style={[styles.gridItem, styles.soonItem]} accessibilityLabel={`${serviceText(t, service.id).title}, ${t('soon.badge')}`}>
+                  <IconBadge icon={service.icon} color={Colors.textMuted} size={44} />
+                  <Text style={[styles.gridLabel, styles.soonLabel]} numberOfLines={1}>
+                    {serviceText(t, service.id).short}
+                  </Text>
+                  <Text style={styles.soonBadge} numberOfLines={1}>
+                    {t('soon.badge')}
+                  </Text>
+                </View>
+              ),
+            )}
+          </View>
+
+          <Pressable
+            onPress={() => router.navigate('/services')}
+            style={({ pressed }) => [styles.moreRow, pressed && styles.pressed]}>
+            <Text style={styles.moreText}>{t('home.moreServices')}</Text>
+            <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+          </Pressable>
+
+        </>
+      ) : (
+        <>
+          <Text style={styles.sectionTitle}>{t('home.whatNeed')}</Text>
+          <View style={styles.actions}>
+            {homeActions.map((action) => (
+              <Pressable
+                key={action.title}
+                onPress={() => ('ask' in action ? send(t(action.ask)) : router.push(action.route as Href))}
+                style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
+                <IconBadge icon={action.icon} color={action.color} size={44} />
+                <Text style={styles.actionTitle}>{t(action.title)}</Text>
+                <Text style={styles.actionText}>{t(action.text)}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {continueItems.length > 0 && (
+            <View style={styles.continueBlock}>
+              <Text style={styles.sectionTitle}>{t('continue.title')}</Text>
+              {continueItems.map((item) => (
+                <Pressable
+                  key={item.id}
+                  onPress={() => router.push(item.route as Href)}
+                  style={({ pressed }) => [styles.continueCard, pressed && styles.pressed]}>
+                  <IconBadge icon={item.icon} color={item.color} />
+                  <View style={styles.continueText}>
+                    <Text style={styles.continueTitle} numberOfLines={1}>
+                      {item.place ? t('continue.trip', { place: item.place }) : item.title}
+                    </Text>
+                    <Text style={styles.continueNext} numberOfLines={1}>
+                      {item.due ? t('continue.due', { date: shortDate(item.due) }) : item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+
+          <Pressable
+            onPress={() => router.navigate('/services')}
+            style={({ pressed }) => [styles.soonRow, pressed && styles.pressed]}>
+            <View style={styles.soonIcons}>
+              {soonServices.map((service) => (
+                <Ionicons key={service.id} name={service.icon} size={16} color={Colors.textMuted} />
+              ))}
+            </View>
+            <Text style={styles.soonRowText} numberOfLines={2}>
+              {t('home.soonRow', { list: soonServices.map((service) => serviceText(t, service.id).short).join(', ') })}
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textMuted} />
+          </Pressable>
+        </>
+      )}
 
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>{t('home.bannerTitle')}</Text>
@@ -263,5 +331,31 @@ const styles = StyleSheet.create({
   trustTextBlock: { flex: 1 },
   trustTitle: { fontSize: 14, fontWeight: '600', color: Colors.onDark },
   trustText: { fontSize: 13, color: Colors.onDarkMuted },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
+  action: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    gap: Spacing.sm,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.lg,
+  },
+  actionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
+  actionText: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
+  soonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderStyle: 'dashed',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  soonIcons: { flexDirection: 'row', gap: 4 },
+  soonRowText: { flex: 1, fontSize: 12, color: Colors.textMuted },
   pressed: { opacity: 0.7 },
 });
