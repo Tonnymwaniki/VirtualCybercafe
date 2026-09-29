@@ -6,6 +6,7 @@
 import type { useEngine } from '@/components/workbench/engine';
 import { renamed, type WorkFile } from '@/lib/workbench/files';
 import { pageCount, picturesToPdf, resavePdf } from '@/lib/workbench/pdf';
+import { track } from '@/lib/stats';
 
 export type PdfShrinkResult = { file: WorkFile; reached: boolean; asPictures: boolean };
 
@@ -24,6 +25,7 @@ export async function shrinkPdf(
   engine: ReturnType<typeof useEngine>,
   onProgress?: (text: string) => void,
 ): Promise<PdfShrinkResult> {
+  track('workbench.shrink_pdf');
   const name = renamed(file.name, '-small', 'pdf');
   const resaved = await resavePdf(file);
   if (resaved.bytes.byteLength <= maxBytes) return { file: resaved, reached: true, asPictures: false };

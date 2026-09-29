@@ -10,6 +10,7 @@ import { loadAllProgress, saveProgress } from '@/lib/gov-store';
 import { loadJobs, saveJob } from '@/lib/jobs-store';
 import { GUEST_ID, loadProfile, saveProfile } from '@/lib/profile-store';
 import { loadRecords, saveRecord } from '@/lib/record-store';
+import { track } from '@/lib/stats';
 import type { GovTaskId } from '@/data/gov-tasks';
 import type { Profile } from '@/data/profile-fields';
 
@@ -93,6 +94,7 @@ export async function moveGuestWork(userId: string): Promise<void> {
   }
 
   await forgetGuestWork(prefixes);
+  track('account.guest_moved');
 }
 
 // Clears the guest's work from this phone.

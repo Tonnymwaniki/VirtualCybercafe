@@ -6,6 +6,7 @@ import { PDFDocument, rgb, StandardFonts } from 'pdf-lib/cjs/index';
 
 import { renamed, type WorkFile } from '@/lib/workbench/files';
 import { editImage, imageSize, shrinkImage } from '@/lib/workbench/image';
+import { track } from '@/lib/stats';
 
 export const PASSPORT_SIDE = 600;
 export const PASSPORT_MAX_BYTES = 200 * 1024;
@@ -39,6 +40,7 @@ async function cropFor(file: WorkFile, aspect: number) {
 
 // The digital photo: 600 × 600 JPG under 200 KB.
 export async function digitalPassport(file: WorkFile): Promise<{ file: WorkFile; sharpEnough: boolean }> {
+  track('workbench.passport');
   const { width, height } = await imageSize(file);
   const square = await editImage(file, { crop: await cropFor(file, 1) }, 'jpg', 0.95);
   const { file: out } = await shrinkImage(square, PASSPORT_MAX_BYTES, { exact: { width: PASSPORT_SIDE, height: PASSPORT_SIDE } });
@@ -48,6 +50,7 @@ export async function digitalPassport(file: WorkFile): Promise<{ file: WorkFile;
 // An A4 PDF with several print photos at the right size and grey cut lines,
 // laid out at the top of the page.
 export async function passportSheet(file: WorkFile, size: PrintSize = 'kenya'): Promise<WorkFile> {
+  track(`workbench.passport_sheet_${size}`);
   const spec = printSizes[size];
   const pixels = { width: Math.round((spec.widthMm / 25.4) * DPI), height: Math.round((spec.heightMm / 25.4) * DPI) };
   const cropped = await editImage(file, { crop: await cropFor(file, spec.widthMm / spec.heightMm) }, 'jpg', 0.95);

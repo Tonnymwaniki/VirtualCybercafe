@@ -49,5 +49,7 @@ jobs:
             -f supabase/migrations/0001_locker.sql \
             -f supabase/migrations/0004_quick_print.sql \
             -f supabase/migrations/0005_locker_quota.sql \
+            -f supabase/migrations/0006_stats_errors.sql \
             -f tests/sql/quick-print.test.sql \
-            -f tests/sql/locker-quota.test.sql
+            -f tests/sql/locker-quota.test.sql \
+            -f tests/sql/stats-errors.test.sql

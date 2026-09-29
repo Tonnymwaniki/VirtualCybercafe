@@ -2,6 +2,7 @@ import { File } from 'expo-file-system';
 import { Linking, Platform } from 'react-native';
 
 import { lockerCategories, type LockerCategory } from '@/data/locker';
+import { track } from '@/lib/stats';
 import { LOCKER_BUCKET, supabase } from '@/lib/supabase';
 
 export { lockerCategories };
@@ -102,6 +103,7 @@ export async function uploadFile(userId: string, input: UploadInput): Promise<st
     .from(LOCKER_BUCKET)
     .upload(path, body, { contentType: input.mimeType, upsert: false });
   if (error) throw error;
+  track('locker.upload');
   return path;
 }
 

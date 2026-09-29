@@ -11,6 +11,7 @@ import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { renamed, toBase64, type WorkFile } from '@/lib/workbench/files';
 import { joinFiles, pageCount } from '@/lib/workbench/pdf';
+import { track } from '@/lib/stats';
 
 export const QUICK_PRINT_BUCKET = 'quickprint';
 const MAX_BYTES = 20 * 1024 * 1024;
@@ -99,6 +100,7 @@ function safeName(name: string) {
 }
 
 export async function createQuickPrint(userId: string, file: WorkFile, pin?: string): Promise<QuickPrint> {
+  track(pin ? 'print.code_pin' : 'print.code');
   if (pin && !/^\d{4}$/.test(pin)) throw new QuickPrintError('The PIN must be 4 numbers.');
   const { pdf, pages } = await asPdf(file);
   const bytes = pdf.bytes.byteLength;
@@ -225,6 +227,7 @@ export async function cancelQuickPrint(print: QuickPrint) {
 // The cyber's side: check the code and PIN and get the file. finish marks it
 // printed, so the code stops working.
 export async function openQuickPrint(code: string, pin?: string, finish = false): Promise<OpenResult> {
+  if (finish) track('print.printed');
   const wanted = cleanCode(code);
   if (!supabase) {
     const entries = await readDemo();

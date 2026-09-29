@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { eventPart, reportError, track } from '@/lib/stats';
 import { supabase } from '@/lib/supabase';
 
 // Calls the app's own API routes with a random id for this phone, so the
@@ -57,6 +58,9 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
   const token = await accessToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const response = await fetch(path, { ...init, headers });
+  const route = eventPart(path.replace(/^\/api\//, '').split(/[/?]/)[0]);
+  track(response.status === 429 ? 'ai.limited' : response.status === 401 ? 'ai.sign_in' : `ai.${route}`);
+  if (response.status >= 500) reportError(`api/${route}`, `HTTP ${response.status}`);
   if (response.status === 401) {
     try {
       const body = (await response.clone().json()) as { error?: string; signIn?: boolean };

@@ -7,6 +7,7 @@ import { checksFor } from '@/components/workbench/ui';
 import { findPreset } from '@/data/presets';
 import { fileById, keepFile } from '@/lib/chat-files';
 import type { WorkOutcome, WorkRequest } from '@/lib/chat-types';
+import { reportError, track } from '@/lib/stats';
 import { renamed, type WorkFile } from '@/lib/workbench/files';
 import { editImage, shrinkImage } from '@/lib/workbench/image';
 import { joinFiles, keepPages, pageCount, parsePages, WorkbenchError } from '@/lib/workbench/pdf';
@@ -140,6 +141,7 @@ async function run(request: WorkRequest, engine: Engine): Promise<{ outputs: Out
 }
 
 export async function runWork(request: WorkRequest, engine: Engine): Promise<WorkOutcome> {
+  track(`chat.file_${request.op}`);
   try {
     const { outputs, notes } = await run(request, engine);
     return {
@@ -148,6 +150,8 @@ export async function runWork(request: WorkRequest, engine: Engine): Promise<Wor
       notes,
     };
   } catch (error) {
+    if (!(error instanceof WorkbenchError)) reportError(`chat/work/${request.op}`, error);
+    track('chat.file_failed');
     return {
       status: 'failed',
       outputs: [],

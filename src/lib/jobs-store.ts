@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Job, JobAdvert, JobDocument } from '@/lib/jobs-types';
 import { usesCloud } from '@/lib/profile-store';
 import { supabase } from '@/lib/supabase';
+import { track } from '@/lib/stats';
 
 export { GUEST_ID } from '@/lib/profile-store';
 
@@ -97,6 +98,7 @@ export async function deleteJob(userId: string, id: string): Promise<void> {
 }
 
 export function newJob(advert: JobAdvert): Job {
+  track('jobs.started');
   const now = new Date().toISOString();
   return {
     id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,

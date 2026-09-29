@@ -195,6 +195,12 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
   1. Deploy it: `npx supabase functions deploy cleanup` (after `login` and `link` as above).
   2. In Supabase, open **Integrations > Cron**, enable it, and add a job: name `cleanup`, schedule `0 * * * *` (every hour), type **Supabase Edge Function**, function `cleanup`, method POST.
 
+### Stats, error reports and the admin page
+
+- Run `supabase/migrations/0006_stats_errors.sql` in the SQL Editor. The app then counts steps (a PDF shrunk, a job started, a code printed, a screen opened) per day, with no user id, phone id or file names, and sends crash reports with long numbers masked.
+- Make yourself an admin: in **Authentication > Users** copy your user's UID, then run `insert into public.app_admins (user_id) values ('<your UID>');` in the SQL Editor.
+- Open `/admin` in the app while signed in to see the counts and recent errors. In demo mode it shows this device's counts only. AI costs per feature stay at `/api/usage` (needs `USAGE_KEY` in production).
+
 ## Project layout
 
 - `src/app/`: screens (every file is a route)

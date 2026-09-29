@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { track } from '@/lib/stats';
 import { supabase } from '@/lib/supabase';
 
 export type AppUser = {
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data, error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
       if (error) throw error;
       if (!data.user) throw new Error('Sign-in did not finish. Please try again.');
+      track('account.signed_in');
       return data.user.id;
     },
     async setName(fullName) {

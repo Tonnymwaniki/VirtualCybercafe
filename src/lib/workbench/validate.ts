@@ -8,6 +8,7 @@ import { formatSize, renamed, size, type WorkFile } from '@/lib/workbench/files'
 import { editImage, imageSize, shrinkImage } from '@/lib/workbench/image';
 import { joinFiles, pageCount } from '@/lib/workbench/pdf';
 import { shrinkPdf } from '@/lib/workbench/shrink-pdf';
+import { track } from '@/lib/stats';
 
 export type RuleCheck = { ok: boolean; label: string };
 
@@ -67,6 +68,7 @@ export type FixResult = { file: WorkFile; notes: string[] };
 // resizes, shrinks and turns photos into a PDF. Page limits and what the
 // photo shows are left to the person.
 export async function fixToRule(file: WorkFile, preset: Preset, engine: ReturnType<typeof useEngine>): Promise<FixResult> {
+  track('workbench.fix_rule');
   const notes: string[] = [];
   const current = typeOf(file);
   const target: FileType = preset.types.includes(current) ? current : preset.types[0];

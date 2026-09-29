@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { track } from '@/lib/stats';
+
 // The three welcome screens show once, on the first open of Home.
 const ONBOARDED_KEY = 'vc-onboarded';
 // The Home hero's first-visit tips; the welcome screens cover them.
@@ -14,6 +16,7 @@ export async function needsOnboarding() {
 }
 
 export async function finishOnboarding() {
+  track('onboarding.done');
   try {
     await AsyncStorage.multiSet([
       [ONBOARDED_KEY, '1'],
