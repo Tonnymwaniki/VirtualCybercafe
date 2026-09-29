@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 
 import type { GovTask } from '@/data/gov-tasks';
 import { appTools, guides, type AppToolId } from '@/data/guides';
+import { cleanProfile, profileFields } from '@/data/profile-fields';
 import { services } from '@/data/services';
 import type { ChatAction, ChatMessage } from '@/lib/chat-types';
 import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
@@ -23,6 +24,7 @@ How to work:
 - For a government or education process, call get_service_guide first and base your steps on it. If the user asks about current fees or deadlines, use web_search and say where the figure came from; otherwise tell them to check the official site.
 - When one of the app's tools would do part of the job (passport photo, photos to PDF, shrinking a photo, CV builder, Locker), call open_app_tool so the user gets a button. Offer at most two buttons per reply.
 - For a Certificate of Good Conduct, KRA PIN, passport or replacing a lost ID, also call open_app_tool with government: the Government Services workspace walks them through it with their saved details and tracks progress.
+- When filling a form, writing a letter or CV, or checking what a task needs, call get_my_details to use what the user already saved (ID, contacts, KRA PIN, family, education) instead of asking again. Never make up personal details; ask for what is missing.
 - When the user is signed in and a task needs documents, call check_locker to see what they already have, and say what is still missing.
 - When the user needs a letter, email, complaint, application text or similar, write it with create_document so they can download it as a PDF. Never invent facts about the user; ask for missing details first.
 - You cannot submit forms or make payments on government sites for the user. Guide them step by step and prepare everything they need.`;
@@ -54,6 +56,13 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
       required: ['tool'],
       additionalProperties: false,
     },
+    strict: true,
+  },
+  {
+    name: 'get_my_details',
+    description:
+      "Read the signed-in user's saved My Details: name, ID number, date of birth, contacts, KRA PIN, family and education. Use before asking for personal details.",
+    input_schema: { type: 'object', properties: {}, additionalProperties: false },
     strict: true,
   },
   {
@@ -106,20 +115,40 @@ type ToolContext = {
   actions: ChatAction[];
 };
 
-async function checkLocker(accessToken: string | null): Promise<string> {
+// A Supabase client acting as the signed-in user, so row-level security
+// limits it to their own data. Returns a message string when that's not possible.
+async function userClient(accessToken: string | null) {
   const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !anonKey) return 'The Locker is in demo mode on this server, so its contents are not available.';
-  if (!accessToken) return 'The user is not signed in. Offer the sign_in tool if they want to use their Locker.';
+  if (!url || !anonKey) return 'Accounts are in demo mode on this server, so saved data is not available here.';
+  if (!accessToken) return 'The user is not signed in. Offer the sign_in tool if they want to use their saved data.';
 
   const supabase = createClient(url, anonKey, {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const { data: userData, error: userError } = await supabase.auth.getUser(accessToken);
-  if (userError || !userData.user) return 'The sign-in has expired. Ask the user to sign in again.';
+  const { data, error } = await supabase.auth.getUser(accessToken);
+  if (error || !data.user) return 'The sign-in has expired. Ask the user to sign in again.';
+  return { supabase, userId: data.user.id };
+}
 
-  const userId = userData.user.id;
+async function getMyDetails(accessToken: string | null): Promise<string> {
+  const client = await userClient(accessToken);
+  if (typeof client === 'string') return client;
+  const { data, error } = await client.supabase.from('id_details').select('details').maybeSingle();
+  if (error) return 'My Details could not be loaded.';
+  const profile = cleanProfile(data?.details ?? {});
+  const lines = profileFields.filter((f) => profile[f.key]).map((f) => `${f.label}: ${profile[f.key]}`);
+  return lines.length
+    ? `${lines.join('\n')}\n(Saved in My Details. The user can edit them under Locker > My Details.)`
+    : 'My Details is empty. Offer to open it with open_app_tool my_details.';
+}
+
+async function checkLocker(accessToken: string | null): Promise<string> {
+  const client = await userClient(accessToken);
+  if (typeof client === 'string') return client;
+  const { supabase, userId } = client;
+
   const categories = ['Documents', 'Photos', 'Certificates'];
   const lines: string[] = [];
   for (const category of categories) {
@@ -147,6 +176,8 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
     }
     case 'check_locker':
       return checkLocker(context.accessToken);
+    case 'get_my_details':
+      return getMyDetails(context.accessToken);
     case 'create_document': {
       const title = String(input.title ?? 'Document').slice(0, 120);
       const body = String(input.body ?? '');

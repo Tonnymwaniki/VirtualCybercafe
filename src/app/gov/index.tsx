@@ -43,6 +43,12 @@ export default function GovernmentScreen() {
         Pick a task. I’ll check what you need, get your documents ready, fill in your answers and track it with you.
       </Text>
 
+      <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [styles.other, pressed && styles.dim]}>
+        <Ionicons name="person-circle" size={18} color={Colors.primary} />
+        <Text style={styles.otherText}>My Details: fill in once, every form reuses them</Text>
+        <Ionicons name="chevron-forward" size={16} color={Colors.primary} />
+      </Pressable>
+
       <View style={styles.list}>
         {govTasks.map((task) => {
           const taskProgress = progress[task.id];

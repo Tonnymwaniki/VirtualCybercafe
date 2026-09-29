@@ -1,5 +1,6 @@
 // Shapes shared by the Government Services screens and the /api/gov route.
 
+// What the ID reader returns; the keys match My Details (profile-fields.ts).
 export type IdDetails = {
   fullName: string;
   idNumber: string;
@@ -8,15 +9,6 @@ export type IdDetails = {
   sex: string;
   placeOfBirth: string;
   dateOfIssue: string;
-};
-
-export const emptyIdDetails: IdDetails = {
-  fullName: '',
-  idNumber: '',
-  dateOfBirth: '',
-  sex: '',
-  placeOfBirth: '',
-  dateOfIssue: '',
 };
 
 export type RequirementsCheck = {
@@ -46,3 +38,32 @@ export type TaskProgress = {
 };
 
 export const emptyProgress: TaskProgress = { stage: -1, stageDates: {}, ready: [], answers: {}, updatedAt: '' };
+
+// The form helper (/api/form-helper): fills fields, fixes errors, and asks
+// the screen to take actions.
+export type HelperMessage = { role: 'user' | 'assistant'; text: string };
+
+export type FieldUpdate = { key: string; value: string; reason: string };
+
+export type HelperAction =
+  | { type: 'open'; label: string; route: string }
+  | { type: 'ready'; requirementId: string }
+  | { type: 'stage'; stage: number };
+
+export type HelperRequest = {
+  taskId: string;
+  values: Record<string, string>;
+  profile: Record<string, string>;
+  lockerFiles: string[];
+  issues: { key: string; message: string }[];
+  messages: HelperMessage[];
+  // A screenshot of an error, as base64 JPEG, sent with the last message.
+  image?: string;
+};
+
+export type HelperResponse = {
+  reply: string;
+  updates: FieldUpdate[];
+  actions: HelperAction[];
+  mode: 'ai' | 'sample';
+};

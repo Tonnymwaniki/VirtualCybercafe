@@ -152,6 +152,15 @@ export default function LockerScreen() {
         </Pressable>
       </View>
 
+      <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [styles.detailsLink, pressed && styles.pressed]}>
+        <Ionicons name="person-circle" size={22} color={Colors.primary} />
+        <View style={styles.accountText}>
+          <Text style={styles.detailsTitle}>My Details</Text>
+          <Text style={styles.accountPhone}>ID, contacts, family and education. Every form fills itself from these.</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
+      </Pressable>
+
       <View style={styles.secureNote}>
         <Ionicons name="shield-checkmark" size={18} color={Colors.success} />
         <Text style={styles.secureText}>
@@ -217,6 +226,18 @@ export default function LockerScreen() {
 }
 
 const styles = StyleSheet.create({
+  detailsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.lg,
+  },
+  detailsTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  pressed: { opacity: 0.7 },
   signedOut: {
     alignItems: 'center',
     gap: Spacing.md,

@@ -1,18 +1,15 @@
-// Saves ID details and task progress. Signed-in users keep them in their
-// private Supabase tables (supabase/migrations/0002_government.sql); guests and
-// demo mode keep them on this device.
+// Saves Government task progress. Signed-in users keep it in their private
+// Supabase table (supabase/migrations/0002_government.sql); guests and demo
+// mode keep it on this device. My Details live in profile-store.ts.
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { GovTaskId } from '@/data/gov-tasks';
-import { emptyIdDetails, emptyProgress, type IdDetails, type TaskProgress } from '@/lib/gov-types';
+import { emptyProgress, type TaskProgress } from '@/lib/gov-types';
+import { usesCloud } from '@/lib/profile-store';
 import { supabase } from '@/lib/supabase';
 
-export const GUEST_ID = 'guest';
-
-function useCloud(userId: string) {
-  return !!supabase && userId !== GUEST_ID && !userId.startsWith('demo-');
-}
+export { GUEST_ID } from '@/lib/profile-store';
 
 async function readLocal<T>(key: string, fallback: T): Promise<T> {
   try {
@@ -31,29 +28,8 @@ async function writeLocal(key: string, value: unknown) {
   }
 }
 
-export async function loadIdDetails(userId: string): Promise<IdDetails> {
-  const key = `gov:${userId}:id`;
-  if (useCloud(userId) && supabase) {
-    const { data, error } = await supabase.from('id_details').select('details').maybeSingle();
-    if (!error) return { ...emptyIdDetails, ...(data?.details ?? {}) };
-    console.warn('Could not load ID details, using this device:', error.message);
-  }
-  return readLocal(key, emptyIdDetails);
-}
-
-export async function saveIdDetails(userId: string, details: IdDetails): Promise<void> {
-  if (useCloud(userId) && supabase) {
-    const { error } = await supabase
-      .from('id_details')
-      .upsert({ user_id: userId, details, updated_at: new Date().toISOString() });
-    if (!error) return;
-    console.warn('Could not save ID details online, saving on this device:', error.message);
-  }
-  await writeLocal(`gov:${userId}:id`, details);
-}
-
 export async function loadAllProgress(userId: string): Promise<Partial<Record<GovTaskId, TaskProgress>>> {
-  if (useCloud(userId) && supabase) {
+  if (usesCloud(userId) && supabase) {
     const { data, error } = await supabase.from('task_progress').select('task_id, progress');
     if (!error) {
       return Object.fromEntries(
@@ -67,7 +43,7 @@ export async function loadAllProgress(userId: string): Promise<Partial<Record<Go
 
 export async function saveProgress(userId: string, taskId: GovTaskId, progress: TaskProgress): Promise<void> {
   const stamped = { ...progress, updatedAt: new Date().toISOString() };
-  if (useCloud(userId) && supabase) {
+  if (usesCloud(userId) && supabase) {
     const { error } = await supabase
       .from('task_progress')
       .upsert({ user_id: userId, task_id: taskId, progress: stamped, updated_at: stamped.updatedAt });

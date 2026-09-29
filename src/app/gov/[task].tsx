@@ -1,5 +1,5 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { DetailsStep } from '@/components/gov/details-step';
@@ -11,16 +11,12 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { findGovTask } from '@/data/gov-tasks';
+import type { Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
 import { fetchRequirements } from '@/lib/gov-client';
-import { GUEST_ID, loadAllProgress, loadIdDetails, saveIdDetails, saveProgress } from '@/lib/gov-store';
-import {
-  emptyIdDetails,
-  emptyProgress,
-  type IdDetails,
-  type RequirementsCheck,
-  type TaskProgress,
-} from '@/lib/gov-types';
+import { GUEST_ID, loadAllProgress, saveProgress } from '@/lib/gov-store';
+import { emptyProgress, type HelperAction, type RequirementsCheck, type TaskProgress } from '@/lib/gov-types';
+import { loadProfile, saveProfile } from '@/lib/profile-store';
 
 const stepNames = ['What you need', 'Are you ready?', 'Your details', 'Pay', 'Track'];
 
@@ -35,7 +31,8 @@ export default function GovTaskScreen() {
   const [check, setCheck] = useState<RequirementsCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState<TaskProgress>(emptyProgress);
-  const [idDetails, setIdDetails] = useState<IdDetails>(emptyIdDetails);
+  const progressRef = useRef<TaskProgress>(emptyProgress);
+  const [profile, setProfile] = useState<Profile>({});
 
   const runCheck = useCallback(
     async (refresh = false) => {
@@ -55,11 +52,12 @@ export default function GovTaskScreen() {
     if (!task) return;
     loadAllProgress(userId).then((all) => {
       const saved = all[task.id];
-      setProgress(saved ?? emptyProgress);
+      progressRef.current = saved ?? emptyProgress;
+      setProgress(progressRef.current);
       // Returning users land where they left off.
       if (saved && saved.stage >= 0) setStep(4);
     });
-    loadIdDetails(userId).then(setIdDetails);
+    loadProfile(userId).then(setProfile);
   }, [task, userId]);
 
   if (!task) {
@@ -71,30 +69,47 @@ export default function GovTaskScreen() {
     );
   }
 
-  const updateProgress = (next: TaskProgress) => {
+  // Several changes can land at once (the form helper can tick items and set
+  // progress in one reply), so each builds on the latest progress.
+  const updateProgress = (change: (current: TaskProgress) => TaskProgress) => {
+    const next = change(progressRef.current);
+    progressRef.current = next;
     setProgress(next);
-    saveProgress(userId, task.id, next);
+    return saveProgress(userId, task.id, next);
   };
 
   const toggleReady = (id: string) =>
-    updateProgress({
-      ...progress,
-      ready: progress.ready.includes(id) ? progress.ready.filter((r) => r !== id) : [...progress.ready, id],
+    updateProgress((current) => ({
+      ...current,
+      ready: current.ready.includes(id) ? current.ready.filter((r) => r !== id) : [...current.ready, id],
+    }));
+
+  const setStage = (stage: number) =>
+    updateProgress((current) => {
+      const stageDates = Object.fromEntries(
+        Object.entries(current.stageDates).filter(([index]) => Number(index) <= stage),
+      );
+      for (let index = 0; index <= stage; index++) stageDates[index] ??= new Date().toISOString();
+      return { ...current, stage, stageDates };
     });
 
-  const setStage = (stage: number) => {
-    const stageDates = Object.fromEntries(
-      Object.entries(progress.stageDates).filter(([index]) => Number(index) <= stage),
-    );
-    for (let index = 0; index <= stage; index++) stageDates[index] ??= new Date().toISOString();
-    updateProgress({ ...progress, stage, stageDates });
+  const saveDetails = async (answers: Record<string, string>, profileChanges: Profile) => {
+    const [saved] = await Promise.all([
+      saveProfile(userId, profileChanges),
+      updateProgress((current) => ({ ...current, answers })),
+    ]);
+    setProfile(saved);
   };
 
-  const saveDetails = async (answers: Record<string, string>, nextId: IdDetails) => {
-    setIdDetails(nextId);
-    const next = { ...progress, answers };
-    setProgress(next);
-    await Promise.all([saveIdDetails(userId, nextId), saveProgress(userId, task.id, next)]);
+  // Actions the form helper takes on the user's behalf.
+  const runHelperAction = (action: HelperAction) => {
+    if (action.type === 'open') router.push(action.route as Href);
+    else if (action.type === 'ready') {
+      updateProgress((current) =>
+        current.ready.includes(action.requirementId) ? current : { ...current, ready: [...current.ready, action.requirementId] },
+      );
+    }
+    else if (action.type === 'stage') setStage(action.stage);
   };
 
   return (
@@ -117,7 +132,14 @@ export default function GovTaskScreen() {
       {step === 0 && <NeedsStep task={task} check={check} loading={checking} onRefresh={() => runCheck(true)} />}
       {step === 1 && <ReadyStep task={task} user={user} ready={progress.ready} onToggle={toggleReady} />}
       {step === 2 && (
-        <DetailsStep task={task} idDetails={idDetails} answers={progress.answers} onSave={saveDetails} />
+        <DetailsStep
+          task={task}
+          user={user}
+          profile={profile}
+          answers={progress.answers}
+          onSave={saveDetails}
+          onAction={runHelperAction}
+        />
       )}
       {step === 3 && <PayStep task={task} check={check} />}
       {step === 4 && <TrackStep task={task} progress={progress} onSetStage={setStage} />}

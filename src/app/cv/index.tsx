@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -8,16 +8,40 @@ import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { cvHtml, cvQuestions, letterHtml, type CvAnswers, type CvResponse } from '@/lib/cv';
 import { requestCv } from '@/lib/cv-client';
+import { useAuth } from '@/lib/auth';
 import { sharePdfFromHtml } from '@/lib/images';
+import { GUEST_ID, loadProfile, saveProfile } from '@/lib/profile-store';
 
 const emptyAnswers = Object.fromEntries(cvQuestions.map((q) => [q.key, ''])) as CvAnswers;
 
 export default function CvBuilderScreen() {
+  const { user } = useAuth();
+  const userId = user?.id ?? GUEST_ID;
   const [answers, setAnswers] = useState<CvAnswers>(emptyAnswers);
   const [step, setStep] = useState(0);
   const [draft, setDraft] = useState('');
   const [result, setResult] = useState<CvResponse | null>(null);
   const [writing, setWriting] = useState(false);
+
+  // Start from My Details, so the contact questions are already answered.
+  useEffect(() => {
+    loadProfile(userId).then((profile) => {
+      const known: Partial<CvAnswers> = {
+        fullName: profile.fullName,
+        phone: profile.phone,
+        email: profile.email,
+        location: profile.town || profile.county,
+      };
+      setAnswers((current) => {
+        const next = { ...current };
+        for (const [key, value] of Object.entries(known) as [keyof CvAnswers, string | undefined][]) {
+          if (value && !next[key]) next[key] = value;
+        }
+        return next;
+      });
+      setDraft((current) => current || known.fullName || '');
+    });
+  }, [userId]);
 
   const question = cvQuestions[step];
   const done = step >= cvQuestions.length;
@@ -31,6 +55,7 @@ export default function CvBuilderScreen() {
     setDraft(step + 1 < cvQuestions.length ? updated[cvQuestions[step + 1].key] : '');
     setStep(step + 1);
     if (step + 1 === cvQuestions.length) {
+      saveProfile(userId, { fullName: updated.fullName, phone: updated.phone, email: updated.email });
       setWriting(true);
       setResult(await requestCv(updated));
       setWriting(false);

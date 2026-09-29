@@ -4,32 +4,35 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { FormHelperPanel } from '@/components/gov/form-helper-panel';
 import { Card, Note, openUrl } from '@/components/gov/ui';
 import { PickButtons } from '@/components/pick-buttons';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { GovTask } from '@/data/gov-tasks';
+import { cleanProfile, isProfileKey, type Profile } from '@/data/profile-fields';
+import type { AppUser } from '@/lib/auth';
 import { readIdCard } from '@/lib/gov-client';
-import type { IdDetails } from '@/lib/gov-types';
+import type { HelperAction, HelperResponse } from '@/lib/gov-types';
 import { validateAnswers, type Issue } from '@/lib/gov-validate';
 import { pickImages, processImage } from '@/lib/images';
+import { listFiles } from '@/lib/locker-store';
 
 type Props = {
   task: GovTask;
-  idDetails: IdDetails;
+  user: AppUser | null;
+  profile: Profile;
   answers: Record<string, string>;
-  onSave: (answers: Record<string, string>, idDetails: IdDetails) => Promise<void>;
+  // Saves the task's answers and merges profileChanges into My Details.
+  onSave: (answers: Record<string, string>, profileChanges: Profile) => Promise<void>;
+  onAction: (action: HelperAction) => void;
 };
 
-// Step 3: the form answers, filled from the saved ID details or a photo of the
-// ID, checked for mistakes, with a Copy button for each field.
-export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
+// Step 3: the form answers, filled from My Details or a photo of the ID,
+// checked for mistakes, with a Copy button for each field and the form helper
+// agent beside it.
+export function DetailsStep({ task, user, profile, answers, onSave, onAction }: Props) {
   const initial = () =>
-    Object.fromEntries(
-      task.fields.map((field) => [
-        field.key,
-        answers[field.key] || (field.idField ? idDetails[field.idField] : '') || '',
-      ]),
-    );
+    Object.fromEntries(task.fields.map((field) => [field.key, answers[field.key] || profile[field.key] || '']));
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [reading, setReading] = useState(false);
   const [readNotes, setReadNotes] = useState<string[]>([]);
@@ -37,6 +40,18 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
+  // Details read from the ID that this form doesn't ask for, kept for My Details.
+  const [scanned, setScanned] = useState<Profile>({});
+  // Fields the helper changed, with the old value for Undo.
+  const [changed, setChanged] = useState<Record<string, { previous: string; reason: string }>>({});
+  const [lockerFiles, setLockerFiles] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    listFiles(user.id)
+      .then((files) => setLockerFiles(files.map((file) => `${file.category}/${file.name}`)))
+      .catch(() => {});
+  }, [user]);
 
   // Saved details arrive after the first render; fill any still-empty fields.
   useEffect(() => {
@@ -45,12 +60,36 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
       return Object.fromEntries(Object.entries(filled).map(([key, value]) => [key, current[key] || value]));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idDetails, answers]);
+  }, [profile, answers]);
 
   const update = (key: string, value: string) => {
     setValues((current) => ({ ...current, [key]: value }));
+    setChanged(({ [key]: _, ...rest }) => rest);
     setSaved(false);
     setIssues(null);
+  };
+
+  const applyHelper = (response: HelperResponse) => {
+    if (response.updates.length) {
+      setChanged((current) => {
+        const next = { ...current };
+        for (const u of response.updates) {
+          next[u.key] = { previous: current[u.key]?.previous ?? values[u.key] ?? '', reason: u.reason };
+        }
+        return next;
+      });
+      setValues((current) => ({ ...current, ...Object.fromEntries(response.updates.map((u) => [u.key, u.value])) }));
+      setSaved(false);
+      setIssues(null);
+    }
+    response.actions.forEach(onAction);
+  };
+
+  const undo = (key: string) => {
+    const previous = changed[key]?.previous ?? '';
+    setValues((current) => ({ ...current, [key]: previous }));
+    setChanged(({ [key]: _, ...rest }) => rest);
+    setSaved(false);
   };
 
   const scanId = async (source: 'camera' | 'library') => {
@@ -62,14 +101,15 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
       const image = await processImage(photo, { maxSide: 1600, maxBytes: 1_500_000 });
       const result = await readIdCard(image.base64);
       const found = Object.keys(result.details).length;
+      const details = result.details as Profile;
       setValues((current) => {
         const next = { ...current };
         for (const field of task.fields) {
-          const value = field.idField && result.details[field.idField];
-          if (value) next[field.key] = value;
+          if (details[field.key]) next[field.key] = details[field.key];
         }
         return next;
       });
+      setScanned((current) => ({ ...current, ...cleanProfile(details) }));
       setReadNotes([
         ...(found ? [`Filled ${found} details from your ID. Check each one against the card.`] : []),
         ...result.problems,
@@ -84,11 +124,11 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
 
   const saveAndCheck = async () => {
     setSaving(true);
-    const nextId = { ...idDetails };
-    for (const field of task.fields) {
-      if (field.idField) nextId[field.idField] = values[field.key]?.trim() ?? '';
-    }
-    await onSave(values, nextId);
+    const fromForm = Object.fromEntries(
+      task.fields.filter((field) => isProfileKey(field.key)).map((field) => [field.key, values[field.key]?.trim() ?? '']),
+    );
+    await onSave(values, { ...scanned, ...fromForm });
+    setChanged({});
     setIssues(validateAnswers(task.fields, values));
     setSaved(true);
     setSaving(false);
@@ -115,7 +155,7 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
     <>
       <Card title="Scan your ID to fill this in">
         <Text style={styles.muted}>
-          Take a clear photo of the front of your National ID. The details are saved to your private profile, so you only do this once.
+          Take a clear photo of the front of your National ID. Your details are saved to My Details, so every form can reuse them.
         </Text>
         <PickButtons onPick={scanId} busy={reading} libraryLabel="Choose ID photo" />
         {readNotes.map((note) => (
@@ -124,6 +164,8 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
           </Note>
         ))}
       </Card>
+
+      <FormHelperPanel task={task} values={values} profile={{ ...profile, ...scanned }} lockerFiles={lockerFiles} onResult={applyHelper} />
 
       <Card title="Your answers for the form">
         {task.fields.map((field) => {
@@ -149,7 +191,7 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
                         : 'default'
                   }
                   autoCapitalize={field.kind === 'email' ? 'none' : 'words'}
-                  style={[styles.input, issue && styles.inputIssue]}
+                  style={[styles.input, changed[field.key] && styles.inputChanged, issue && styles.inputIssue]}
                 />
                 <Pressable
                   accessibilityLabel={`Copy ${field.label}`}
@@ -165,6 +207,15 @@ export function DetailsStep({ task, idDetails, answers, onSave }: Props) {
                 </Pressable>
               </View>
               {issue && <Text style={styles.issue}>{issue.message}</Text>}
+              {changed[field.key] && (
+                <View style={styles.changedRow}>
+                  <Ionicons name="sparkles" size={12} color={Colors.primary} />
+                  <Text style={styles.changedText}>Helper: {changed[field.key].reason}</Text>
+                  <Pressable onPress={() => undo(field.key)} hitSlop={6}>
+                    <Text style={styles.undo}>Undo</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           );
         })}
@@ -204,6 +255,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   inputIssue: { borderColor: '#DC2626' },
+  inputChanged: { borderColor: Colors.primary, backgroundColor: Colors.primarySoft },
+  changedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  changedText: { flex: 1, fontSize: 12, color: Colors.primary },
+  undo: { fontSize: 12, fontWeight: '700', color: Colors.primary, textDecorationLine: 'underline' },
   copy: {
     width: 40,
     height: 40,

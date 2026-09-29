@@ -46,7 +46,9 @@ The Government tile opens a workspace for four tasks: Certificate of Good Conduc
 4. **Pay**: the fee and safe M-Pesa steps. The app never handles money or PINs.
 5. **Track**: progress stages with dates.
 
-"Ask about this task" opens the attendant focused on that task. ID details and progress are saved in the signed-in user's private Supabase tables: run `supabase/migrations/0002_government.sql` in the SQL Editor once. Guests keep them on the device.
+"Ask about this task" opens the attendant focused on that task.
+
+**My Details and the form helper.** People fill in their details once at Locker > My Details (`src/app/profile.tsx`, fields in `src/data/profile-fields.ts`). Every form reuses them: a form field with the same key as a My Details field is filled from it and saved back to it (Government tasks and the CV builder). The main attendant can read them with its `get_my_details` tool. On each task's details step, the **form helper** (`src/server/form-helper.ts`, `/api/form-helper`) sees the form, My Details, the Locker file names and the failed checks. It fills or fixes fields (highlighted with Undo), explains errors from eCitizen or iTax (typed or as a screenshot), opens app tools, and ticks requirements or progress. It uses only the user's own facts and never submits or pays. ID details and progress are saved in the signed-in user's private Supabase tables: run `supabase/migrations/0002_government.sql` in the SQL Editor once. Guests keep them on the device.
 
 ## Accounts and Digital Locker
 

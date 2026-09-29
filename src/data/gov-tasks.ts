@@ -6,7 +6,7 @@ import type Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
 
 import type { LockerCategory } from '@/data/locker';
-import type { IdDetails } from '@/lib/gov-types';
+import type { FieldKind } from '@/data/profile-fields';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
 
@@ -22,14 +22,14 @@ export type Requirement = {
   fix?: { label: string; route: string };
 };
 
+// A field whose key matches a My Details field (profile-fields.ts) is filled
+// from the profile and saved back to it.
 export type FormField = {
   key: string;
   label: string;
-  // Filled from the ID details saved in the profile.
-  idField?: keyof IdDetails;
   placeholder?: string;
   optional?: boolean;
-  kind?: 'text' | 'email' | 'phone' | 'date' | 'idNumber' | 'kraPin';
+  kind?: FieldKind;
 };
 
 export type GovTask = {
@@ -58,10 +58,10 @@ const idScan: Requirement = {
 };
 
 const idFields: FormField[] = [
-  { key: 'fullName', label: 'Full name (as on ID)', idField: 'fullName' },
-  { key: 'idNumber', label: 'ID number', idField: 'idNumber', kind: 'idNumber' },
-  { key: 'dateOfBirth', label: 'Date of birth', idField: 'dateOfBirth', kind: 'date', placeholder: 'YYYY-MM-DD' },
-  { key: 'sex', label: 'Sex', idField: 'sex' },
+  { key: 'fullName', label: 'Full name (as on ID)' },
+  { key: 'idNumber', label: 'ID number', kind: 'idNumber' },
+  { key: 'dateOfBirth', label: 'Date of birth', kind: 'date', placeholder: 'YYYY-MM-DD' },
+  { key: 'sex', label: 'Sex' },
 ];
 
 const contactFields: FormField[] = [
@@ -100,7 +100,7 @@ export const govTasks: GovTask[] = [
     ],
     fields: [
       ...idFields,
-      { key: 'placeOfBirth', label: 'Place of birth (district)', idField: 'placeOfBirth' },
+      { key: 'placeOfBirth', label: 'Place of birth (district)' },
       ...contactFields,
       { key: 'county', label: 'County where you live' },
     ],
@@ -186,7 +186,7 @@ export const govTasks: GovTask[] = [
     ],
     fields: [
       ...idFields,
-      { key: 'placeOfBirth', label: 'Place of birth', idField: 'placeOfBirth' },
+      { key: 'placeOfBirth', label: 'Place of birth' },
       ...contactFields,
       { key: 'passportType', label: 'Passport type', placeholder: '34, 50 or 66 pages' },
       { key: 'fatherName', label: 'Father’s full name' },

@@ -19,7 +19,8 @@ export type AppToolId =
   | 'cv_builder'
   | 'locker'
   | 'sign_in'
-  | 'government';
+  | 'government'
+  | 'my_details';
 
 export const appTools: Record<AppToolId, { label: string; route: string }> = {
   passport_photo: { label: 'Prepare passport photo', route: '/studio/passport' },
@@ -29,6 +30,7 @@ export const appTools: Record<AppToolId, { label: string; route: string }> = {
   locker: { label: 'Open my Locker', route: '/locker' },
   sign_in: { label: 'Sign in', route: '/sign-in' },
   government: { label: 'Open Government Services', route: '/gov' },
+  my_details: { label: 'Open My Details', route: '/profile' },
 };
 
 export const guides: ServiceGuide[] = [
