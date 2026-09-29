@@ -57,7 +57,7 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 - **One step at a time** (`src/components/stepper.tsx`): guided tasks, jobs and trips show "Step 2 of 5", a progress bar, dots to jump between steps, and Back/Next.
 - **English / Kiswahili** (`src/lib/i18n.tsx`): the EN/SW switch in the header changes Home, the menus, service tiles, buttons, step names and the chat. With Kiswahili on, the attendant answers in Swahili by default. Task details (requirements and steps) are still in English.
 - **Read aloud** (`expo-speech`): a "Read aloud" button under each attendant reply. Talking to type needs a development build, so the mic says it's coming soon.
-- **Mascot** (`src/components/mascot.tsx`, drawn with views), a first-visit welcome card on Home, and the Services tab grouped by area with every task as a chip.
+- **Mascot** (`src/components/mascot.tsx`, an SVG robot) in its own section at the top of Home beside the greeting and a speech bubble, with first-visit tips under it, and the Services tab grouped by area with every task as a chip.
 
 ## Government Services
 

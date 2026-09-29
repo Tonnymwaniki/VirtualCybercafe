@@ -4,9 +4,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
+import { HomeHero } from '@/components/home-hero';
 import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
-import { WelcomeCard } from '@/components/welcome-card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
@@ -60,14 +60,7 @@ export default function HomeScreen() {
     <Screen>
       <AppHeader title="Virtual Cybercafe" />
 
-      <View>
-        <Text style={styles.greeting}>
-          {t(greetingKey())}{firstName ? `, ${firstName}` : ''} 👋
-        </Text>
-        <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
-      </View>
-
-      <WelcomeCard />
+      <HomeHero greeting={`${t(greetingKey())}${firstName ? `, ${firstName}` : ''} 👋`} />
 
       {continueItems.length > 0 && (
         <View style={styles.continueBlock}>
@@ -199,8 +192,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  greeting: { fontSize: 24, fontWeight: '700', color: Colors.text },
-  subtitle: { marginTop: Spacing.xs, fontSize: 15, color: Colors.textMuted },
   attendantCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
