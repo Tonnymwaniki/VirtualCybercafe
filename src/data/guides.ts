@@ -24,7 +24,8 @@ export type AppToolId =
   | 'jobs'
   | 'education'
   | 'print'
-  | 'business';
+  | 'business'
+  | 'travel';
 
 export const appTools: Record<AppToolId, { label: string; route: string }> = {
   passport_photo: { label: 'Prepare passport photo', route: '/studio/passport' },
@@ -39,6 +40,7 @@ export const appTools: Record<AppToolId, { label: string; route: string }> = {
   education: { label: 'Open Education', route: '/education' },
   print: { label: 'Send to Print Hub', route: '/print' },
   business: { label: 'Open Business', route: '/business' },
+  travel: { label: 'Open Travel & Visa', route: '/travel' },
 };
 
 export const guides: ServiceGuide[] = [

@@ -91,6 +91,16 @@ The Business tile (`src/app/business/`) fills everything from My Details > Busin
 
 Documents and tenders are `biz:` rows in `task_progress`, so no new SQL is needed.
 
+## Travel & Visa
+
+The Travel tile (`src/app/travel/`) fills everything from My Details > Travel (passport details):
+
+- **Trips:** the agent checks what a Kenyan passport holder needs for the destination and purpose on official immigration and embassy sites (`src/server/travel-agent.ts`), with a passport-validity warning, a document checklist that spots Locker files, the visa form with the form helper (`src/data/visa-form.ts`), supporting letters (cover, invitation, sponsor, itinerary) and progress.
+- **Working abroad:** checks a recruitment agency on the National Employment Authority's site and a job offer for common scam signs (`src/lib/travel-sample.ts`).
+- **Kenya eTA for a visitor:** a guided task (`travelTasks` in `src/data/gov-tasks.ts`).
+
+Trips are `travel:` rows in `task_progress`, so no new SQL is needed.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { findGovTask } from '@/data/gov-tasks';
 import { jobPortalTask } from '@/data/job-portal';
 import { cleanProfile } from '@/data/profile-fields';
+import { visaFormTask } from '@/data/visa-form';
 import type { HelperMessage, HelperRequest } from '@/lib/gov-types';
 import { runFormHelper, sampleHelp } from '@/server/form-helper';
 
@@ -24,7 +25,8 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const task = body.taskId === jobPortalTask.id ? jobPortalTask : findGovTask(body.taskId);
+  const task =
+    body.taskId === jobPortalTask.id ? jobPortalTask : body.taskId === visaFormTask.id ? visaFormTask : findGovTask(body.taskId);
   if (!task) return Response.json({ error: 'Unknown task' }, { status: 400 });
 
   const messages: HelperMessage[] = (Array.isArray(body.messages) ? body.messages : [])

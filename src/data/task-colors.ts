@@ -18,4 +18,5 @@ export const taskColors: Record<GovTaskId, string> = {
   turnover_tax: '#0EA5E9',
   company_registration: '#6366F1',
   agpo: '#EC4899',
+  kenya_eta: '#6366F1',
 };

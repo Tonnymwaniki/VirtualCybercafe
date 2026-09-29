@@ -2,11 +2,11 @@
 // fields with the same key as a profile field are filled from, and saved
 // back to, the profile. The Career section is written once and reused by the
 // CV builder and every job application. The Business section fills every
-// business form, invoice and tender.
+// business form, invoice and tender. Travel fills visa forms and letters.
 
 export type FieldKind = 'text' | 'email' | 'phone' | 'date' | 'idNumber' | 'kraPin';
 
-export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education' | 'Career' | 'Business';
+export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education' | 'Career' | 'Business' | 'Travel';
 
 export type ProfileField = {
   key: string;
@@ -19,7 +19,7 @@ export type ProfileField = {
 
 export type Profile = Record<string, string>;
 
-export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education', 'Career', 'Business'];
+export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education', 'Career', 'Business', 'Travel'];
 
 export const profileFields: ProfileField[] = [
   { key: 'fullName', label: 'Full name (as on ID)', section: 'Identity' },
@@ -91,6 +91,13 @@ export const profileFields: ProfileField[] = [
   { key: 'mpesaTill', label: 'How customers pay you (M-Pesa)', section: 'Business', placeholder: 'e.g. Till 123456, or Paybill 222111 account 45' },
   { key: 'agpoCategory', label: 'AGPO group, if any', section: 'Business', placeholder: 'Youth, Women or PWD' },
   { key: 'agpoNumber', label: 'AGPO certificate number, if any', section: 'Business' },
+
+  { key: 'passportNumber', label: 'Passport number', section: 'Travel', placeholder: 'e.g. AK1234567' },
+  { key: 'passportIssued', label: 'Passport date of issue', section: 'Travel', kind: 'date', placeholder: 'YYYY-MM-DD' },
+  { key: 'passportExpiry', label: 'Passport expiry date', section: 'Travel', kind: 'date', placeholder: 'YYYY-MM-DD' },
+  { key: 'passportPlace', label: 'Passport place of issue', section: 'Travel', placeholder: 'e.g. Nairobi' },
+  { key: 'nationality', label: 'Nationality', section: 'Travel', placeholder: 'Kenyan' },
+  { key: 'maritalStatus', label: 'Marital status', section: 'Travel', placeholder: 'Single, Married...' },
 ];
 
 const profileKeys = new Set(profileFields.map((field) => field.key));

@@ -29,7 +29,9 @@ export type GovTaskId =
   | 'business_permit'
   | 'turnover_tax'
   | 'company_registration'
-  | 'agpo';
+  | 'agpo'
+  // Listed in the Travel workspace.
+  | 'kenya_eta';
 
 export type Requirement = {
   id: string;
@@ -823,6 +825,58 @@ export const bizTasks: GovTask[] = [
   },
 ];
 
+export const travelTasks: GovTask[] = [
+  {
+    id: 'kenya_eta',
+    title: 'Kenya eTA for a visitor',
+    description: 'Invite a relative or friend from abroad',
+    icon: 'people',
+    agency: 'Kenya Directorate of Immigration Services (eTA)',
+    portal: { label: 'Open Kenya eTA', url: 'https://www.etakenya.go.ke' },
+    officialDomains: ['etakenya.go.ke', 'immigration.go.ke', 'ecitizen.go.ke'],
+    requirements: [
+      { id: 'visitor_passport', label: 'The visitor’s passport, valid 6 months after arrival, with a blank page' },
+      { id: 'visitor_photo', label: 'A recent face photo of the visitor' },
+      { id: 'tickets', label: 'The visitor’s return or onward ticket booking' },
+      {
+        id: 'invitation',
+        label: 'Your invitation letter, or their hotel booking',
+        lockerName: 'invitation-letter',
+        lockerCategory: 'Documents',
+      },
+      { id: 'host_id', label: 'Your National ID (as the host)', lockerName: 'national-id', lockerCategory: 'Documents' },
+      { id: 'fee', label: 'The eTA fee, paid by card on the official eTA site' },
+    ],
+    steps: [
+      'The visitor (or you, for them) opens the official Kenya eTA site: etakenya.go.ke.',
+      'Fill in the visitor’s passport details, travel dates and where they will stay.',
+      'Upload their photo, passport page, ticket and your invitation letter or their hotel booking.',
+      'Pay the fee on the site and submit, well before the trip.',
+      'The approved eTA arrives by email; they carry a copy when travelling.',
+    ],
+    fields: [
+      { key: 'visitorName', label: 'Visitor’s full name (as in passport)' },
+      { key: 'visitorNationality', label: 'Visitor’s nationality' },
+      { key: 'visitorPassport', label: 'Visitor’s passport number' },
+      { key: 'visitorEmail', label: 'Visitor’s email', kind: 'email', optional: true },
+      { key: 'arrivalDate', label: 'Arrival date', kind: 'date', placeholder: 'YYYY-MM-DD' },
+      { key: 'departureDate', label: 'Departure date', kind: 'date', placeholder: 'YYYY-MM-DD' },
+      { key: 'fullName', label: 'Your name (the host)' },
+      { key: 'idNumber', label: 'Your ID number', kind: 'idNumber' },
+      { key: 'phone', label: 'Your phone number', kind: 'phone', placeholder: '07XX XXX XXX' },
+      { key: 'town', label: 'Town where they will stay' },
+      { key: 'postalAddress', label: 'Your address', optional: true },
+    ],
+    payment: {
+      howTo: [
+        'Pay only on the official site, etakenya.go.ke. Look-alike sites charge extra.',
+        'The fee is paid by card on the site. Keep the receipt email.',
+      ],
+    },
+    stages: ['Details gathered', 'Application submitted', 'Paid', 'eTA approved', 'Visitor arrived'],
+  },
+];
+
 export function findGovTask(id: string | undefined): GovTask | undefined {
-  return [...govTasks, ...eduTasks, ...bizTasks].find((task) => task.id === id);
+  return [...govTasks, ...eduTasks, ...bizTasks, ...travelTasks].find((task) => task.id === id);
 }

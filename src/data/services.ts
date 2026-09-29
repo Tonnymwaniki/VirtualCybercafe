@@ -75,9 +75,10 @@ export const services: Service[] = [
     id: 'travel',
     title: 'Travel & Visa',
     shortTitle: 'Travel',
-    description: 'Visa forms, travel documents, passport photos',
+    description: 'Visa rules, forms, letters and work abroad safety',
     icon: 'airplane',
     color: '#6366F1',
+    route: '/travel',
   },
   {
     id: 'payments',
