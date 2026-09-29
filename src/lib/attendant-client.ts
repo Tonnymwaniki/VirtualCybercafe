@@ -19,14 +19,11 @@ export async function askAttendant(
   pdf?: string,
 ): Promise<ChatResponse> {
   try {
-    // Lets the attendant look inside the signed-in user's Locker.
-    const session = supabase ? (await supabase.auth.getSession()).data.session : null;
+    // apiFetch sends the sign-in token, which also lets the attendant look
+    // inside the signed-in user's Locker.
     const response = await apiFetch('/api/chat', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         messages: messages.map(({ role, text, hadImage, imageUri, files: sent, actions }) => ({
           role,

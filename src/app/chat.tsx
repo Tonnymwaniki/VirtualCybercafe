@@ -49,13 +49,13 @@ import { loadContinueItems, type ContinueItem } from '@/lib/continue';
 import { fileIntent, workIntro } from '@/lib/file-intent';
 import { useLanguage, type TextKey } from '@/lib/i18n';
 import { canUseCamera, pickImages } from '@/lib/images';
-import { listFiles } from '@/lib/locker-store';
+import { listFiles, type StoredFile } from '@/lib/locker-store';
 import { GUEST_ID, loadProfile, usesCloud } from '@/lib/profile-store';
 import { newId } from '@/lib/record-store';
 import { confidentIntent, localReply } from '@/lib/route-intent';
 import { isSwahili } from '@/lib/swahili';
 import { taskIntent } from '@/lib/task-intent';
-import { fileUri, formatSize, pickFiles, toBase64, type WorkFile } from '@/lib/workbench/files';
+import { fileUri, formatSize, kindOf, lockerWorkFile, pickFiles, toBase64, type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked, shrinkImage } from '@/lib/workbench/image';
 import { pageCount } from '@/lib/workbench/pdf';
 import { runWork } from '@/lib/workbench/run';
@@ -147,6 +147,8 @@ export default function ChatScreen() {
   const [inputHeight, setInputHeight] = useState(LINE + 18);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachMenu, setAttachMenu] = useState(false);
+  // Locker files to pick from: null while closed, 'loading', or the list.
+  const [lockerPick, setLockerPick] = useState<StoredFile[] | 'loading' | 'signIn' | null>(null);
   const [preparingPhoto, setPreparingPhoto] = useState(false);
   const [waiting, setWaiting] = useState(false);
   // Workbench jobs from the chat still running.
@@ -496,6 +498,32 @@ export default function ChatScreen() {
     }
   };
 
+  const openLocker = async () => {
+    if (!user) return setLockerPick('signIn');
+    setLockerPick('loading');
+    try {
+      setLockerPick((await listFiles(user.id)).filter((f) => kindOf(f.mimeType, f.name)));
+    } catch {
+      setLockerPick([]);
+    }
+  };
+
+  const attachFromLocker = async (stored: StoredFile) => {
+    setLockerPick(null);
+    setAttachMenu(false);
+    setPreparingPhoto(true);
+    try {
+      const file = await lockerWorkFile(stored);
+      if (!file || attachments.length >= MAX_ATTACHMENTS) return;
+      if (file.kind === 'pdf') await pageCount(file).catch(() => {});
+      setAttachments((list) => [...list, { meta: keepFile(file), file }]);
+    } catch {
+      // Couldn't download it; the person can try again.
+    } finally {
+      setPreparingPhoto(false);
+    }
+  };
+
   const onScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
     const near = contentSize.height - contentOffset.y - layoutMeasurement.height < 120;
@@ -708,13 +736,50 @@ export default function ChatScreen() {
                       <Ionicons name="document-attach" size={18} color={Colors.primary} />
                       <Text style={styles.attachText}>{t('chat.file')}</Text>
                     </Pressable>
+                    <Pressable onPress={openLocker} style={styles.attachOption}>
+                      <Ionicons name="lock-closed" size={18} color={Colors.primary} />
+                      <Text style={styles.attachText}>{t('chat.locker')}</Text>
+                    </Pressable>
+                  </View>
+                )}
+                {attachMenu && lockerPick && (
+                  <View style={styles.lockerPick}>
+                    {lockerPick === 'loading' ? (
+                      <ActivityIndicator color={Colors.primary} />
+                    ) : lockerPick === 'signIn' ? (
+                      <Pressable onPress={() => router.push('/sign-in')}>
+                        <Text style={styles.lockerLink}>{t('chat.lockerSignIn')}</Text>
+                      </Pressable>
+                    ) : lockerPick.length === 0 ? (
+                      <Text style={styles.noteLeft}>{t('chat.lockerEmpty')}</Text>
+                    ) : (
+                      lockerPick.slice(0, 12).map((stored) => (
+                        <Pressable
+                          key={stored.path}
+                          onPress={() => attachFromLocker(stored)}
+                          style={({ pressed }) => [styles.lockerRow, pressed && { opacity: 0.6 }]}>
+                          <Ionicons
+                            name={kindOf(stored.mimeType, stored.name) === 'pdf' ? 'document-text' : 'image'}
+                            size={18}
+                            color={Colors.primary}
+                          />
+                          <Text style={styles.lockerName} numberOfLines={1}>
+                            {stored.name}
+                          </Text>
+                          <Text style={styles.noteLeft}>{stored.bytes ? formatSize(stored.bytes) : ''}</Text>
+                        </Pressable>
+                      ))
+                    )}
                   </View>
                 )}
                 <View style={styles.inputRow}>
                   <Pressable
                     accessibilityLabel={t('chat.attach')}
                     hitSlop={8}
-                    onPress={() => setAttachMenu((v) => !v)}
+                    onPress={() => {
+                      setAttachMenu((v) => !v);
+                      setLockerPick(null);
+                    }}
                     style={styles.iconButton}>
                     <Ionicons name={attachMenu ? 'close' : 'add-circle-outline'} size={24} color={Colors.primary} />
                   </Pressable>
@@ -850,6 +915,16 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   attachText: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  lockerPick: {
+    gap: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.sm,
+  },
+  lockerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: 8, paddingHorizontal: Spacing.sm },
+  lockerName: { flex: 1, fontSize: 14, color: Colors.text },
+  lockerLink: { fontSize: 14, fontWeight: '600', color: Colors.primary, padding: Spacing.sm },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',

@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
@@ -12,6 +12,7 @@ import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { FileRow, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { findPreset, generalPresets, officialPresets, type Preset } from '@/data/presets';
+import { fileById } from '@/lib/chat-files';
 import { pickImages } from '@/lib/images';
 import { formatSize, pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked } from '@/lib/workbench/image';
@@ -34,7 +35,7 @@ function longDate(date: string) {
 
 export default function CheckScreen() {
   const engine = useEngine();
-  const params = useLocalSearchParams<{ rule?: string }>();
+  const params = useLocalSearchParams<{ rule?: string; file?: string }>();
   const [preset, setPreset] = useState<Preset>(findPreset(params.rule) ?? officialPresets[0] ?? generalPresets[0]);
   const [file, setFile] = useState<WorkFile | null>(null);
   const [checks, setChecks] = useState<RuleCheck[]>([]);
@@ -58,6 +59,13 @@ export default function CheckScreen() {
     setPreset(next);
     if (file) load(file, next);
   };
+
+  // Opened with a file, e.g. "Fix for upload" in the Locker.
+  useEffect(() => {
+    const given = params.file ? fileById(params.file) : undefined;
+    if (given) load(given);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.file]);
 
   const pickDocument = async () => {
     const [picked] = await pickFiles({ pdf: true, images: true });

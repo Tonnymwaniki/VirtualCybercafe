@@ -133,13 +133,13 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
   const how = advert.howToApply;
   const answers = cvAnswersFor(advert, profile);
   const attachable = useMemo(
-    () => lockerFiles.filter((file) => file.category === 'Certificates' || file.category === 'Documents'),
+    () => lockerFiles.filter((file) => file.category === 'Certificates' || file.category === 'ID' || file.category === 'Documents'),
     [lockerFiles],
   );
   // Files added to this job with "Use in application".
   const added = useMemo(() => new Set((job.documents ?? []).map((d) => d.path)), [job.documents]);
   const [picked, setPicked] = useState<string[]>(() =>
-    lockerFiles.filter((file) => (file.category === 'Certificates' || added.has(file.path)) && isImage(file)).map((file) => file.path),
+    lockerFiles.filter((file) => (file.category === 'Certificates' || file.category === 'ID' || added.has(file.path)) && isImage(file)).map((file) => file.path),
   );
   const [packing, setPacking] = useState(false);
   const [packProblem, setPackProblem] = useState('');

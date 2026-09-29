@@ -21,8 +21,8 @@ type State =
 
 // "Use in application": keeps the file in the Locker and adds it to a saved
 // job's supporting documents, so the Apply step and the application pack
-// have it ready.
-export function UseInApplication({ file }: { file: WorkFile }) {
+// have it ready. A file already in the Locker passes its path instead.
+export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name: string; mimeType: string; bytes: number | null }; lockerPath?: string }) {
   const router = useRouter();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
@@ -47,8 +47,9 @@ export function UseInApplication({ file }: { file: WorkFile }) {
   const add = async (job: Job) => {
     setState({ step: 'saving', job });
     try {
-      const path = await saveToLocker(userId, file, 'Certificates');
-      await addJobDocument(userId, job.id, { path, name: file.name, mimeType: file.mimeType, bytes: size(file), addedAt: new Date().toISOString() });
+      const bytes = 'kind' in file ? size(file) : file.bytes ?? 0;
+      const path = lockerPath ?? (await saveToLocker(userId, file as WorkFile, 'Certificates'));
+      await addJobDocument(userId, job.id, { path, name: file.name, mimeType: file.mimeType, bytes, addedAt: new Date().toISOString() });
       setState({ step: 'added', job });
     } catch {
       setState({ step: 'failed', text: 'Couldn’t add it. Check your connection and try again.' });

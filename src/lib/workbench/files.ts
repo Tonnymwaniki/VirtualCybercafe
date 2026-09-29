@@ -6,8 +6,8 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
-import type { LockerCategory } from '@/data/locker';
-import { readBytes, uploadFile } from '@/lib/locker-store';
+import { guessCategory, type LockerCategory } from '@/data/locker';
+import { fileBytes, readBytes, uploadFile, type StoredFile } from '@/lib/locker-store';
 
 export type WorkKind = 'pdf' | 'image';
 
@@ -122,6 +122,15 @@ export async function saveToLocker(userId: string, file: WorkFile, category?: Lo
     name: file.name,
     mimeType: file.mimeType,
     bytes: size(file),
-    category: category ?? (file.kind === 'pdf' ? 'Documents' : 'Photos'),
+    category: category ?? guessCategory(file.name, file.mimeType),
   });
+}
+
+// Loads a Locker file for the Workbench, the chat or a print code. Null for
+// a file the Workbench can't work on (only PDFs and photos).
+export async function lockerWorkFile(file: StoredFile): Promise<WorkFile | null> {
+  const kind = kindOf(file.mimeType, file.name);
+  if (!kind) return null;
+  const bytes = new Uint8Array(await fileBytes(file));
+  return { name: file.name, kind, mimeType: kind === 'pdf' ? 'application/pdf' : file.mimeType, bytes };
 }

@@ -131,6 +131,14 @@ export async function addJobDocument(userId: string, jobId: string, document: Jo
   return saveJob(userId, { ...job, documents: [...(job.documents ?? []).filter((d) => d.path !== document.path), document] });
 }
 
+// A Locker file was renamed or moved: keep the jobs that use it pointing at it.
+export async function relinkJobDocument(userId: string, oldPath: string, newPath: string, name: string) {
+  for (const job of await loadJobs(userId)) {
+    if (!job.documents?.some((d) => d.path === oldPath)) continue;
+    await saveJob(userId, { ...job, documents: job.documents.map((d) => (d.path === oldPath ? { ...d, path: newPath, name } : d)) });
+  }
+}
+
 // Jobs the person hasn't applied for yet, soonest deadline first.
 export function openJobs(jobs: Job[]) {
   return jobs.filter((job) => !job.closed && job.status < 1);

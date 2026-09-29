@@ -439,7 +439,7 @@ async function checkLocker(accessToken: string | null): Promise<string> {
   if (typeof client === 'string') return client;
   const { supabase, userId } = client;
 
-  const categories = ['Documents', 'Photos', 'Certificates'];
+  const categories = ['CV', 'ID', 'Certificates', 'Photos', 'Documents'];
   const lines: string[] = [];
   for (const category of categories) {
     const { data } = await supabase.storage.from('locker').list(`${userId}/${category}`);
