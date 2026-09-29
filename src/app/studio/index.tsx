@@ -18,6 +18,12 @@ type Tool = {
 
 const groups: { title: string; tools: Tool[] }[] = [
   {
+    title: 'Check a file',
+    tools: [
+      { title: 'Check upload rules', description: 'See if a file meets a form’s rule, and fix it', icon: 'shield-checkmark', color: '#16A34A', href: '/studio/check' },
+    ],
+  },
+  {
     title: 'Fit an upload limit',
     tools: [
       { title: 'Shrink a PDF', description: 'Make a PDF smaller, e.g. under 1 MB', icon: 'contract', color: '#DC2626', href: '/studio/shrink-pdf' },

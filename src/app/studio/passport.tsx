@@ -4,6 +4,7 @@ import { Image, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
 import { PickButtons } from '@/components/pick-buttons';
+import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -15,6 +16,7 @@ import {
   type PickedImage,
   type ProcessedImage,
 } from '@/lib/images';
+import { fromBase64 } from '@/lib/workbench/files';
 
 // eCitizen passport photo rules as shown in the design.
 const SIDE = 600;
@@ -110,6 +112,11 @@ export default function PassportPhotoScreen() {
               onPress={() => shareImage(photo, 'passport-photo.jpg')}
             />
           </View>
+          <PhotoCheckCard
+            key={photo.uri}
+            file={{ name: 'passport-photo.jpg', kind: 'image', mimeType: 'image/jpeg', bytes: fromBase64(photo.base64), uri: photo.uri, width: photo.width, height: photo.height }}
+            checks={['face', 'whiteBackground', 'noGlasses', 'sharp']}
+          />
         </>
       )}
     </Screen>

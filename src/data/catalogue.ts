@@ -143,6 +143,15 @@ const toolEntries: CatalogueEntry[] = [
     help: 'Pick a tool by what the form needs: fit an upload limit, make a PDF, or change a PDF. Each tool shows the finished file with its size, type and pages checked, then Download or Save to Locker.',
   },
   {
+    id: 'check_rules',
+    title: 'Check upload rules',
+    description: 'Check a file against a portal’s upload rule (type, size, pixels, pages) and fix it',
+    route: '/studio/check',
+    workspace: 'documents',
+    keywords: ['upload rules', 'requirements', 'rejected', 'file rejected', 'kuccps photo', 'ecitizen photo', 'upload error', 'check file', 'format required'],
+    help: 'Pick the rule the form uses (an official portal or a common limit), then your file. Red items fail; tap Fix it for a copy that passes. For photos, Check the photo looks at the face, background and glasses.',
+  },
+  {
     id: 'shrink_pdf',
     title: 'Shrink a PDF',
     description: 'Make a PDF small enough for an upload limit, e.g. under 1 MB',
