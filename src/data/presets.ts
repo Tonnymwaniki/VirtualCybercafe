@@ -51,8 +51,67 @@ export const generalPresets: Preset[] = [
   },
 ];
 
-// Filled in from official sources only; see the note at the top.
-export const officialPresets: Preset[] = [];
+// From official sources only; see the note at the top. None of these
+// portals publishes a size limit in KB or pixels, so only the file type and
+// photo rules are checked. Checked on 29 Sep 2026.
+export const officialPresets: Preset[] = [
+  {
+    id: 'ecitizen_passport_photo',
+    title: 'eCitizen passport photo',
+    where: 'Kenyan passport application on eCitizen',
+    types: ['jpg', 'png'],
+    photo: ['face', 'whiteBackground', 'noGlasses', 'sharp'],
+    note: 'Colour, white background, full face with both ears showing, no glasses, earrings or headbands, not smiling, taken within the last month. Print size 2 × 2 inches.',
+    source: { url: 'https://kenyaembassydc.org/epassport/', label: 'Kenya Embassy, Washington DC: e-passport guide' },
+    lastChecked: '2026-09-29',
+  },
+  {
+    id: 'ecitizen_passport_docs',
+    title: 'eCitizen passport documents',
+    where: 'ID, birth certificate or old passport page for a passport application',
+    types: ['jpg', 'png'],
+    note: 'Upload pictures (JPG or PNG), not PDF or Word. The embassy guide suggests saving each one at about 150 KB.',
+    source: { url: 'https://kenyaembassydc.org/epassport/', label: 'Kenya Embassy, Washington DC: e-passport guide' },
+    lastChecked: '2026-09-29',
+  },
+  {
+    id: 'hef_photo',
+    title: 'HEF / HELB photo',
+    where: 'Passport-size photo for the HEF student funding application',
+    types: ['jpg', 'png'],
+    photo: ['face', 'plainBackground', 'sharp'],
+    source: { url: 'https://www.hef.co.ke/', label: 'Higher Education Financing (hef.co.ke)' },
+    lastChecked: '2026-09-29',
+  },
+  {
+    id: 'hef_docs',
+    title: 'HEF / HELB documents',
+    where: 'ID or Maisha Card, birth certificate (minors), death certificate, sponsorship letter',
+    types: ['pdf'],
+    note: 'Put both sides of the ID in one PDF (use Scan a document or Photos to PDF).',
+    source: { url: 'https://www.hef.co.ke/', label: 'Higher Education Financing (hef.co.ke)' },
+    lastChecked: '2026-09-29',
+  },
+  {
+    id: 'karu_admission_photo',
+    title: 'Karatina University admission photo',
+    where: 'First-year joining (KUCCPS placement) at Karatina University',
+    types: ['jpg'],
+    photo: ['face', 'whiteBackground', 'sharp'],
+    note: 'A coloured passport photo on a white background, in JPEG. Other universities may differ.',
+    source: { url: 'https://karu.ac.ke/admission-letters-portal/', label: 'Karatina University admission portal' },
+    lastChecked: '2026-09-29',
+  },
+  {
+    id: 'karu_admission_docs',
+    title: 'Karatina University admission documents',
+    where: 'ID or birth certificate, KCSE result slip and admission forms',
+    types: ['pdf'],
+    note: 'Other universities may differ.',
+    source: { url: 'https://karu.ac.ke/admission-letters-portal/', label: 'Karatina University admission portal' },
+    lastChecked: '2026-09-29',
+  },
+];
 
 export const presets: Preset[] = [...officialPresets, ...generalPresets];
 
