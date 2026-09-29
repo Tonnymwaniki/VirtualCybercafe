@@ -114,8 +114,11 @@ export default function ProfileScreen() {
                           ? 'email-address'
                           : 'default'
                     }
-                    autoCapitalize={field.kind === 'email' ? 'none' : field.kind === 'kraPin' ? 'characters' : 'words'}
-                    style={[styles.input, issue && styles.inputIssue]}
+                    autoCapitalize={
+                      field.kind === 'email' ? 'none' : field.kind === 'kraPin' ? 'characters' : field.multiline ? 'sentences' : 'words'
+                    }
+                    multiline={field.multiline}
+                    style={[styles.input, field.multiline && styles.inputMultiline, issue && styles.inputIssue]}
                   />
                   {issue && <Text style={styles.issue}>{issue.message}</Text>}
                 </View>
@@ -153,6 +156,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     backgroundColor: Colors.background,
   },
+  inputMultiline: { minHeight: 96, textAlignVertical: 'top' },
   inputIssue: { borderColor: '#DC2626' },
   issue: { fontSize: 12, color: '#DC2626' },
   row: { flexDirection: 'row', gap: Spacing.md },

@@ -31,6 +31,9 @@ export default function CvBuilderScreen() {
         phone: profile.phone,
         email: profile.email,
         location: profile.town || profile.county,
+        experience: profile.experience,
+        education: profile.education,
+        skills: profile.skills,
       };
       setAnswers((current) => {
         const next = { ...current };
@@ -55,7 +58,14 @@ export default function CvBuilderScreen() {
     setDraft(step + 1 < cvQuestions.length ? updated[cvQuestions[step + 1].key] : '');
     setStep(step + 1);
     if (step + 1 === cvQuestions.length) {
-      saveProfile(userId, { fullName: updated.fullName, phone: updated.phone, email: updated.email });
+      saveProfile(userId, {
+        fullName: updated.fullName,
+        phone: updated.phone,
+        email: updated.email,
+        experience: updated.experience,
+        education: updated.education,
+        skills: updated.skills,
+      });
       setWriting(true);
       setResult(await requestCv(updated));
       setWriting(false);

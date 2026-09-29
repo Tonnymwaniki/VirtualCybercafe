@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import type { GovTask } from '@/data/gov-tasks';
+import type { FormTask } from '@/data/gov-tasks';
 import type { Profile } from '@/data/profile-fields';
 import { askFormHelper } from '@/lib/gov-client';
 import type { HelperAction, HelperMessage, HelperResponse } from '@/lib/gov-types';
@@ -11,14 +11,14 @@ import { validateAnswers } from '@/lib/gov-validate';
 import { pickImages, processImage } from '@/lib/images';
 
 type Props = {
-  task: GovTask;
+  task: FormTask;
   values: Record<string, string>;
   profile: Profile;
   lockerFiles: string[];
   onResult: (response: HelperResponse) => void;
 };
 
-function actionLabel(action: HelperAction, task: GovTask) {
+function actionLabel(action: HelperAction, task: FormTask) {
   if (action.type === 'open') return action.label;
   if (action.type === 'ready') {
     const requirement = task.requirements.find((r) => r.id === action.requirementId);

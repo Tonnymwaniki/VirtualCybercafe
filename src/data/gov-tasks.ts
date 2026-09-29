@@ -58,6 +58,10 @@ export type GovTask = {
   stages: string[];
 };
 
+// Anything the form helper can work on: a government task, or the job
+// application form in data/job-portal.ts.
+export type FormTask = Omit<GovTask, 'id'> & { id: string };
+
 const idScan: Requirement = {
   id: 'id_scan',
   label: 'National ID, front and back (scan or clear photo)',

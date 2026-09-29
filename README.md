@@ -50,6 +50,19 @@ The Government tile opens a workspace for nine tasks (`src/data/gov-tasks.ts`): 
 
 **My Details and the form helper.** People fill in their details once at Locker > My Details (`src/app/profile.tsx`, fields in `src/data/profile-fields.ts`). Every form reuses them: a form field with the same key as a My Details field is filled from it and saved back to it (Government tasks and the CV builder). The main attendant can read them with its `get_my_details` tool. On each task's details step, the **form helper** (`src/server/form-helper.ts`, `/api/form-helper`) sees the form, My Details, the Locker file names and the failed checks. It fills or fixes fields (highlighted with Undo), explains errors from eCitizen or iTax (typed or as a screenshot), opens app tools, and ticks requirements or progress. It uses only the user's own facts and never submits or pays. ID details and progress are saved in the signed-in user's private Supabase tables: run `supabase/migrations/0002_government.sql` in the SQL Editor once. Guests keep them on the device.
 
+## Jobs & Career
+
+The Jobs tile opens a workspace (`src/app/jobs/`) where each job is worked through in five steps: Advert, Match, CV & letter, Apply and Track.
+
+- **Add a job** by pasting the advert, sharing a link, or photographing a newspaper advert. The jobs agent (`src/server/jobs-agent.ts`, `/api/jobs`) reads the title, employer, deadline, requirements, documents and how to apply. **Find jobs** searches trusted job sites only (Public Service Commission, BrighterMonday, MyJobMag, Fuzu).
+- **Match** compares the advert with My Details (the new Career section: experience, education, skills) and the Locker, and lists matches, gaps and missing documents.
+- **CV & letter** writes a CV, cover letter and application email for that advert from the saved career details, never adding anything the user didn't give.
+- **Apply** builds one application pack PDF (letter, CV and ticked certificate photos from the Locker), shows the email draft for email applications, and puts the form helper beside job portal forms.
+- **Track** keeps the status (Saved, Applied, Shortlisted, Interview, Offer) and deadline, with interview practice questions.
+- Every advert gets a **scam check** (`src/lib/job-scam.ts`): fees, M-Pesa payments, "no interview" promises, WhatsApp-only or Gmail addresses for big employers are flagged, with or without the AI.
+
+Jobs are saved in the same private `task_progress` table (as `job:<id>` rows), so no new SQL is needed. Without the AI key, pasted adverts, the match check, CV and questions use simple rules.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

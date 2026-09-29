@@ -8,7 +8,7 @@ import { FormHelperPanel } from '@/components/gov/form-helper-panel';
 import { Card, Note, openUrl } from '@/components/gov/ui';
 import { PickButtons } from '@/components/pick-buttons';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import type { GovTask } from '@/data/gov-tasks';
+import type { FormTask } from '@/data/gov-tasks';
 import { cleanProfile, isProfileKey, type Profile } from '@/data/profile-fields';
 import type { AppUser } from '@/lib/auth';
 import { readIdCard } from '@/lib/gov-client';
@@ -18,7 +18,7 @@ import { pickImages, processImage } from '@/lib/images';
 import { listFiles } from '@/lib/locker-store';
 
 type Props = {
-  task: GovTask;
+  task: FormTask;
   user: AppUser | null;
   profile: Profile;
   answers: Record<string, string>;

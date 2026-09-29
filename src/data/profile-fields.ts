@@ -1,10 +1,11 @@
 // "My Details": what a person fills in once and every form reuses. Form
 // fields with the same key as a profile field are filled from, and saved
-// back to, the profile.
+// back to, the profile. The Career section is written once and reused by the
+// CV builder and every job application.
 
 export type FieldKind = 'text' | 'email' | 'phone' | 'date' | 'idNumber' | 'kraPin';
 
-export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education';
+export type ProfileSection = 'Identity' | 'Contacts' | 'Tax and work' | 'Family' | 'Education' | 'Career';
 
 export type ProfileField = {
   key: string;
@@ -12,11 +13,12 @@ export type ProfileField = {
   section: ProfileSection;
   kind?: FieldKind;
   placeholder?: string;
+  multiline?: boolean;
 };
 
 export type Profile = Record<string, string>;
 
-export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education'];
+export const profileSections: ProfileSection[] = ['Identity', 'Contacts', 'Tax and work', 'Family', 'Education', 'Career'];
 
 export const profileFields: ProfileField[] = [
   { key: 'fullName', label: 'Full name (as on ID)', section: 'Identity' },
@@ -48,9 +50,27 @@ export const profileFields: ProfileField[] = [
   { key: 'school', label: 'Secondary school', section: 'Education' },
   { key: 'kcseIndex', label: 'KCSE index number', section: 'Education' },
   { key: 'kcseYear', label: 'KCSE year', section: 'Education' },
+
+  {
+    key: 'experience',
+    label: 'Work experience (one job per line: title, employer, years, what you did)',
+    section: 'Career',
+    multiline: true,
+    placeholder: 'Cashier, Naivas Supermarket, 2021–2024, served customers and balanced the till',
+  },
+  {
+    key: 'education',
+    label: 'Education and training (one per line: course, school or college, year)',
+    section: 'Career',
+    multiline: true,
+    placeholder: 'Diploma in Business Management, KCA University, 2020',
+  },
+  { key: 'skills', label: 'Skills (separated by commas)', section: 'Career', multiline: true, placeholder: 'Customer service, MS Excel, driving' },
+  { key: 'referees', label: 'Referees (name, role, phone), optional', section: 'Career', multiline: true },
 ];
 
 const profileKeys = new Set(profileFields.map((field) => field.key));
+const longKeys = new Set(profileFields.filter((field) => field.multiline).map((field) => field.key));
 
 export function isProfileKey(key: string) {
   return profileKeys.has(key);
@@ -61,6 +81,6 @@ export function cleanProfile(values: Record<string, unknown>): Profile {
   return Object.fromEntries(
     Object.entries(values)
       .filter(([key, value]) => profileKeys.has(key) && typeof value === 'string' && value.trim())
-      .map(([key, value]) => [key, String(value).trim().slice(0, 200)]),
+      .map(([key, value]) => [key, String(value).trim().slice(0, longKeys.has(key) ? 3000 : 200)]),
   );
 }

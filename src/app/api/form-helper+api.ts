@@ -1,18 +1,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 import { findGovTask } from '@/data/gov-tasks';
+import { jobPortalTask } from '@/data/job-portal';
 import { cleanProfile } from '@/data/profile-fields';
 import type { HelperMessage, HelperRequest } from '@/lib/gov-types';
 import { runFormHelper, sampleHelp } from '@/server/form-helper';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
 
-function strings(value: unknown): Record<string, string> {
+function strings(value: unknown, max = 200): Record<string, string> {
   if (!value || typeof value !== 'object') return {};
   return Object.fromEntries(
     Object.entries(value)
       .filter(([, v]) => typeof v === 'string')
-      .map(([k, v]) => [k, (v as string).slice(0, 200)]),
+      .map(([k, v]) => [k, (v as string).slice(0, max)]),
   );
 }
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
-  const task = findGovTask(body.taskId);
+  const task = body.taskId === jobPortalTask.id ? jobPortalTask : findGovTask(body.taskId);
   if (!task) return Response.json({ error: 'Unknown task' }, { status: 400 });
 
   const messages: HelperMessage[] = (Array.isArray(body.messages) ? body.messages : [])
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
   const helperRequest: HelperRequest = {
     taskId: task.id,
     values: strings(body.values),
-    profile: cleanProfile(strings(body.profile)),
+    profile: cleanProfile(strings(body.profile, 3000)),
     lockerFiles: (Array.isArray(body.lockerFiles) ? body.lockerFiles : []).filter((f) => typeof f === 'string').slice(0, 50),
     issues: (Array.isArray(body.issues) ? body.issues : [])
       .filter((i) => typeof i?.key === 'string' && typeof i?.message === 'string')

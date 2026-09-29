@@ -6,7 +6,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 
-import type { GovTask } from '@/data/gov-tasks';
+import type { FormTask } from '@/data/gov-tasks';
 import { appTools, type AppToolId } from '@/data/guides';
 import { profileFields } from '@/data/profile-fields';
 import type { FieldUpdate, HelperAction, HelperRequest, HelperResponse } from '@/lib/gov-types';
@@ -14,7 +14,7 @@ import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model
 
 const MAX_STEPS = 5;
 
-const SYSTEM_PROMPT = `You are the form helper in Virtual Cybercafe, a Kenyan cybercafe app. You sit next to one government form and complete it together with the user.
+const SYSTEM_PROMPT = `You are the form helper in Virtual Cybercafe, a Kenyan cybercafe app. You sit next to one form (a government service, or a job application on an employer's website) and complete it together with the user.
 
 Rules:
 - Reply in the user's language (Swahili, English or Sheng), in two to four short lines.
@@ -26,7 +26,7 @@ Rules:
 - Tick progress with set_progress only when the user says they finished that stage.
 - You cannot log in to government sites, submit, or pay. Never ask for PINs or passwords; if the user shares one, tell them to change it.`;
 
-function tools(task: GovTask): Anthropic.Beta.BetaToolUnion[] {
+function tools(task: FormTask): Anthropic.Beta.BetaToolUnion[] {
   return [
     {
       name: 'set_fields',
@@ -95,7 +95,7 @@ function tools(task: GovTask): Anthropic.Beta.BetaToolUnion[] {
   ];
 }
 
-function context(task: GovTask, request: HelperRequest) {
+function context(task: FormTask, request: HelperRequest) {
   const fields = task.fields
     .map((f) => `- ${f.key} (${f.label}${f.optional ? ', optional' : ''}): ${request.values[f.key]?.trim() || '(empty)'}`)
     .join('\n');
@@ -120,7 +120,7 @@ ${issues || '(none run yet, or all passed)'}`;
 }
 
 // Without the API key: fill empty fields from the saved details.
-export function sampleHelp(task: GovTask, request: HelperRequest): HelperResponse {
+export function sampleHelp(task: FormTask, request: HelperRequest): HelperResponse {
   const updates: FieldUpdate[] = task.fields
     .filter((f) => !request.values[f.key]?.trim() && request.profile[f.key])
     .map((f) => ({ key: f.key, value: request.profile[f.key], reason: 'From My Details' }));
@@ -137,7 +137,7 @@ export function sampleHelp(task: GovTask, request: HelperRequest): HelperRespons
   return { reply, updates, actions: [], mode: 'sample' };
 }
 
-export async function runFormHelper(task: GovTask, request: HelperRequest): Promise<HelperResponse> {
+export async function runFormHelper(task: FormTask, request: HelperRequest): Promise<HelperResponse> {
   const client = new Anthropic();
   const updates: FieldUpdate[] = [];
   const actions: HelperAction[] = [];

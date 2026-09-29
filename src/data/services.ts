@@ -33,7 +33,7 @@ export const services: Service[] = [
     description: 'CVs, job applications, career support',
     icon: 'briefcase',
     color: '#EF4444',
-    route: '/cv',
+    route: '/jobs',
   },
   {
     id: 'education',

@@ -33,7 +33,9 @@ export async function loadAllProgress(userId: string): Promise<Partial<Record<Go
     const { data, error } = await supabase.from('task_progress').select('task_id, progress');
     if (!error) {
       return Object.fromEntries(
-        (data ?? []).map((row) => [row.task_id, { ...emptyProgress, ...row.progress }]),
+        (data ?? [])
+          .filter((row) => !String(row.task_id).startsWith('job:'))
+          .map((row) => [row.task_id, { ...emptyProgress, ...row.progress }]),
       );
     }
     console.warn('Could not load task progress, using this device:', error.message);

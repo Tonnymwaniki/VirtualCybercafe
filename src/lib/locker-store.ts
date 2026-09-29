@@ -109,3 +109,26 @@ export async function openFile(file: StoredFile): Promise<void> {
   if (Platform.OS === 'web') window.open(url, '_blank');
   else await Linking.openURL(url);
 }
+
+function base64FromBytes(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+// Downloads a Locker file as a data: URL, e.g. to put a certificate photo
+// into an application pack PDF.
+export async function fileDataUrl(file: StoredFile): Promise<string> {
+  let url = file.localUri;
+  if (supabase) {
+    const { data, error } = await supabase.storage.from(LOCKER_BUCKET).createSignedUrl(file.path, 120);
+    if (error) throw error;
+    url = data.signedUrl;
+  }
+  if (!url) throw new Error('File not found');
+  const buffer = await (await fetch(url)).arrayBuffer();
+  return `data:${file.mimeType};base64,${base64FromBytes(buffer)}`;
+}
