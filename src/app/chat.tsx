@@ -16,17 +16,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChatActions } from '@/components/chat-actions';
 import { Colors, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
+import { findGovTask } from '@/data/gov-tasks';
 import { askAttendant } from '@/lib/attendant-client';
 import type { ChatMessage } from '@/lib/chat-types';
 
-const greeting: ChatMessage = {
+const defaultGreeting: ChatMessage = {
   role: 'assistant',
   text: 'Habari! I’m your virtual attendant. Tell me what you need done, in Swahili or English.',
 };
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { q } = useLocalSearchParams<{ q?: string }>();
+  const { q, task: taskId } = useLocalSearchParams<{ q?: string; task?: string }>();
+  const task = findGovTask(taskId);
+  const greeting: ChatMessage = task
+    ? { role: 'assistant', text: `Ask me anything about ${task.title}: documents, fees, where to go, or what to do next.` }
+    : defaultGreeting;
   const [messages, setMessages] = useState<ChatMessage[]>([greeting]);
   const [draft, setDraft] = useState('');
   const [waiting, setWaiting] = useState(false);
@@ -42,7 +47,7 @@ export default function ChatScreen() {
     setMessages([greeting, ...history]);
     setDraft('');
     setWaiting(true);
-    const response = await askAttendant(history);
+    const response = await askAttendant(history, task?.id);
     setSampleMode(response.mode === 'sample');
     setMessages((current) => [
       ...current,
@@ -73,7 +78,7 @@ export default function ChatScreen() {
           <Ionicons name="happy" size={20} color={Colors.onDark} />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Virtual Attendant</Text>
+          <Text style={styles.headerTitle}>{task ? task.title : 'Virtual Attendant'}</Text>
           <Text style={styles.headerStatus}>{sampleMode ? 'Online · sample replies' : 'Online'}</Text>
         </View>
       </View>

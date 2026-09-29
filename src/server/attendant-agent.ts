@@ -5,6 +5,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
+import type { GovTask } from '@/data/gov-tasks';
 import { appTools, guides, type AppToolId } from '@/data/guides';
 import { services } from '@/data/services';
 import type { ChatAction, ChatMessage } from '@/lib/chat-types';
@@ -21,6 +22,7 @@ How to work:
 - Keep replies short and phone-friendly: short lines, simple bullets, then one question or next step.
 - For a government or education process, call get_service_guide first and base your steps on it. If the user asks about current fees or deadlines, use web_search and say where the figure came from; otherwise tell them to check the official site.
 - When one of the app's tools would do part of the job (passport photo, photos to PDF, shrinking a photo, CV builder, Locker), call open_app_tool so the user gets a button. Offer at most two buttons per reply.
+- For a Certificate of Good Conduct, KRA PIN, passport or replacing a lost ID, also call open_app_tool with government: the Government Services workspace walks them through it with their saved details and tracks progress.
 - When the user is signed in and a task needs documents, call check_locker to see what they already have, and say what is still missing.
 - When the user needs a letter, email, complaint, application text or similar, write it with create_document so they can download it as a PDF. Never invent facts about the user; ask for missing details first.
 - You cannot submit forms or make payments on government sites for the user. Guide them step by step and prepare everything they need.`;
@@ -162,9 +164,17 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
   }
 }
 
+// The user opened the chat from inside a Government Services task.
+function taskFocus(task: GovTask) {
+  return `The user is working on one task in the app's Government Services workspace: ${task.title} (${task.agency}).
+The workspace already shows them: what they need, a readiness checklist with Locker check, a form sheet with their details, payment steps and progress tracking. Answer questions about this task only, point them to the right step of the workspace, and use web search for current official facts.
+Built-in steps for this task: ${task.steps.join(' ')}`;
+}
+
 export async function runAttendant(
   history: ChatMessage[],
   accessToken: string | null,
+  task?: GovTask,
 ): Promise<{ reply: string; actions: ChatAction[] }> {
   const client = new Anthropic();
   const context: ToolContext = { accessToken, actions: [] };
@@ -184,6 +194,7 @@ export async function runAttendant(
       system: [
         { type: 'text', text: SYSTEM_PROMPT },
         { type: 'text', text: `Services in the app:\n${serviceList}`, cache_control: { type: 'ephemeral' } },
+        ...(task ? [{ type: 'text' as const, text: taskFocus(task) }] : []),
       ],
       tools,
       messages,

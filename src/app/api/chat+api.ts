@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+import { findGovTask } from '@/data/gov-tasks';
 import type { ChatMessage, ChatResponse } from '@/lib/chat-types';
 import { sampleReply } from '@/lib/sample-attendant';
 import { runAttendant } from '@/server/attendant-agent';
@@ -21,8 +22,11 @@ function cleanHistory(raw: unknown): ChatMessage[] {
 
 export async function POST(request: Request) {
   let messages: ChatMessage[];
+  let taskId: unknown;
   try {
-    messages = cleanHistory((await request.json())?.messages);
+    const body = await request.json();
+    messages = cleanHistory(body?.messages);
+    taskId = body?.taskId;
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
@@ -41,7 +45,7 @@ export async function POST(request: Request) {
   const accessToken = auth?.startsWith('Bearer ') ? auth.slice(7) : null;
 
   try {
-    const { reply, actions } = await runAttendant(messages, accessToken);
+    const { reply, actions } = await runAttendant(messages, accessToken, findGovTask(typeof taskId === 'string' ? taskId : undefined));
     return Response.json({ reply, actions, mode: 'ai' } satisfies ChatResponse);
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {

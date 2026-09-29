@@ -24,6 +24,7 @@ export const services: Service[] = [
     description: 'eCitizen, KRA, NTSA, passports and more',
     icon: 'business',
     color: '#2563EB',
+    route: '/gov',
   },
   {
     id: 'jobs',

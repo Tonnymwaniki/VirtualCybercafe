@@ -37,6 +37,17 @@ With the key, the attendant (`src/server/attendant-agent.ts`) works as an agent 
 
 It never submits forms or makes payments; the person does that. Tapping a service tile opens the chat with that service, so the same agent handles both.
 
+## Government Services
+
+The Government tile opens a workspace for four tasks: Certificate of Good Conduct, KRA PIN, passport and replacing a lost ID (`src/data/gov-tasks.ts`). Each task has five steps:
+1. **What you need**: Claude searches only the official sites for the current requirements and fee (`src/server/gov-agent.ts`). Results are reused for 3 days.
+2. **Are you ready?**: a checklist that finds matching documents in the Locker, with upload and Document Studio shortcuts.
+3. **Your details**: a photo of the National ID fills the form answers (Claude reads it; the photo isn't stored). Answers are checked for mistakes and each has a Copy button.
+4. **Pay**: the fee and safe M-Pesa steps. The app never handles money or PINs.
+5. **Track**: progress stages with dates.
+
+"Ask about this task" opens the attendant focused on that task. ID details and progress are saved in the signed-in user's private Supabase tables: run `supabase/migrations/0002_government.sql` in the SQL Editor once. Guests keep them on the device.
+
 ## Accounts and Digital Locker
 
 Sign-in uses a phone number and an SMS code through [Supabase](https://supabase.com). Until Supabase is set up, the app runs in demo mode: any Kenyan number works with the code `123456`, and Locker files stay on the device for that session.

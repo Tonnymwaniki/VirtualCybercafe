@@ -4,7 +4,8 @@ import { supabase } from '@/lib/supabase';
 
 // Asks the server's /api/chat route; falls back to local sample replies when
 // the server can't be reached (for example, a build without the API server).
-export async function askAttendant(messages: ChatMessage[]): Promise<ChatResponse> {
+// taskId narrows the attendant to one Government Services task.
+export async function askAttendant(messages: ChatMessage[], taskId?: string): Promise<ChatResponse> {
   try {
     // Lets the attendant look inside the signed-in user's Locker.
     const session = supabase ? (await supabase.auth.getSession()).data.session : null;
@@ -14,7 +15,7 @@ export async function askAttendant(messages: ChatMessage[]): Promise<ChatRespons
         'Content-Type': 'application/json',
         ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
-      body: JSON.stringify({ messages: messages.map(({ role, text }) => ({ role, text })) }),
+      body: JSON.stringify({ messages: messages.map(({ role, text }) => ({ role, text })), taskId }),
     });
     if (!response.ok) throw new Error(`Chat request failed: ${response.status}`);
     return (await response.json()) as ChatResponse;

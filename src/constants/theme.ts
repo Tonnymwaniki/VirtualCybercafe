@@ -11,6 +11,7 @@ export const Colors = {
   onDark: '#FFFFFF',
   onDarkMuted: '#C7D2F0',
   success: '#16A34A',
+  warning: '#D97706',
 };
 
 export const Spacing = {
