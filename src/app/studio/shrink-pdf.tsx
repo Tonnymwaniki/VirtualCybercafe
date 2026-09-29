@@ -6,12 +6,14 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
 import { checksFor, FileRow, Problem, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { useLanguage } from '@/lib/i18n';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { pageCount, WorkbenchError } from '@/lib/workbench/pdf';
 import { shrinkPdf, type PdfShrinkResult } from '@/lib/workbench/shrink-pdf';
 
 export default function ShrinkPdfScreen() {
   const engine = useEngine();
+  const { t } = useLanguage();
   const [limitKb, setLimitKb] = useState(1024);
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [result, setResult] = useState<PdfShrinkResult | null>(null);
@@ -28,7 +30,7 @@ export default function ShrinkPdfScreen() {
       setOriginal(file);
       setResult(null);
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : 'That PDF couldn’t be opened. Try another one.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.pdfOpen'));
     }
   };
 
@@ -37,11 +39,11 @@ export default function ShrinkPdfScreen() {
     setTargetKb(kb);
     setProblem(null);
     setResult(null);
-    setProgress('Starting…');
+    setProgress(t('wb.starting'));
     try {
       setResult(await shrinkPdf(original, kb * 1024, engine, setProgress));
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'That PDF couldn’t be shrunk.');
+      setProblem(error instanceof Error ? error.message : t('wb.shrinkPdf.failed'));
     } finally {
       setProgress(null);
     }
@@ -51,17 +53,17 @@ export default function ShrinkPdfScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Shrink a PDF" />
-      <Text style={ui.intro}>Make a PDF small enough for an upload limit. Works best on scanned documents and photos of pages.</Text>
+      <SubHeader title={t('wb.shrinkPdf.title')} />
+      <Text style={ui.intro}>{t('wb.shrinkPdf.intro')}</Text>
       <SizeLimit value={limitKb} onChange={(kb) => { setLimitKb(kb); setResult(null); }} choices={[200, 500, 1024, 2048, 5120]} />
       <View style={ui.row}>
-        <Button label={original ? 'Choose another PDF' : 'Choose PDF'} icon="document" variant={original ? 'secondary' : 'primary'} onPress={choose} />
+        <Button label={original ? t('wb.chooseAnotherPdf') : t('wb.choosePdf')} icon="document" variant={original ? 'secondary' : 'primary'} onPress={choose} />
       </View>
       {original && <FileRow file={original} />}
-      {already && <Text style={ui.intro}>This PDF is already under {sizeLabel(limitKb)}. You can upload it as it is.</Text>}
+      {already && <Text style={ui.intro}>{t('wb.shrinkPdf.already', { limit: sizeLabel(limitKb) })}</Text>}
       {original && !already && (
         <View style={ui.row}>
-          <Button label={`Shrink under ${sizeLabel(limitKb)}`} icon="contract" onPress={() => shrink()} busy={!!progress} />
+          <Button label={t('wb.shrinkPdf.button', { limit: sizeLabel(limitKb) })} icon="contract" onPress={() => shrink()} busy={!!progress} />
         </View>
       )}
       {progress && <Working text={progress} />}
@@ -74,10 +76,10 @@ export default function ShrinkPdfScreen() {
             smaller: result.reached ? () => shrink(Math.max(50, Math.round((result.file.bytes.byteLength / 1024) * 0.7))) : undefined,
             clearer: targetKb < limitKb ? () => shrink(limitKb) : undefined,
           }}
-          checks={checksFor(result.file, { maxBytes: limitKb * 1024 })}
+          checks={checksFor(result.file, { maxBytes: limitKb * 1024 }, t)}
           note={[
-            result.asPictures ? 'Pages are now pictures, so text can’t be selected or searched. Check that it is still easy to read.' : 'Text and quality are unchanged.',
-            result.reached ? '' : `This is the smallest it can go while staying readable. Try a limit above ${sizeLabel(limitKb)}, or split it into parts.`,
+            result.asPictures ? t('wb.shrinkPdf.asPictures') : t('wb.shrinkPdf.unchanged'),
+            result.reached ? '' : t('wb.shrinkPdf.smallest', { limit: sizeLabel(limitKb) }),
           ].filter(Boolean).join(' ')}
         />
       )}

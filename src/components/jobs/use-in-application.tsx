@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { isLiveWorkspace } from '@/data/launch';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import { addJobDocument, deadlineLabel, GUEST_ID, loadJobs, openJobs } from '@/lib/jobs-store';
 import type { Job } from '@/lib/jobs-types';
 import { LockerFullError } from '@/lib/locker-store';
@@ -26,6 +27,7 @@ type State =
 export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name: string; mimeType: string; bytes: number | null }; lockerPath?: string }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.id ?? GUEST_ID;
   const [state, setState] = useState<State>({ step: 'idle' });
 
@@ -34,14 +36,14 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
   const start = async () => {
     // With accounts switched on, the Locker needs a signed-in user.
     if (supabase && !user) {
-      setState({ step: 'failed', text: 'Sign in to add files to a job application. They are kept in your Locker.' });
+      setState({ step: 'failed', text: t('useApp.signIn') });
       return;
     }
     setState({ step: 'loading' });
     try {
       setState({ step: 'pick', jobs: openJobs(await loadJobs(userId)).slice(0, 5) });
     } catch {
-      setState({ step: 'failed', text: 'Couldn’t load your jobs. Check your connection and try again.' });
+      setState({ step: 'failed', text: t('useApp.loadFailed') });
     }
   };
 
@@ -53,7 +55,7 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
       await addJobDocument(userId, job.id, { path, name: file.name, mimeType: file.mimeType, bytes, addedAt: new Date().toISOString() });
       setState({ step: 'added', job });
     } catch (error) {
-      setState({ step: 'failed', text: error instanceof LockerFullError ? error.message : 'Couldn’t add it. Check your connection and try again.' });
+      setState({ step: 'failed', text: error instanceof LockerFullError ? error.message : t('useApp.addFailed') });
     }
   };
 
@@ -61,7 +63,7 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
     return (
       <Pressable onPress={start} disabled={state.step === 'loading'} style={({ pressed }) => [styles.link, pressed && styles.dim]}>
         {state.step === 'loading' ? <ActivityIndicator size="small" color={Colors.primary} /> : <Ionicons name="briefcase-outline" size={16} color={Colors.primary} />}
-        <Text style={styles.linkText}>Use in application</Text>
+        <Text style={styles.linkText}>{t('useApp.link')}</Text>
       </Pressable>
     );
   }
@@ -76,9 +78,9 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
     return (
       <View style={[styles.panel, styles.good]}>
         <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-        <Text style={styles.text}>Added to {state.job.advert.title}. It’s in your Locker too.</Text>
+        <Text style={styles.text}>{t('useApp.added', { title: state.job.advert.title })}</Text>
         <Pressable onPress={() => router.push(`/jobs/${state.job.id}?step=3` as Href)} hitSlop={6}>
-          <Text style={styles.linkText}>Open job</Text>
+          <Text style={styles.linkText}>{t('useApp.openJob')}</Text>
         </Pressable>
       </View>
     );
@@ -87,18 +89,18 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
     return (
       <View style={styles.panel}>
         <ActivityIndicator size="small" color={Colors.primary} />
-        <Text style={styles.text}>Adding to {state.job.advert.title}…</Text>
+        <Text style={styles.text}>{t('useApp.adding', { title: state.job.advert.title })}</Text>
       </View>
     );
   }
   return (
     <View style={styles.pick}>
-      <Text style={styles.label}>Add it to which job?</Text>
+      <Text style={styles.label}>{t('useApp.which')}</Text>
       {state.jobs.length === 0 && (
         <>
-          <Text style={styles.muted}>No saved jobs yet. Save the job advert first, then come back to this file.</Text>
+          <Text style={styles.muted}>{t('useApp.none')}</Text>
           <Pressable onPress={() => router.push('/jobs' as Href)} hitSlop={6}>
-            <Text style={styles.linkText}>Open Jobs</Text>
+            <Text style={styles.linkText}>{t('useApp.openJobs')}</Text>
           </Pressable>
         </>
       )}
@@ -117,7 +119,7 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
         </Pressable>
       ))}
       <Pressable onPress={() => setState({ step: 'idle' })} hitSlop={6}>
-        <Text style={styles.cancel}>Cancel</Text>
+        <Text style={styles.cancel}>{t('common.cancel')}</Text>
       </Pressable>
     </View>
   );

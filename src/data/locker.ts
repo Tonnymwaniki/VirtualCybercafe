@@ -1,14 +1,13 @@
 // Locker folders. Each is a folder in the private storage bucket:
 // <userId>/<category>/<timestamp>-<name>.
+import type { Translate } from '@/lib/i18n';
+
 export type LockerCategory = 'CV' | 'ID' | 'Certificates' | 'Photos' | 'Documents';
 
-export const lockerLabels: Record<LockerCategory, string> = {
-  CV: 'CV & letters',
-  ID: 'ID & passport',
-  Certificates: 'Certificates',
-  Photos: 'Photos',
-  Documents: 'Other documents',
-};
+// A folder's name in the chosen language, e.g. "CV & letters" / "CV na barua".
+export function lockerLabel(t: Translate, category: LockerCategory) {
+  return t(`locker.folder.${category}`);
+}
 
 export const lockerCategories: LockerCategory[] = ['CV', 'ID', 'Certificates', 'Photos', 'Documents'];
 

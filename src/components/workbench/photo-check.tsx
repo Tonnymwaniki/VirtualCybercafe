@@ -5,33 +5,35 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { PhotoCheck } from '@/data/presets';
+import { useLanguage, type Translate } from '@/lib/i18n';
 import { checkPhotoAi } from '@/lib/photo-check-client';
 import type { PhotoVerdict } from '@/lib/photo-check-types';
 import type { WorkFile } from '@/lib/workbench/files';
 
 type Row = { ok: boolean; label: string };
 
-function rowsFor(verdict: Extract<PhotoVerdict, { available: true }>, wanted: PhotoCheck[]): Row[] {
+function rowsFor(t: Translate, verdict: Extract<PhotoVerdict, { available: true }>, wanted: PhotoCheck[]): Row[] {
   const rows: Row[] = [];
   if (wanted.includes('face')) {
-    rows.push({ ok: verdict.onePerson, label: verdict.onePerson ? 'One person' : 'Needs exactly one person' });
-    rows.push({ ok: verdict.faceCentred, label: verdict.faceCentred ? 'Face centred, looking at the camera' : 'Face not centred or cut off' });
+    rows.push({ ok: verdict.onePerson, label: verdict.onePerson ? t('photo.onePerson') : t('photo.needOnePerson') });
+    rows.push({ ok: verdict.faceCentred, label: verdict.faceCentred ? t('photo.centred') : t('photo.notCentred') });
   }
   if (wanted.includes('whiteBackground')) {
     const ok = verdict.background === 'white';
-    rows.push({ ok, label: ok ? 'White background' : 'Background should be plain white' });
+    rows.push({ ok, label: ok ? t('photo.white') : t('photo.needWhite') });
   } else if (wanted.includes('plainBackground')) {
     const ok = verdict.background !== 'busy';
-    rows.push({ ok, label: ok ? 'Plain background' : 'Background should be plain' });
+    rows.push({ ok, label: ok ? t('photo.plain') : t('photo.needPlain') });
   }
-  if (wanted.includes('noGlasses')) rows.push({ ok: !verdict.glasses, label: verdict.glasses ? 'Remove glasses' : 'No glasses' });
-  if (wanted.includes('sharp')) rows.push({ ok: verdict.sharp, label: verdict.sharp ? 'Sharp and well lit' : 'Blurry, dark or shadowed' });
+  if (wanted.includes('noGlasses')) rows.push({ ok: !verdict.glasses, label: verdict.glasses ? t('photo.removeGlasses') : t('photo.noGlasses') });
+  if (wanted.includes('sharp')) rows.push({ ok: verdict.sharp, label: verdict.sharp ? t('photo.sharp') : t('photo.blurry') });
   return rows;
 }
 
 // "Check the photo" with the AI: what it shows, not its size. Costs about
 // one chat message, so it runs only when the person taps.
 export function PhotoCheckCard({ file, checks }: { file: WorkFile; checks: PhotoCheck[] }) {
+  const { t } = useLanguage();
   const [verdict, setVerdict] = useState<PhotoVerdict | null>(null);
   const [busy, setBusy] = useState(false);
   const run = async () => {
@@ -43,20 +45,20 @@ export function PhotoCheckCard({ file, checks }: { file: WorkFile; checks: Photo
     <View style={styles.card}>
       <View style={styles.head}>
         <Ionicons name="sparkles" size={18} color={Colors.primary} />
-        <Text style={styles.title}>Check what the photo shows</Text>
+        <Text style={styles.title}>{t('photo.title')}</Text>
       </View>
       {!verdict && (
         <>
-          <Text style={styles.text}>The attendant looks at the face, background, glasses and sharpness, like the officer will.</Text>
+          <Text style={styles.text}>{t('photo.intro')}</Text>
           <View style={styles.row}>
-            <Button label="Check the photo" icon="eye" variant="secondary" onPress={run} busy={busy} />
+            <Button label={t('photo.button')} icon="eye" variant="secondary" onPress={run} busy={busy} />
           </View>
         </>
       )}
-      {verdict && !verdict.available && <Text style={styles.text}>{verdict.reason ?? 'The photo check is unavailable right now.'}</Text>}
+      {verdict && !verdict.available && <Text style={styles.text}>{verdict.reason ?? t('photo.unavailable')}</Text>}
       {verdict?.available && (
         <>
-          {rowsFor(verdict, checks).map((row) => (
+          {rowsFor(t, verdict, checks).map((row) => (
             <View key={row.label} style={styles.check}>
               <Ionicons name={row.ok ? 'checkmark-circle' : 'alert-circle'} size={18} color={row.ok ? Colors.success : '#DC2626'} />
               <Text style={styles.checkText}>{row.label}</Text>
@@ -67,7 +69,7 @@ export function PhotoCheckCard({ file, checks }: { file: WorkFile; checks: Photo
               • {tip}
             </Text>
           ))}
-          <Text style={styles.small}>An AI check can be wrong. The office decides.</Text>
+          <Text style={styles.small}>{t('photo.disclaimer')}</Text>
         </>
       )}
     </View>

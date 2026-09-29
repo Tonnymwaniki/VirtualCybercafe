@@ -6,8 +6,9 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
-import { checksFor, FileRow, Problem, ResultCard, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, FileRow, filesReadyLabel, Problem, ResultCard, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useLanguage } from '@/lib/i18n';
 import { fileUri, pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { keepPages, pageCount, parsePages, splitPages, WorkbenchError } from '@/lib/workbench/pdf';
 
@@ -28,6 +29,7 @@ function describe(indexes: number[]) {
 
 export default function SplitScreen() {
   const engine = useEngine();
+  const { t } = useLanguage();
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [thumbs, setThumbs] = useState<WorkFile[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
@@ -61,7 +63,7 @@ export default function SplitScreen() {
         })
         .catch(() => {});
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : 'That PDF couldn’t be opened. Try another one.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.pdfOpen'));
     }
   };
 
@@ -92,14 +94,14 @@ export default function SplitScreen() {
       }
       const keep = mode === 'keep' ? parsed : Array.from({ length: total }, (_, i) => i).filter((i) => !parsed.includes(i));
       if (!keep.length) {
-        setProblem('That would leave no pages.');
+        setProblem(t('wb.split.noPages'));
         return;
       }
       setBusy(true);
       try {
         setResult(await keepPages(original, keep, mode === 'keep' ? `-pages-${describe(parsed).replace(/[ ,]+/g, '_')}` : '-edited'));
       } catch (error) {
-        setProblem(error instanceof WorkbenchError ? error.message : 'That didn’t work. Try again.');
+        setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.tryAgain'));
       } finally {
         setBusy(false);
       }
@@ -109,7 +111,7 @@ export default function SplitScreen() {
     try {
       setParts(await splitPages(original));
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : 'That didn’t work. Try again.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.tryAgain'));
     } finally {
       setBusy(false);
     }
@@ -117,19 +119,19 @@ export default function SplitScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Pick or split pages" />
-      <Text style={ui.intro}>Keep only the pages a form needs, remove pages, or split a PDF into one file per page.</Text>
+      <SubHeader title={t('wb.split.title')} />
+      <Text style={ui.intro}>{t('wb.split.intro')}</Text>
       <View style={ui.row}>
-        <Button label={original ? 'Choose another PDF' : 'Choose PDF'} icon="document" variant={original ? 'secondary' : 'primary'} onPress={choose} />
+        <Button label={original ? t('wb.chooseAnotherPdf') : t('wb.choosePdf')} icon="document" variant={original ? 'secondary' : 'primary'} onPress={choose} />
       </View>
       {original && (
         <>
           <FileRow file={original} />
           <Toggle
             options={[
-              { value: 'keep', label: 'Keep pages' },
-              { value: 'remove', label: 'Remove pages' },
-              { value: 'each', label: 'Every page' },
+              { value: 'keep', label: t('wb.split.keep') },
+              { value: 'remove', label: t('wb.split.remove') },
+              { value: 'each', label: t('wb.split.each') },
             ]}
             value={mode}
             onChange={(value) => {
@@ -140,14 +142,14 @@ export default function SplitScreen() {
           />
           {mode !== 'each' && (
             <>
-              <Text style={ui.label}>{mode === 'keep' ? 'Pages to keep' : 'Pages to remove'}: tap them or type</Text>
-              <TextInput value={typed} onChangeText={typePages} placeholder="e.g. 1-3, 5" style={ui.input} accessibilityLabel="Pages" />
+              <Text style={ui.label}>{mode === 'keep' ? t('wb.split.keepLabel') : t('wb.split.removeLabel')}</Text>
+              <TextInput value={typed} onChangeText={typePages} placeholder={t('wb.split.placeholder')} style={ui.input} accessibilityLabel={t('wb.pagesA11y')} />
               <View style={styles.grid}>
                 {Array.from({ length: total }, (_, index) => {
                   const on = selected.includes(index);
-                  const thumb = thumbs.find((t) => t.name.endsWith(`-page-${index + 1}.jpg`));
+                  const thumb = thumbs.find((shown) => shown.name.endsWith(`-page-${index + 1}.jpg`));
                   return (
-                    <Pressable key={index} onPress={() => toggle(index)} style={[styles.page, on && (mode === 'keep' ? styles.keep : styles.remove)]} accessibilityLabel={`Page ${index + 1}`}>
+                    <Pressable key={index} onPress={() => toggle(index)} style={[styles.page, on && (mode === 'keep' ? styles.keep : styles.remove)]} accessibilityLabel={t('wb.pageN', { n: index + 1 })}>
                       {thumb ? <Image source={{ uri: fileUri(thumb) }} style={styles.thumb} resizeMode="contain" /> : <View style={styles.thumb} />}
                       <View style={styles.pageFoot}>
                         {on && <Ionicons name={mode === 'keep' ? 'checkmark-circle' : 'close-circle'} size={14} color={mode === 'keep' ? Colors.success : '#DC2626'} />}
@@ -161,7 +163,7 @@ export default function SplitScreen() {
           )}
           <View style={ui.row}>
             <Button
-              label={mode === 'each' ? `Split into ${total} files` : mode === 'keep' ? 'Make PDF with these pages' : 'Remove these pages'}
+              label={mode === 'each' ? t('wb.split.splitInto', { n: total }) : mode === 'keep' ? t('wb.split.makeKeep') : t('wb.split.makeRemove')}
               icon="cut"
               onPress={run}
               busy={busy}
@@ -169,10 +171,10 @@ export default function SplitScreen() {
           </View>
         </>
       )}
-      {busy && <Working text="Working…" />}
+      {busy && <Working text={t('wb.working')} />}
       {problem && <Problem text={problem} />}
-      {result && <ResultCard file={result} checks={checksFor(result)} />}
-      {parts.length > 0 && <ResultList files={parts} title={`${parts.length} files ready`} />}
+      {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
+      {parts.length > 0 && <ResultList files={parts} title={filesReadyLabel(t, parts.length)} />}
     </Screen>
   );
 }

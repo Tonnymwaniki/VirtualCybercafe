@@ -7,20 +7,23 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { checksFor, FileRow, Problem, ResultCard, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useLanguage, type TextKey } from '@/lib/i18n';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked, imageSize, shrinkImage, type ImageFormat } from '@/lib/workbench/image';
 
 type Mode = 'exact' | 'fit';
 
-const PRESETS = [
-  { label: '600 × 600', width: 600, height: 600, mode: 'exact' as Mode },
-  { label: '413 × 531 (35 × 45 mm)', width: 413, height: 531, mode: 'exact' as Mode },
-  { label: 'Long side 1600', width: 1600, height: 1600, mode: 'fit' as Mode },
-  { label: 'Long side 1024', width: 1024, height: 1024, mode: 'fit' as Mode },
+// A label, or a "Long side …" key with the number.
+const PRESETS: { label: string | { key: TextKey; n: number }; width: number; height: number; mode: Mode }[] = [
+  { label: '600 × 600', width: 600, height: 600, mode: 'exact' },
+  { label: '413 × 531 (35 × 45 mm)', width: 413, height: 531, mode: 'exact' },
+  { label: { key: 'wb.resize.longSide', n: 1600 }, width: 1600, height: 1600, mode: 'fit' },
+  { label: { key: 'wb.resize.longSide', n: 1024 }, width: 1024, height: 1024, mode: 'fit' },
 ];
 
 export default function ResizeScreen() {
+  const { t } = useLanguage();
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [width, setWidth] = useState('600');
   const [height, setHeight] = useState('600');
@@ -47,7 +50,7 @@ export default function ResizeScreen() {
   const resize = async () => {
     if (!original) return;
     if (!(w >= 16 && w <= 8000 && h >= 16 && h <= 8000)) {
-      setProblem('Width and height must be between 16 and 8000 pixels.');
+      setProblem(t('wb.resize.bounds'));
       return;
     }
     setBusy(true);
@@ -62,7 +65,7 @@ export default function ResizeScreen() {
       }
       setResult(out);
     } catch {
-      setProblem('That photo couldn’t be resized. Try another one.');
+      setProblem(t('wb.resize.failed'));
     } finally {
       setBusy(false);
     }
@@ -70,37 +73,37 @@ export default function ResizeScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Resize a photo" />
-      <Text style={ui.intro}>Set the exact size a form asks for, or make a big photo smaller in pixels.</Text>
-      <PickButtons onPick={pick} busy={busy} />
+      <SubHeader title={t('wb.resize.title')} />
+      <Text style={ui.intro}>{t('wb.resize.intro')}</Text>
+      <PickButtons onPick={pick} busy={busy} libraryLabel={t('wb.choosePhoto')} />
       {original && <FileRow file={original} />}
 
-      <Text style={ui.label}>Quick sizes</Text>
+      <Text style={ui.label}>{t('wb.resize.quick')}</Text>
       <View style={styles.chips}>
         {PRESETS.map((preset) => (
           <Pressable
-            key={preset.label}
+            key={`${preset.width}×${preset.height}`}
             onPress={() => {
               setWidth(String(preset.width));
               setHeight(String(preset.height));
               setMode(preset.mode);
             }}
             style={styles.chip}>
-            <Text style={styles.chipText}>{preset.label}</Text>
+            <Text style={styles.chipText}>{typeof preset.label === 'string' ? preset.label : t(preset.label.key, { n: preset.label.n })}</Text>
           </Pressable>
         ))}
       </View>
 
       <View style={styles.sizeRow}>
-        <Field label="Width (px)" value={width} onChange={setWidth} />
+        <Field label={t('wb.resize.width')} value={width} onChange={setWidth} />
         <Text style={styles.times}>×</Text>
-        <Field label="Height (px)" value={height} onChange={setHeight} />
+        <Field label={t('wb.resize.height')} value={height} onChange={setHeight} />
       </View>
 
       <Toggle
         options={[
-          { value: 'exact', label: 'Exact size (crops the edges)' },
-          { value: 'fit', label: 'Keep the whole photo' },
+          { value: 'exact', label: t('wb.resize.exact') },
+          { value: 'fit', label: t('wb.resize.fit') },
         ]}
         value={mode}
         onChange={(v) => setMode(v as Mode)}
@@ -113,19 +116,19 @@ export default function ResizeScreen() {
         value={format}
         onChange={(v) => setFormat(v as ImageFormat)}
       />
-      {format === 'jpg' && <Field label="Size limit in KB (optional)" value={maxKb} onChange={setMaxKb} />}
+      {format === 'jpg' && <Field label={t('wb.resize.maxKb')} value={maxKb} onChange={setMaxKb} />}
 
       <View style={ui.row}>
-        <Button label="Resize" icon="resize" onPress={resize} busy={busy} disabled={!original} />
+        <Button label={t('wb.resize.button')} icon="resize" onPress={resize} busy={busy} disabled={!original} />
       </View>
-      {busy && <Working text="Resizing…" />}
+      {busy && <Working text={t('wb.resize.working')} />}
       {problem && <Problem text={problem} />}
       {result && (
         <ResultCard
           file={result}
           before={original ?? undefined}
-          checks={checksFor(result, { maxBytes: format === 'jpg' ? limit : undefined, ...(mode === 'exact' ? { width: w, height: h } : {}) })}
-          note={mode === 'fit' ? 'The whole photo is kept, so one side may be shorter than you typed.' : undefined}
+          checks={checksFor(result, { maxBytes: format === 'jpg' ? limit : undefined, ...(mode === 'exact' ? { width: w, height: h } : {}) }, t)}
+          note={mode === 'fit' ? t('wb.resize.fitNote') : undefined}
         />
       )}
     </Screen>

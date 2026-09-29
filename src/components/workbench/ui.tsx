@@ -8,6 +8,7 @@ import { Button } from '@/components/button';
 import { UseInApplication } from '@/components/jobs/use-in-application';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
+import { translate, useLanguage, type Translate } from '@/lib/i18n';
 import { keepFile } from '@/lib/chat-files';
 import { GUEST_ID } from '@/lib/profile-store';
 import { LockerFullError } from '@/lib/locker-store';
@@ -18,22 +19,42 @@ import { fileUri, formatSize, saveToLocker, shareFile, size, type WorkFile } fro
 
 export type Check = { ok: boolean; label: string };
 
+const english: Translate = (key, vars) => translate('en', key, vars);
+
+// "1 page" / "3 pages" in the chosen language.
+export function pagesLabel(t: Translate, n: number) {
+  return n === 1 ? t('wb.onePage') : t('wb.pages', { n });
+}
+
+// "1 file ready" / "3 files ready".
+export function filesReadyLabel(t: Translate, n: number) {
+  return n === 1 ? t('wb.oneFileReady') : t('wb.filesReady', { n });
+}
+
 // What the result card ticks: every tick is measured on the real file.
-export function checksFor(file: WorkFile, rule: { maxBytes?: number; width?: number; height?: number } = {}): Check[] {
+// Labels are in English unless a `t` is passed.
+export function checksFor(
+  file: WorkFile,
+  rule: { maxBytes?: number; width?: number; height?: number } = {},
+  t: Translate = english,
+): Check[] {
   const checks: Check[] = [];
   const bytes = size(file);
   checks.push(
     rule.maxBytes
-      ? { ok: bytes <= rule.maxBytes, label: `${formatSize(bytes)} (limit ${formatSize(rule.maxBytes)})` }
+      ? { ok: bytes <= rule.maxBytes, label: t('wb.sizeWithLimit', { size: formatSize(bytes), limit: formatSize(rule.maxBytes) }) }
       : { ok: true, label: formatSize(bytes) },
   );
   checks.push({ ok: true, label: file.kind === 'pdf' ? 'PDF' : file.mimeType === 'image/png' ? 'PNG' : 'JPG' });
-  if (file.kind === 'pdf' && file.pages != null) checks.push({ ok: true, label: `${file.pages} page${file.pages === 1 ? '' : 's'}` });
+  if (file.kind === 'pdf' && file.pages != null) checks.push({ ok: true, label: pagesLabel(t, file.pages) });
   if (file.kind === 'image' && file.width && file.height) {
     const exact = rule.width && rule.height;
     checks.push({
       ok: !exact || (file.width === rule.width && file.height === rule.height),
-      label: `${file.width} × ${file.height}${exact && (file.width !== rule.width || file.height !== rule.height) ? ` (needs ${rule.width} × ${rule.height})` : ''}`,
+      label:
+        exact && (file.width !== rule.width || file.height !== rule.height)
+          ? t('wb.dimsNeeds', { w: file.width, h: file.height, nw: rule.width!, nh: rule.height! })
+          : t('wb.dims', { w: file.width, h: file.height }),
     });
   }
   return checks;
@@ -53,8 +74,9 @@ export function Thumb({ file, size: side = 56 }: { file: WorkFile; size?: number
 
 // The file the tool is working on, with a way to remove or swap it.
 export function FileRow({ file, onRemove, children }: { file: WorkFile; onRemove?: () => void; children?: React.ReactNode }) {
+  const { t } = useLanguage();
   const details = [formatSize(size(file))];
-  if (file.kind === 'pdf' && file.pages != null) details.push(`${file.pages} page${file.pages === 1 ? '' : 's'}`);
+  if (file.kind === 'pdf' && file.pages != null) details.push(pagesLabel(t, file.pages));
   if (file.kind === 'image' && file.width) details.push(`${file.width} × ${file.height}`);
   return (
     <View style={styles.fileRow}>
@@ -67,7 +89,7 @@ export function FileRow({ file, onRemove, children }: { file: WorkFile; onRemove
       </View>
       {children}
       {onRemove && (
-        <Pressable accessibilityLabel={`Remove ${file.name}`} hitSlop={8} onPress={onRemove}>
+        <Pressable accessibilityLabel={t('wb.remove', { name: file.name })} hitSlop={8} onPress={onRemove}>
           <Ionicons name="close-circle" size={22} color={Colors.textMuted} />
         </Pressable>
       )}
@@ -85,9 +107,10 @@ export function sizeLabel(kb: number) {
 export function SizeLimit({ value, onChange, choices = SIZE_CHOICES }: { value: number; onChange: (kb: number) => void; choices?: number[] }) {
   const [custom, setCustom] = useState(choices.includes(value) ? '' : String(value));
   const [typing, setTyping] = useState(!choices.includes(value));
+  const { t } = useLanguage();
   return (
     <View style={styles.limits}>
-      <Text style={styles.label}>Size limit</Text>
+      <Text style={styles.label}>{t('wb.sizeLimit')}</Text>
       <View style={styles.chips}>
         {choices.map((kb) => {
           const active = !typing && kb === value;
@@ -104,7 +127,7 @@ export function SizeLimit({ value, onChange, choices = SIZE_CHOICES }: { value: 
           );
         })}
         <Pressable onPress={() => setTyping(true)} style={[styles.chip, typing && styles.chipActive]}>
-          <Text style={[styles.chipText, typing && styles.chipTextActive]}>Other</Text>
+          <Text style={[styles.chipText, typing && styles.chipTextActive]}>{t('wb.other')}</Text>
         </Pressable>
       </View>
       {typing && (
@@ -117,7 +140,7 @@ export function SizeLimit({ value, onChange, choices = SIZE_CHOICES }: { value: 
               if (Number(digits) >= 10) onChange(Number(digits));
             }}
             keyboardType="number-pad"
-            placeholder="e.g. 300"
+            placeholder={t('wb.otherPlaceholder')}
             placeholderTextColor={Colors.textMuted}
             style={styles.customInput}
           />
@@ -143,6 +166,7 @@ export function Problem({ text }: { text: string }) {
 
 function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
   const [full, setFull] = useState<string | null>(null);
   const toLocker = async () => {
@@ -158,10 +182,10 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
   if (compact) {
     return (
       <View style={styles.compactButtons}>
-        <Pressable accessibilityLabel={`Save ${file.name}`} hitSlop={6} onPress={() => shareFile(file)} style={styles.iconButton}>
+        <Pressable accessibilityLabel={t('wb.saveA11y', { name: file.name })} hitSlop={6} onPress={() => shareFile(file)} style={styles.iconButton}>
           <Ionicons name="download-outline" size={20} color={Colors.primary} />
         </Pressable>
-        <Pressable accessibilityLabel={`Save ${file.name} to Locker`} hitSlop={6} onPress={toLocker} disabled={state === 'saving' || state === 'saved'} style={styles.iconButton}>
+        <Pressable accessibilityLabel={t('wb.saveToLockerA11y', { name: file.name })} hitSlop={6} onPress={toLocker} disabled={state === 'saving' || state === 'saved'} style={styles.iconButton}>
           <Ionicons
             name={state === 'saved' ? 'checkmark-circle' : 'cloud-upload-outline'}
             size={20}
@@ -174,9 +198,9 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
   return (
     <>
       <View style={styles.buttons}>
-        <Button label="Download" icon="download" onPress={() => shareFile(file)} />
+        <Button label={t('wb.download')} icon="download" onPress={() => shareFile(file)} />
         <Button
-          label={state === 'saved' ? 'In your Locker' : 'Save to Locker'}
+          label={state === 'saved' ? t('wb.inLocker') : t('wb.saveToLocker')}
           icon={state === 'saved' ? 'checkmark-circle' : 'cloud-upload'}
           variant="secondary"
           onPress={toLocker}
@@ -184,7 +208,7 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
           disabled={state === 'saved'}
         />
       </View>
-      {state === 'failed' && <Problem text={full ?? 'Couldn’t save to the Locker. Check your connection and try again.'} />}
+      {state === 'failed' && <Problem text={full ?? t('wb.saveFailed')} />}
     </>
   );
 }
@@ -192,10 +216,11 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
 // Opens Print at any cyber with this file.
 function PrintByCode({ file }: { file: WorkFile }) {
   const router = useRouter();
+  const { t } = useLanguage();
   return (
     <Pressable onPress={() => router.push(`/studio/print?file=${keepFile(file).id}` as Href)} style={({ pressed }) => [styles.moreLink, pressed && { opacity: 0.6 }]}>
       <Ionicons name="qr-code-outline" size={16} color={Colors.primary} />
-      <Text style={styles.moreText}>Print at any cyber</Text>
+      <Text style={styles.moreText}>{t('wb.printAnyCyber')}</Text>
     </Pressable>
   );
 }
@@ -203,7 +228,7 @@ function PrintByCode({ file }: { file: WorkFile }) {
 // The finished file: what was measured, and what to do with it.
 type Retry = { smaller?: () => void; clearer?: () => void };
 
-export function ResultCard({ file, checks, note, title = 'Ready', before, retry }: {
+export function ResultCard({ file, checks, note, title, before, retry }: {
   file: WorkFile;
   checks: Check[];
   note?: string;
@@ -213,13 +238,14 @@ export function ResultCard({ file, checks, note, title = 'Ready', before, retry 
   // "Try smaller" / "Try clearer" when the result isn't what the person wanted.
   retry?: Retry;
 }) {
+  const { t } = useLanguage();
   const allOk = checks.every((c) => c.ok);
   return (
     <View style={[styles.result, !allOk && styles.resultWarn]}>
       <View style={styles.resultHead}>
         <Thumb file={file} size={64} />
         <View style={styles.fileText}>
-          <Text style={[styles.resultTitle, !allOk && styles.warnText]}>{allOk ? title : 'Not quite'}</Text>
+          <Text style={[styles.resultTitle, !allOk && styles.warnText]}>{allOk ? (title ?? t('wb.ready')) : t('wb.notQuite')}</Text>
           <Text style={styles.fileName} numberOfLines={2}>
             {file.name}
           </Text>
@@ -240,13 +266,13 @@ export function ResultCard({ file, checks, note, title = 'Ready', before, retry 
           {retry.smaller && (
             <Pressable onPress={retry.smaller} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.6 }]}>
               <Ionicons name="contract-outline" size={15} color={Colors.primary} />
-              <Text style={styles.retryText}>Try smaller</Text>
+              <Text style={styles.retryText}>{t('wb.trySmaller')}</Text>
             </Pressable>
           )}
           {retry.clearer && (
             <Pressable onPress={retry.clearer} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.6 }]}>
               <Ionicons name="sparkles-outline" size={15} color={Colors.primary} />
-              <Text style={styles.retryText}>Try clearer</Text>
+              <Text style={styles.retryText}>{t('wb.tryClearer')}</Text>
             </Pressable>
           )}
         </View>
@@ -260,15 +286,16 @@ export function ResultCard({ file, checks, note, title = 'Ready', before, retry 
   );
 }
 
-function describe(file: WorkFile) {
+function describe(t: Translate, file: WorkFile) {
   const parts = [formatSize(size(file))];
   if (file.kind === 'image' && file.width) parts.push(`${file.width} × ${file.height}`);
-  if (file.kind === 'pdf' && file.pages != null) parts.push(`${file.pages} page${file.pages === 1 ? '' : 's'}`);
+  if (file.kind === 'pdf' && file.pages != null) parts.push(pagesLabel(t, file.pages));
   return parts.join(' · ');
 }
 
 // "7.4 MB → 798 KB, 89% smaller" with both pictures side by side.
 export function BeforeAfter({ before, after }: { before: WorkFile; after: WorkFile }) {
+  const { t } = useLanguage();
   const from = size(before);
   const to = size(after);
   const change = from > 0 ? Math.round(((from - to) / from) * 100) : 0;
@@ -276,18 +303,18 @@ export function BeforeAfter({ before, after }: { before: WorkFile; after: WorkFi
     <View style={styles.compare}>
       <View style={styles.compareSide}>
         <Thumb file={before} size={96} />
-        <Text style={styles.compareLabel}>Before</Text>
-        <Text style={styles.compareMeta}>{describe(before)}</Text>
+        <Text style={styles.compareLabel}>{t('wb.before')}</Text>
+        <Text style={styles.compareMeta}>{describe(t, before)}</Text>
       </View>
       <Ionicons name="arrow-forward" size={20} color={Colors.textMuted} />
       <View style={styles.compareSide}>
         <Thumb file={after} size={96} />
-        <Text style={styles.compareLabel}>After</Text>
-        <Text style={styles.compareMeta}>{describe(after)}</Text>
+        <Text style={styles.compareLabel}>{t('wb.after')}</Text>
+        <Text style={styles.compareMeta}>{describe(t, after)}</Text>
       </View>
       {change !== 0 && (
         <Text style={[styles.compareChange, change < 0 && { color: Colors.textMuted }]}>
-          {change > 0 ? `${change}% smaller` : `${-change}% bigger`}
+          {change > 0 ? t('wb.smaller', { n: change }) : t('wb.bigger', { n: -change })}
         </Text>
       )}
     </View>
@@ -331,15 +358,16 @@ export function OrderList({ files, onChange }: { files: WorkFile[]; onChange: (f
     next.splice(to, 0, item);
     onChange(next);
   };
+  const { t } = useLanguage();
   return (
     <View style={styles.order}>
       {files.map((file, index) => (
         <FileRow key={`${index}-${file.name}`} file={file} onRemove={() => onChange(files.filter((_, i) => i !== index))}>
           <Text style={styles.position}>{index + 1}</Text>
-          <Pressable accessibilityLabel="Move up" hitSlop={6} disabled={index === 0} onPress={() => move(index, index - 1)}>
+          <Pressable accessibilityLabel={t('wb.moveUp')} hitSlop={6} disabled={index === 0} onPress={() => move(index, index - 1)}>
             <Ionicons name="arrow-up" size={20} color={index === 0 ? Colors.border : Colors.primary} />
           </Pressable>
-          <Pressable accessibilityLabel="Move down" hitSlop={6} disabled={index === files.length - 1} onPress={() => move(index, index + 1)}>
+          <Pressable accessibilityLabel={t('wb.moveDown')} hitSlop={6} disabled={index === files.length - 1} onPress={() => move(index, index + 1)}>
             <Ionicons name="arrow-down" size={20} color={index === files.length - 1 ? Colors.border : Colors.primary} />
           </Pressable>
         </FileRow>

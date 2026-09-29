@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/button';
 import { Note } from '@/components/gov/ui';
 import { Spacing } from '@/constants/theme';
+import { useLanguage } from '@/lib/i18n';
 import { canUseCamera, pickImages, processImage } from '@/lib/images';
 import { readOldCv } from '@/lib/jobs-client';
 import { pickFiles, toBase64 } from '@/lib/workbench/files';
@@ -18,6 +19,7 @@ type Props = {
 // "Import my old CV": a photo or PDF of an old CV fills My Details (career,
 // education, skills, contacts) for the person to check and save.
 export function CvImport({ onFound }: Props) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [notes, setNotes] = useState<{ text: string; good?: boolean }[]>([]);
 
@@ -29,8 +31,8 @@ export function CvImport({ onFound }: Props) {
       const filled = Object.keys(result.details).length ? onFound(result.details) : 0;
       const found = Object.keys(result.details).length;
       setNotes([
-        ...(filled ? [{ text: `Filled ${filled} ${filled === 1 ? 'detail' : 'details'} from your CV. Check them, then tap Save.`, good: true }] : []),
-        ...(found > filled ? [{ text: `Kept ${found - filled} ${found - filled === 1 ? 'detail' : 'details'} you had already typed.` }] : []),
+        ...(filled ? [{ text: filled === 1 ? t('profile.cvFilledOne') : t('profile.cvFilled', { n: filled }), good: true }] : []),
+        ...(found > filled ? [{ text: found - filled === 1 ? t('profile.cvKeptOne') : t('profile.cvKept', { n: found - filled }) }] : []),
         ...result.problems.map((text) => ({ text })),
       ]);
     } finally {
@@ -46,7 +48,7 @@ export function CvImport({ onFound }: Props) {
       const image = await processImage(photo, { maxSide: 2000, maxBytes: 1_500_000 });
       await read({ image: image.base64 });
     } catch {
-      setNotes([{ text: 'Couldn’t read that photo. Try again in good light.' }]);
+      setNotes([{ text: t('profile.cvPhotoFailed') }]);
       setBusy(false);
     }
   };
@@ -55,7 +57,7 @@ export function CvImport({ onFound }: Props) {
     const [file] = await pickFiles({ pdf: true });
     if (!file) return;
     if (file.bytes.byteLength > MAX_PDF_BYTES) {
-      setNotes([{ text: 'That PDF is over 3 MB. Shrink it in the Document Workbench, or send a photo of the first page.' }]);
+      setNotes([{ text: t('profile.cvTooBig') }]);
       return;
     }
     await read({ pdf: toBase64(file.bytes) });
@@ -64,8 +66,8 @@ export function CvImport({ onFound }: Props) {
   return (
     <View style={styles.wrap}>
       <View style={styles.row}>
-        <Button label="Choose CV (PDF)" icon="document-text" onPress={fromPdf} busy={busy} />
-        <Button label="Photo of CV" icon={canUseCamera ? 'camera' : 'images'} variant="secondary" onPress={() => fromPhoto(canUseCamera ? 'camera' : 'library')} disabled={busy} />
+        <Button label={t('profile.cvChoosePdf')} icon="document-text" onPress={fromPdf} busy={busy} />
+        <Button label={t('profile.cvPhoto')} icon={canUseCamera ? 'camera' : 'images'} variant="secondary" onPress={() => fromPhoto(canUseCamera ? 'camera' : 'library')} disabled={busy} />
       </View>
       {notes.map((note) => (
         <Note key={note.text} tone={note.good ? 'good' : 'warn'}>

@@ -12,6 +12,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { cleanProfile, profileFields, profileSections, type Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
 import { readIdCard } from '@/lib/gov-client';
+import { useLanguage } from '@/lib/i18n';
 import { validateAnswers, type Issue } from '@/lib/gov-validate';
 import { pickImages, processImage } from '@/lib/images';
 import { GUEST_ID, loadProfile, saveProfile } from '@/lib/profile-store';
@@ -23,10 +24,11 @@ const checkFields = profileFields.map((field) => ({ ...field, optional: true }))
 export default function ProfileScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.id ?? GUEST_ID;
   const [values, setValues] = useState<Profile>({});
   const [reading, setReading] = useState(false);
-  const [notes, setNotes] = useState<string[]>([]);
+  const [notes, setNotes] = useState<{ text: string; good?: boolean }[]>([]);
   const [issues, setIssues] = useState<Issue[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -50,12 +52,12 @@ export default function ProfileScreen() {
       const found = cleanProfile(result.details);
       setValues((current) => ({ ...current, ...found }));
       setNotes([
-        ...(Object.keys(found).length ? [`Filled ${Object.keys(found).length} details from your ID. Check them, then save.`] : []),
-        ...result.problems,
+        ...(Object.keys(found).length ? [{ text: t('profile.idFilled', { n: Object.keys(found).length }), good: true }] : []),
+        ...result.problems.map((text) => ({ text })),
       ]);
       setSaved(false);
     } catch {
-      setNotes(['Couldn’t read that photo. Try again in good light, or type your details.']);
+      setNotes([{ text: t('profile.idFailed') }]);
     } finally {
       setReading(false);
     }
@@ -83,27 +85,23 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <SubHeader title="My Details" />
-      <Text style={styles.intro}>
-        Fill these in once. Every form in the app, and the form helper, uses them so you don’t type them again.
-      </Text>
+      <SubHeader title={t('profile.title')} />
+      <Text style={styles.intro}>{t('profile.intro')}</Text>
 
       {!user && (
-        <Note tone="warn">
-          You’re not signed in, so these stay on this phone only. Sign in to keep them safe in your private profile.
-        </Note>
+        <Note tone="warn">{t('profile.guest')}</Note>
       )}
 
-      <Card title="Import my old CV">
-        <Text style={styles.intro}>Send your old CV and we fill in your career, education, skills and contacts. You check them before saving.</Text>
+      <Card title={t('profile.importCv')}>
+        <Text style={styles.intro}>{t('profile.importCvText')}</Text>
         <CvImport onFound={fillFromCv} />
       </Card>
 
-      <Card title="Scan your ID">
-        <PickButtons onPick={scanId} busy={reading} libraryLabel="Choose ID photo" />
+      <Card title={t('profile.scanId')}>
+        <PickButtons onPick={scanId} busy={reading} libraryLabel={t('profile.chooseId')} />
         {notes.map((note) => (
-          <Note key={note} tone={note.startsWith('Filled') ? 'good' : 'warn'}>
-            {note}
+          <Note key={note.text} tone={note.good ? 'good' : 'warn'}>
+            {note.text}
           </Note>
         ))}
       </Card>
@@ -142,15 +140,15 @@ export default function ProfileScreen() {
         </Card>
       ))}
 
-      {saved && issues.length === 0 && <Note tone="good">Saved. Your forms will fill themselves from these.</Note>}
-      {saved && issues.length > 0 && <Note tone="warn">Saved, but please check the details marked in red.</Note>}
+      {saved && issues.length === 0 && <Note tone="good">{t('profile.saved')}</Note>}
+      {saved && issues.length > 0 && <Note tone="warn">{t('profile.savedCheck')}</Note>}
 
       <View style={styles.row}>
-        <Button label={saved ? 'Saved' : 'Save my details'} icon="save" onPress={save} busy={saving} />
+        <Button label={saved ? t('profile.savedButton') : t('profile.saveButton')} icon="save" onPress={save} busy={saving} />
       </View>
       {!user && (
         <View style={styles.row}>
-          <Button label="Sign in" variant="secondary" onPress={() => router.push('/sign-in')} />
+          <Button label={t('common.signIn')} variant="secondary" onPress={() => router.push('/sign-in')} />
         </View>
       )}
     </Screen>

@@ -10,8 +10,9 @@ import { IconBadge } from '@/components/icon-badge';
 import { FilePanel } from '@/components/locker/file-panel';
 import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { guessCategory, lockerFilters, lockerLabels, type LockerCategory } from '@/data/locker';
+import { guessCategory, lockerFilters, lockerLabel, type LockerCategory } from '@/data/locker';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import { formatBytes, pickImages } from '@/lib/images';
 import { LOCKER_LIMIT_BYTES, LockerFullError, listFiles, previewLinks, uploadFile, type StoredFile } from '@/lib/locker-store';
 
@@ -32,6 +33,7 @@ function formatDate(iso: string) {
 export default function LockerScreen() {
   const router = useRouter();
   const { user, loading, demoMode, signOut } = useAuth();
+  const { t } = useLanguage();
   const [filter, setFilter] = useState<Filter>('All');
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [busy, setBusy] = useState(false);
@@ -46,9 +48,9 @@ export default function LockerScreen() {
       setFiles(list);
       setPreviews(await previewLinks(list));
     } catch {
-      setError('Could not load your files. Check your connection and try again.');
+      setError(t('locker.loadFailed'));
     }
-  }, [user]);
+  }, [user, t]);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,7 +81,7 @@ export default function LockerScreen() {
       }
       await refresh();
     } catch (e) {
-      setError(e instanceof LockerFullError ? e.message : 'Upload failed. Please try again.');
+      setError(e instanceof LockerFullError ? e.message : t('locker.uploadFailed'));
     } finally {
       setBusy(false);
     }
@@ -93,7 +95,7 @@ export default function LockerScreen() {
   if (loading) {
     return (
       <Screen>
-        <AppHeader title="My Digital Locker" />
+        <AppHeader title={t('locker.title')} />
         <ActivityIndicator color={Colors.primary} />
       </Screen>
     );
@@ -102,16 +104,13 @@ export default function LockerScreen() {
   if (!user) {
     return (
       <Screen>
-        <AppHeader title="My Digital Locker" />
+        <AppHeader title={t('locker.title')} />
         <View style={styles.signedOut}>
           <IconBadge icon="lock-closed" color={Colors.navy} size={64} />
-          <Text style={styles.signedOutTitle}>Keep your documents safe</Text>
-          <Text style={styles.signedOutText}>
-            Store your ID, certificates, CV and photos in one private place, ready whenever a service
-            needs them. Only you can see them.
-          </Text>
+          <Text style={styles.signedOutTitle}>{t('locker.safeTitle')}</Text>
+          <Text style={styles.signedOutText}>{t('locker.safeText')}</Text>
           <View style={styles.row}>
-            <Button label="Sign in with phone" icon="call" onPress={() => router.push('/sign-in')} />
+            <Button label={t('locker.signInPhone')} icon="call" onPress={() => router.push('/sign-in')} />
           </View>
         </View>
       </Screen>
@@ -122,26 +121,26 @@ export default function LockerScreen() {
 
   return (
     <Screen>
-      <AppHeader title="My Digital Locker" />
+      <AppHeader title={t('locker.title')} />
 
       <View style={styles.account}>
         <View style={styles.accountText}>
-          <Text style={styles.accountName}>{user.fullName ?? 'Your account'}</Text>
+          <Text style={styles.accountName}>{user.fullName ?? t('locker.account')}</Text>
           <Text style={styles.accountPhone}>
             {user.phone}
-            {demoMode ? ' · demo mode' : ''}
+            {demoMode ? t('locker.demoTag') : ''}
           </Text>
         </View>
         <Pressable onPress={signOut} hitSlop={8}>
-          <Text style={styles.signOut}>Sign out</Text>
+          <Text style={styles.signOut}>{t('locker.signOut')}</Text>
         </Pressable>
       </View>
 
       <Pressable onPress={() => router.push('/profile')} style={({ pressed }) => [styles.detailsLink, pressed && styles.pressed]}>
         <Ionicons name="person-circle" size={22} color={Colors.primary} />
         <View style={styles.accountText}>
-          <Text style={styles.detailsTitle}>My Details</Text>
-          <Text style={styles.accountPhone}>ID, contacts, family and education. Every form fills itself from these.</Text>
+          <Text style={styles.detailsTitle}>{t('locker.details')}</Text>
+          <Text style={styles.accountPhone}>{t('locker.detailsText')}</Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
       </Pressable>
@@ -149,9 +148,7 @@ export default function LockerScreen() {
       <View style={styles.secureNote}>
         <Ionicons name="shield-checkmark" size={18} color={Colors.success} />
         <Text style={styles.secureText}>
-          {demoMode
-            ? 'Demo mode: files are kept on this device for now.'
-            : 'Your files are private. Only you can open them.'}
+          {demoMode ? t('locker.demoNote') : t('locker.private')}
         </Text>
       </View>
 
@@ -166,7 +163,7 @@ export default function LockerScreen() {
               onPress={() => setFilter(option)}
               style={[styles.filter, active && styles.filterActive]}>
               <Text style={[styles.filterText, active && styles.filterTextActive]}>
-                {option === 'All' ? 'All' : lockerLabels[option]}
+                {option === 'All' ? t('locker.all') : lockerLabel(t, option)}
               </Text>
             </Pressable>
           );
@@ -174,14 +171,14 @@ export default function LockerScreen() {
       </View>
 
       <View style={styles.row}>
-        <Button label="Add photo" icon="image" variant="secondary" onPress={() => add('photo')} disabled={busy} />
-        <Button label="Add file" icon="cloud-upload" onPress={() => add('document')} busy={busy} />
+        <Button label={t('locker.addPhoto')} icon="image" variant="secondary" onPress={() => add('photo')} disabled={busy} />
+        <Button label={t('locker.addFile')} icon="cloud-upload" onPress={() => add('document')} busy={busy} />
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
 
       {shown.length === 0 ? (
         <Text style={styles.empty}>
-          {filter === 'All' ? 'Your Locker is empty. Add your first document.' : `Nothing in ${lockerLabels[filter]} yet.`}
+          {filter === 'All' ? t('locker.empty') : t('locker.emptyFolder', { folder: lockerLabel(t, filter) })}
         </Text>
       ) : (
         <View style={styles.list}>
@@ -205,7 +202,7 @@ export default function LockerScreen() {
                       {file.name}
                     </Text>
                     <Text style={styles.rowDetail}>
-                      {lockerLabels[file.category]} · {formatBytes(file.bytes)} · {formatDate(file.createdAt)}
+                      {lockerLabel(t, file.category)} · {formatBytes(file.bytes)} · {formatDate(file.createdAt)}
                     </Text>
                   </View>
                   <Ionicons name={expanded ? 'chevron-up' : 'ellipsis-horizontal'} size={20} color={Colors.textMuted} />
@@ -222,6 +219,7 @@ export default function LockerScreen() {
 
 // How full the Locker is, with a warning from 80%.
 function UsageBar({ used }: { used: number }) {
+  const { t } = useLanguage();
   const share = Math.min(1, used / LOCKER_LIMIT_BYTES);
   const warn = share >= 0.8;
   return (
@@ -230,8 +228,8 @@ function UsageBar({ used }: { used: number }) {
         <View style={[styles.usageFill, { width: `${Math.max(share * 100, 1)}%` }, warn && styles.usageWarn]} />
       </View>
       <Text style={[styles.usageText, warn && styles.usageWarnText]}>
-        {formatBytes(used)} of 200 MB used
-        {warn ? '. Almost full: delete old files or shrink big ones in the Document Workbench.' : ''}
+        {t('locker.used', { used: formatBytes(used) })}
+        {warn ? t('locker.almostFull') : ''}
       </Text>
     </View>
   );

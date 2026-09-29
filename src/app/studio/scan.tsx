@@ -9,6 +9,7 @@ import { SubHeader } from '@/components/sub-header';
 import { useEngine, type ScanFilter } from '@/components/workbench/engine';
 import { checksFor, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useLanguage, type TextKey } from '@/lib/i18n';
 import { pickImages } from '@/lib/images';
 import { fileUri, renamed, type WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked } from '@/lib/workbench/image';
@@ -16,11 +17,11 @@ import { joinFiles } from '@/lib/workbench/pdf';
 
 type Look = 'original' | ScanFilter;
 
-const LOOKS: { value: Look; label: string }[] = [
-  { value: 'original', label: 'Original' },
-  { value: 'enhance', label: 'Brighter' },
-  { value: 'clean', label: 'Clean' },
-  { value: 'bw', label: 'Black & white' },
+const LOOKS: { value: Look; label: TextKey }[] = [
+  { value: 'original', label: 'wb.scan.original' },
+  { value: 'enhance', label: 'wb.scan.enhance' },
+  { value: 'clean', label: 'wb.scan.clean' },
+  { value: 'bw', label: 'wb.scan.bw' },
 ];
 
 type Page = { source: WorkFile; rotate: number; look: Look; view: WorkFile };
@@ -30,6 +31,7 @@ const MAX_SIDE = 2200;
 
 export default function ScanScreen() {
   const engine = useEngine();
+  const { t } = useLanguage();
   const [pages, setPages] = useState<Page[]>([]);
   const [current, setCurrent] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
@@ -47,7 +49,7 @@ export default function ScanScreen() {
     // Android lets the person crop right after taking the photo.
     const picked = await pickImages(from, from === 'library', from === 'camera' && Platform.OS === 'android');
     if (!picked.length) return;
-    setBusy('Cleaning up…');
+    setBusy(t('wb.scan.cleaning'));
     try {
       const added: Page[] = [];
       for (const image of picked) {
@@ -58,7 +60,7 @@ export default function ScanScreen() {
       setPages((list) => [...list, ...added]);
       setResult(null);
     } catch {
-      setProblem('That photo couldn’t be cleaned up. Try another one.');
+      setProblem(t('wb.scan.cleanFailed'));
     } finally {
       setBusy(null);
     }
@@ -68,13 +70,13 @@ export default function ScanScreen() {
     const page = pages[current];
     if (!page) return;
     const next = { ...page, ...update };
-    setBusy('Updating…');
+    setBusy(t('wb.scan.updating'));
     try {
       const view = await draw(next.source, next.rotate, next.look);
       setPages((list) => list.map((p, i) => (i === current ? { ...next, view } : p)));
       setResult(null);
     } catch {
-      setProblem('That didn’t work. Try again.');
+      setProblem(t('wb.err.tryAgain'));
     } finally {
       setBusy(null);
     }
@@ -87,13 +89,13 @@ export default function ScanScreen() {
   };
 
   const finish = async (as: 'pdf' | 'jpg') => {
-    setBusy('Saving…');
+    setBusy(t('wb.scan.saving'));
     setProblem(null);
     try {
       if (as === 'jpg') setResult({ ...pages[0].view, name: renamed('scan.jpg', '', 'jpg') });
       else setResult(await joinFiles(pages.map((p) => p.view), 'scan.pdf'));
     } catch {
-      setProblem('The file couldn’t be made. Try again.');
+      setProblem(t('wb.scan.fileFailed'));
     } finally {
       setBusy(null);
     }
@@ -103,31 +105,31 @@ export default function ScanScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Scan a document" />
+      <SubHeader title={t('wb.scan.title')} />
       <Text style={ui.intro}>
-        Take a photo of each page flat, in good light. Clean makes the paper white and the writing dark.
-        {Platform.OS === 'android' ? ' After each photo you can crop it to the page edges.' : ''}
+        {t('wb.scan.intro')}
+        {Platform.OS === 'android' ? t('wb.scan.cropNote') : ''}
       </Text>
-      <PickButtons onPick={add} busy={!!busy} libraryLabel={pages.length ? 'Add page' : 'Choose photo'} />
+      <PickButtons onPick={add} busy={!!busy} libraryLabel={pages.length ? t('wb.scan.addPage') : t('wb.choosePhoto')} />
 
       {page && (
         <View style={styles.editor}>
           <Image source={{ uri: fileUri(page.view) }} style={[styles.preview, { aspectRatio: (page.view.width ?? 3) / (page.view.height ?? 4) }]} resizeMode="contain" />
           <View style={styles.tools}>
-            <Pressable accessibilityLabel="Turn left" onPress={() => change({ rotate: (page.rotate + 270) % 360 })} style={styles.tool}>
+            <Pressable accessibilityLabel={t('wb.scan.turnLeft')} onPress={() => change({ rotate: (page.rotate + 270) % 360 })} style={styles.tool}>
               <Ionicons name="arrow-undo" size={20} color={Colors.primary} />
             </Pressable>
-            <Pressable accessibilityLabel="Turn right" onPress={() => change({ rotate: (page.rotate + 90) % 360 })} style={styles.tool}>
+            <Pressable accessibilityLabel={t('wb.scan.turnRight')} onPress={() => change({ rotate: (page.rotate + 90) % 360 })} style={styles.tool}>
               <Ionicons name="arrow-redo" size={20} color={Colors.primary} />
             </Pressable>
-            <Pressable accessibilityLabel="Remove page" onPress={remove} style={styles.tool}>
+            <Pressable accessibilityLabel={t('wb.scan.removePage')} onPress={remove} style={styles.tool}>
               <Ionicons name="trash" size={20} color="#DC2626" />
             </Pressable>
           </View>
           <View style={styles.looks}>
             {LOOKS.map((look) => (
               <Pressable key={look.value} onPress={() => change({ look: look.value })} style={[styles.look, page.look === look.value && styles.lookActive]}>
-                <Text style={[styles.lookText, page.look === look.value && styles.lookTextActive]}>{look.label}</Text>
+                <Text style={[styles.lookText, page.look === look.value && styles.lookTextActive]}>{t(look.label)}</Text>
               </Pressable>
             ))}
           </View>
@@ -137,7 +139,7 @@ export default function ScanScreen() {
       {pages.length > 1 && (
         <ScrollView horizontal contentContainerStyle={styles.strip} showsHorizontalScrollIndicator={false}>
           {pages.map((p, i) => (
-            <Pressable key={i} onPress={() => setCurrent(i)} style={[styles.stripItem, i === current && styles.stripActive]} accessibilityLabel={`Page ${i + 1}`}>
+            <Pressable key={i} onPress={() => setCurrent(i)} style={[styles.stripItem, i === current && styles.stripActive]} accessibilityLabel={t('wb.pageN', { n: i + 1 })}>
               <Image source={{ uri: fileUri(p.view) }} style={styles.stripThumb} resizeMode="cover" />
               <Text style={styles.stripNumber}>{i + 1}</Text>
             </Pressable>
@@ -149,11 +151,11 @@ export default function ScanScreen() {
       {problem && <Problem text={problem} />}
       {pages.length > 0 && (
         <View style={ui.row}>
-          <Button label={`Save as PDF (${pages.length} page${pages.length === 1 ? '' : 's'})`} icon="document" onPress={() => finish('pdf')} disabled={!!busy} />
-          {pages.length === 1 && <Button label="Save as JPG" icon="image" variant="secondary" onPress={() => finish('jpg')} disabled={!!busy} />}
+          <Button label={pages.length === 1 ? t('wb.scan.savePdfOne') : t('wb.scan.savePdf', { n: pages.length })} icon="document" onPress={() => finish('pdf')} disabled={!!busy} />
+          {pages.length === 1 && <Button label={t('wb.scan.saveJpg')} icon="image" variant="secondary" onPress={() => finish('jpg')} disabled={!!busy} />}
         </View>
       )}
-      {result && <ResultCard file={result} checks={checksFor(result)} />}
+      {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
     </Screen>
   );
 }

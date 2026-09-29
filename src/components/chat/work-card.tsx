@@ -2,19 +2,21 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { PhotoCheckCard } from '@/components/workbench/photo-check';
-import { ResultCard, ResultList, Working } from '@/components/workbench/ui';
+import { filesReadyLabel, ResultCard, ResultList, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { fileById } from '@/lib/chat-files';
 import type { WorkOutcome, WorkRequest } from '@/lib/chat-types';
+import { useLanguage } from '@/lib/i18n';
 import { formatSize } from '@/lib/workbench/files';
 
 // The result of Workbench work asked for in the chat: each new file with
 // what was measured on it, and Download / Save to Locker.
 export function WorkCard({ outcome, request }: { outcome?: WorkOutcome; request?: WorkRequest }) {
+  const { t } = useLanguage();
   if (!outcome) {
     return (
       <View style={styles.card}>
-        <Working text="Working on your file…" />
+        <Working text={t('work.working')} />
       </View>
     );
   }
@@ -37,14 +39,14 @@ export function WorkCard({ outcome, request }: { outcome?: WorkOutcome; request?
             • {o.file.name}, {formatSize(o.file.bytes)}
           </Text>
         ))}
-        <Text style={styles.muted}>Made earlier. Files made in the chat are kept only while the app is open, so send the file again if you need it.</Text>
+        <Text style={styles.muted}>{t('work.earlier')}</Text>
       </View>
     );
   }
   if (live.length > 2) {
     return (
       <View style={styles.stack}>
-        <ResultList files={live.map((o) => o.work!)} title={`${live.length} files ready`} />
+        <ResultList files={live.map((o) => o.work!)} title={filesReadyLabel(t, live.length)} />
         {note && <Text style={styles.muted}>{note}</Text>}
       </View>
     );

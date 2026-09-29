@@ -5,6 +5,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { v1En, v1Sw } from './i18n-v1';
+
 export type Language = 'en' | 'sw';
 
 const en = {
@@ -233,6 +235,7 @@ const en = {
   'follow.howLong': 'How long does it take?',
   'follow.more': 'Tell me more',
   'follow.next': 'What should I do next?',
+  ...v1En,
 };
 
 export type TextKey = keyof typeof en;
@@ -464,6 +467,7 @@ const sw: Record<Key, string> = {
   'follow.howLong': 'Inachukua muda gani?',
   'follow.more': 'Nieleze zaidi',
   'follow.next': 'Nifanye nini baadaye?',
+  ...v1Sw,
 };
 
 const dictionaries: Record<Language, Record<Key, string>> = { en, sw };

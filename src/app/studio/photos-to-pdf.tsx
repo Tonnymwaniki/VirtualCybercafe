@@ -6,6 +6,7 @@ import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { checksFor, OrderList, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { useLanguage } from '@/lib/i18n';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked } from '@/lib/workbench/image';
@@ -16,6 +17,7 @@ import { joinFiles } from '@/lib/workbench/pdf';
 const PAGE_MAX_SIDE = 2000;
 
 export default function PhotosToPdfScreen() {
+  const { t } = useLanguage();
   const [pages, setPages] = useState<WorkFile[]>([]);
   const [result, setResult] = useState<WorkFile | null>(null);
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,7 @@ export default function PhotosToPdfScreen() {
       setPages((current) => [...current, ...files.map((file, i) => ({ ...file, name: `page-${current.length + i + 1}.jpg` }))]);
       setResult(null);
     } catch {
-      setProblem('One of those photos couldn’t be read. Try another one.');
+      setProblem(t('wb.photosToPdf.readFailed'));
     } finally {
       setBusy(false);
     }
@@ -45,7 +47,7 @@ export default function PhotosToPdfScreen() {
     try {
       setResult(await joinFiles(pages, 'documents.pdf'));
     } catch {
-      setProblem('The PDF couldn’t be made. Try again.');
+      setProblem(t('wb.photosToPdf.failed'));
     } finally {
       setBusy(false);
     }
@@ -53,18 +55,18 @@ export default function PhotosToPdfScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Photos to PDF" />
-      <Text style={ui.intro}>Add photos of your documents in order. Each photo becomes one A4 page.</Text>
-      <PickButtons onPick={add} busy={busy} libraryLabel={pages.length ? 'Add more' : 'Add photos'} />
+      <SubHeader title={t('wb.photosToPdf.title')} />
+      <Text style={ui.intro}>{t('wb.photosToPdf.intro')}</Text>
+      <PickButtons onPick={add} busy={busy} libraryLabel={pages.length ? t('wb.addMore') : t('wb.addPhotos')} />
       <OrderList files={pages} onChange={(next) => { setPages(next); setResult(null); }} />
       {pages.length > 0 && (
         <View style={ui.row}>
-          <Button label={`Make PDF (${pages.length} page${pages.length === 1 ? '' : 's'})`} icon="document" onPress={make} busy={busy} />
+          <Button label={pages.length === 1 ? t('wb.photosToPdf.makeOne') : t('wb.photosToPdf.make', { n: pages.length })} icon="document" onPress={make} busy={busy} />
         </View>
       )}
-      {busy && <Working text="Working…" />}
+      {busy && <Working text={t('wb.working')} />}
       {problem && <Problem text={problem} />}
-      {result && <ResultCard file={result} checks={checksFor(result)} />}
+      {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
     </Screen>
   );
 }

@@ -7,69 +7,72 @@ import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useLanguage, type TextKey } from '@/lib/i18n';
 
+// Titles and descriptions are keys into the English/Kiswahili dictionaries.
 type Tool = {
-  title: string;
-  description: string;
+  title: TextKey;
+  description: TextKey;
   icon: ComponentProps<typeof Ionicons>['name'];
   color: string;
   href: Href;
 };
 
-const groups: { title: string; tools: Tool[] }[] = [
+const groups: { title: TextKey; tools: Tool[] }[] = [
   {
-    title: 'Check a file',
+    title: 'wb.group.check',
     tools: [
-      { title: 'Check upload rules', description: 'See if a file meets a form’s rule, and fix it', icon: 'shield-checkmark', color: '#16A34A', href: '/studio/check' },
+      { title: 'wb.check.title', description: 'wb.check.desc', icon: 'shield-checkmark', color: '#16A34A', href: '/studio/check' },
     ],
   },
   {
-    title: 'Fit an upload limit',
+    title: 'wb.group.limit',
     tools: [
-      { title: 'Shrink a PDF', description: 'Make a PDF smaller, e.g. under 1 MB', icon: 'contract', color: '#DC2626', href: '/studio/shrink-pdf' },
-      { title: 'Shrink a photo', description: 'Make a photo smaller, e.g. under 200 KB', icon: 'image', color: '#22C55E', href: '/studio/compress' },
-      { title: 'Resize a photo', description: 'Exact pixels, e.g. 600 × 600', icon: 'resize', color: '#0EA5E9', href: '/studio/resize' },
-      { title: 'Passport photo', description: 'Crop, 600 × 600 and under 200 KB', icon: 'person-circle', color: '#F59E0B', href: '/studio/passport' },
+      { title: 'wb.shrinkPdf.title', description: 'wb.shrinkPdf.desc', icon: 'contract', color: '#DC2626', href: '/studio/shrink-pdf' },
+      { title: 'wb.compress.title', description: 'wb.compress.desc', icon: 'image', color: '#22C55E', href: '/studio/compress' },
+      { title: 'wb.resize.title', description: 'wb.resize.desc', icon: 'resize', color: '#0EA5E9', href: '/studio/resize' },
+      { title: 'wb.passport.title', description: 'wb.passport.desc', icon: 'person-circle', color: '#F59E0B', href: '/studio/passport' },
     ],
   },
   {
-    title: 'Make a PDF',
+    title: 'wb.group.make',
     tools: [
-      { title: 'Scan a document', description: 'Photo of a page, cleaned up like a scanner', icon: 'scan', color: '#6366F1', href: '/studio/scan' },
-      { title: 'Photos to PDF', description: 'Several photos, one PDF', icon: 'documents', color: '#3B82F6', href: '/studio/photos-to-pdf' },
-      { title: 'Join PDFs', description: 'Combine PDFs and photos into one file', icon: 'git-merge', color: '#8B5CF6', href: '/studio/merge' },
+      { title: 'wb.scan.title', description: 'wb.scan.desc', icon: 'scan', color: '#6366F1', href: '/studio/scan' },
+      { title: 'wb.photosToPdf.title', description: 'wb.photosToPdf.desc', icon: 'documents', color: '#3B82F6', href: '/studio/photos-to-pdf' },
+      { title: 'wb.merge.title', description: 'wb.merge.desc', icon: 'git-merge', color: '#8B5CF6', href: '/studio/merge' },
     ],
   },
   {
-    title: 'Change a PDF',
+    title: 'wb.group.change',
     tools: [
-      { title: 'Pick or split pages', description: 'Keep, remove or separate pages', icon: 'cut', color: '#EC4899', href: '/studio/split' },
-      { title: 'PDF to JPG', description: 'Pages as pictures, for JPG-only forms', icon: 'images', color: '#14B8A6', href: '/studio/pdf-to-jpg' },
+      { title: 'wb.split.title', description: 'wb.split.desc', icon: 'cut', color: '#EC4899', href: '/studio/split' },
+      { title: 'wb.pdfToJpg.title', description: 'wb.pdfToJpg.desc', icon: 'images', color: '#14B8A6', href: '/studio/pdf-to-jpg' },
     ],
   },
   {
-    title: 'Print it',
+    title: 'wb.group.print',
     tools: [
-      { title: 'Print at any cyber', description: 'A QR code and short code any cyber can print from', icon: 'qr-code', color: '#0B1E5B', href: '/studio/print' },
+      { title: 'wb.printAnyCyber', description: 'wb.print.desc', icon: 'qr-code', color: '#0B1E5B', href: '/studio/print' },
     ],
   },
 ];
 
 export default function WorkbenchScreen() {
   const router = useRouter();
+  const { t } = useLanguage();
   return (
     <Screen>
-      <SubHeader title="Document Workbench" />
-      <Text style={styles.intro}>Get any document ready for an online form. Everything happens on your phone; nothing is uploaded unless you save it to your Locker.</Text>
+      <SubHeader title={t('wb.title')} />
+      <Text style={styles.intro}>{t('wb.intro')}</Text>
       {groups.map((group) => (
         <View key={group.title} style={styles.group}>
-          <Text style={styles.groupTitle}>{group.title}</Text>
+          <Text style={styles.groupTitle}>{t(group.title)}</Text>
           {group.tools.map((tool) => (
             <Pressable key={tool.title} onPress={() => router.push(tool.href)} style={({ pressed }) => [styles.card, pressed && styles.dim]}>
               <IconBadge icon={tool.icon} color={tool.color} size={42} />
               <View style={styles.cardText}>
-                <Text style={styles.cardTitle}>{tool.title}</Text>
-                <Text style={styles.cardDescription}>{tool.description}</Text>
+                <Text style={styles.cardTitle}>{t(tool.title)}</Text>
+                <Text style={styles.cardDescription}>{t(tool.description)}</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />
             </Pressable>

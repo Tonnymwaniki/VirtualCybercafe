@@ -5,10 +5,12 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { checksFor, OrderList, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { useLanguage } from '@/lib/i18n';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { joinFiles, pageCount, WorkbenchError } from '@/lib/workbench/pdf';
 
 export default function MergeScreen() {
+  const { t } = useLanguage();
   const [files, setFiles] = useState<WorkFile[]>([]);
   const [result, setResult] = useState<WorkFile | null>(null);
   const [busy, setBusy] = useState(false);
@@ -22,7 +24,7 @@ export default function MergeScreen() {
       setFiles((current) => [...current, ...picked]);
       setResult(null);
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : 'That file couldn’t be opened. Try another one.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.fileOpen'));
     }
   };
 
@@ -32,7 +34,7 @@ export default function MergeScreen() {
     try {
       setResult(await joinFiles(files, 'joined.pdf'));
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : 'The files couldn’t be joined. Try again.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.merge.failed'));
     } finally {
       setBusy(false);
     }
@@ -40,20 +42,20 @@ export default function MergeScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Join PDFs" />
-      <Text style={ui.intro}>Add PDFs and photos, put them in order, and join them into one PDF. Photos become A4 pages.</Text>
+      <SubHeader title={t('wb.merge.title')} />
+      <Text style={ui.intro}>{t('wb.merge.intro')}</Text>
       <View style={ui.row}>
-        <Button label={files.length ? 'Add more files' : 'Choose files'} icon="add-circle" variant={files.length ? 'secondary' : 'primary'} onPress={add} />
+        <Button label={files.length ? t('wb.addMoreFiles') : t('wb.chooseFiles')} icon="add-circle" variant={files.length ? 'secondary' : 'primary'} onPress={add} />
       </View>
       <OrderList files={files} onChange={(next) => { setFiles(next); setResult(null); }} />
       {files.length > 0 && (
         <View style={ui.row}>
-          <Button label={`Join ${files.length} file${files.length === 1 ? '' : 's'}`} icon="git-merge" onPress={join} busy={busy} disabled={files.length < 1} />
+          <Button label={files.length === 1 ? t('wb.merge.joinOne') : t('wb.merge.join', { n: files.length })} icon="git-merge" onPress={join} busy={busy} disabled={files.length < 1} />
         </View>
       )}
-      {busy && <Working text="Joining…" />}
+      {busy && <Working text={t('wb.merge.working')} />}
       {problem && <Problem text={problem} />}
-      {result && <ResultCard file={result} checks={checksFor(result)} />}
+      {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
     </Screen>
   );
 }

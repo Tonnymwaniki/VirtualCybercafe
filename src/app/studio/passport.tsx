@@ -7,6 +7,7 @@ import { SubHeader } from '@/components/sub-header';
 import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { checksFor, Problem, ResultCard, Toggle, Working, workbenchStyles } from '@/components/workbench/ui';
 import { Colors, Spacing } from '@/constants/theme';
+import { useLanguage } from '@/lib/i18n';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked } from '@/lib/workbench/image';
@@ -23,6 +24,7 @@ import {
 // (600 × 600 JPG under 200 KB) and an A4 sheet of print photos for a cyber
 // to print and cut.
 export default function PassportPhotoScreen() {
+  const { t } = useLanguage();
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [digital, setDigital] = useState<{ file: WorkFile; sharpEnough: boolean } | null>(null);
   const [sheet, setSheet] = useState<WorkFile | null>(null);
@@ -35,7 +37,7 @@ export default function PassportPhotoScreen() {
     try {
       setSheet(await passportSheet(from, printSize));
     } catch {
-      setError('The print sheet couldn’t be made. Try another photo.');
+      setError(t('wb.passport.sheetFailed'));
     } finally {
       setBusy(null);
     }
@@ -54,7 +56,7 @@ export default function PassportPhotoScreen() {
       setDigital(await digitalPassport(file));
       await makeSheet(file, size);
     } catch {
-      setError('Sorry, that photo could not be processed. Try another one.');
+      setError(t('wb.passport.failed'));
     } finally {
       setBusy(null);
     }
@@ -69,30 +71,28 @@ export default function PassportPhotoScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Passport photo" />
-      <Text style={workbenchStyles.intro}>
-        Stand in front of a plain white wall in good light, look straight at the camera, no glasses or hat. You get the digital photo for online forms and a sheet of print photos for any cyber.
-      </Text>
+      <SubHeader title={t('wb.passport.title')} />
+      <Text style={workbenchStyles.intro}>{t('wb.passport.intro')}</Text>
 
-      <PickButtons onPick={pick} busy={busy === 'photo'} />
-      {busy === 'photo' && <Working text="Making your passport photo…" />}
+      <PickButtons onPick={pick} busy={busy === 'photo'} libraryLabel={t('wb.choosePhoto')} />
+      {busy === 'photo' && <Working text={t('wb.passport.making')} />}
       {!!error && <Problem text={error} />}
 
       {digital && (
         <>
-          <Text style={styles.sectionTitle}>For online forms</Text>
+          <Text style={styles.sectionTitle}>{t('wb.passport.online')}</Text>
           <ResultCard
             file={digital.file}
             before={original ?? undefined}
-            title="Passport photo ready"
+            title={t('wb.passport.ready')}
             checks={[
-              ...checksFor(digital.file, { maxBytes: PASSPORT_MAX_BYTES, width: PASSPORT_SIDE, height: PASSPORT_SIDE }),
+              ...checksFor(digital.file, { maxBytes: PASSPORT_MAX_BYTES, width: PASSPORT_SIDE, height: PASSPORT_SIDE }, t),
               {
                 ok: digital.sharpEnough,
-                label: digital.sharpEnough ? 'Original is sharp enough' : 'The original photo is small; take a closer, sharper one',
+                label: digital.sharpEnough ? t('wb.passport.sharp') : t('wb.passport.small'),
               },
             ]}
-            note="Cropped to your face from the middle of the photo. Check nothing was cut off; your face must be exactly as it is, so it isn’t edited."
+            note={t('wb.passport.note')}
           />
           <PhotoCheckCard key={digital.file.name + digital.file.bytes.byteLength} file={digital.file} checks={['face', 'whiteBackground', 'noGlasses', 'sharp']} />
         </>
@@ -100,25 +100,25 @@ export default function PassportPhotoScreen() {
 
       {original && (
         <>
-          <Text style={styles.sectionTitle}>To print at a cyber</Text>
+          <Text style={styles.sectionTitle}>{t('wb.passport.toPrint')}</Text>
           <Toggle
             options={[
-              { value: 'kenya', label: '2 × 2 in (passport)' },
+              { value: 'kenya', label: t('wb.passport.sizePassport') },
               { value: 'visa', label: '35 × 45 mm' },
             ]}
             value={size}
             onChange={changeSize}
           />
-          {busy === 'sheet' && <Working text="Making the print sheet…" />}
+          {busy === 'sheet' && <Working text={t('wb.passport.makingSheet')} />}
           {sheet && busy !== 'sheet' && (
             <ResultCard
               file={sheet}
-              title="Print sheet ready"
+              title={t('wb.passport.sheetReady')}
               checks={[
-                { ok: true, label: 'A4 PDF, 1 page' },
-                { ok: true, label: `${spec.rows * spec.columns} photos at ${spec.label}` },
+                { ok: true, label: t('wb.passport.sheetPage') },
+                { ok: true, label: t('wb.passport.photosAt', { n: spec.rows * spec.columns, size: spec.label }) },
               ]}
-              note="Ask the cyber to print at actual size (100%), not “fit to page”, on photo paper if they have it. Tap Print at any cyber to get a code for them."
+              note={t('wb.passport.sheetNote')}
             />
           )}
         </>

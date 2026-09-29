@@ -6,66 +6,67 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
+import { useLanguage, type TextKey, type Translate } from '@/lib/i18n';
 import { deadlineLabel, GUEST_ID, loadJobs, onJobsChanged, openJobs } from '@/lib/jobs-store';
 import type { Job } from '@/lib/jobs-types';
 import { loadProfile } from '@/lib/profile-store';
 
 type Line = { label: string; detail: string; done: boolean; route?: string; action?: string };
 
-const applyLabel: Record<string, string> = {
-  email: 'Application email',
-  portal: 'Application form',
-  in_person: 'Deliver your application',
-  post: 'Post your application',
-  unknown: 'Send your application',
+const applyLabel: Record<string, TextKey> = {
+  email: 'jobCard.applyEmail',
+  portal: 'jobCard.applyForm',
+  in_person: 'jobCard.applyInPerson',
+  post: 'jobCard.applyPost',
+  unknown: 'jobCard.applySend',
 };
 
 // The steps of applying for this job, ticked from the saved job record, My
 // Details and the files added to it: the same record the Jobs screen uses.
-function linesFor(job: Job, profile: Profile): Line[] {
+function linesFor(t: Translate, job: Job, profile: Profile): Line[] {
   const careerDone = !!(profile.experience || profile.education || profile.skills);
   const wanted = job.advert.documents;
   const have = job.documents?.length ?? 0;
   const method = job.advert.howToApply.method;
   return [
     {
-      label: 'Job advert',
+      label: t('jobCard.advert'),
       detail: [job.advert.employer, deadlineLabel(job.advert.deadline)].filter(Boolean).join(' · '),
       done: true,
       route: `/jobs/${job.id}?step=0`,
-      action: 'Open',
+      action: t('common.open'),
     },
     {
-      label: 'Your career details',
-      detail: careerDone ? 'In My Details' : 'Add your experience, education and skills once',
+      label: t('jobCard.career'),
+      detail: careerDone ? t('jobCard.careerDone') : t('jobCard.careerTodo'),
       done: careerDone,
       route: '/profile',
-      action: 'Add',
+      action: t('jobCard.add'),
     },
     {
-      label: 'CV and cover letter',
-      detail: job.application ? 'Written for this job from My Details' : 'Written for this job from your details',
+      label: t('jobCard.cv'),
+      detail: job.application ? t('jobCard.cvDone') : t('jobCard.cvTodo'),
       done: !!job.application,
       route: `/jobs/${job.id}?step=2`,
-      action: job.application ? 'Open' : 'Write',
+      action: job.application ? t('common.open') : t('jobCard.write'),
     },
     {
-      label: 'Supporting documents',
+      label: t('jobCard.docs'),
       detail: wanted.length
-        ? `${Math.min(have, wanted.length)} of ${wanted.length} added. The advert asks for: ${wanted.join(', ')}`
+        ? t('jobCard.docsWanted', { have: Math.min(have, wanted.length), total: wanted.length, list: wanted.join(', ') })
         : have
-          ? `${have} added`
-          : 'The advert doesn’t list any',
+          ? t('jobCard.docsHave', { n: have })
+          : t('jobCard.docsNone'),
       done: wanted.length ? have >= wanted.length : true,
       route: '/studio',
-      action: 'Prepare',
+      action: t('jobCard.prepare'),
     },
     {
-      label: applyLabel[method] ?? applyLabel.unknown,
-      detail: job.status >= 1 ? 'Applied' : 'Your pack, email or form helper is on the Apply step',
+      label: t(applyLabel[method] ?? applyLabel.unknown),
+      detail: job.status >= 1 ? t('jobCard.applied') : t('jobCard.applyTodo'),
       done: job.status >= 1,
       route: `/jobs/${job.id}?step=3`,
-      action: 'Open',
+      action: t('common.open'),
     },
   ];
 }
@@ -85,6 +86,7 @@ export function JobTaskCard({
 }) {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.id ?? GUEST_ID;
   const [jobs, setJobs] = useState<Job[] | null>(null);
   const [profile, setProfile] = useState<Profile>({});
@@ -124,13 +126,13 @@ export function JobTaskCard({
       .slice(0, 3);
     return (
       <View style={styles.card}>
-        <Text style={styles.kicker}>JOB APPLICATION</Text>
-        <Text style={styles.title}>{jobTitle ? `Applying for ${jobTitle}` : 'Which job?'}</Text>
+        <Text style={styles.kicker}>{t('jobCard.kicker')}</Text>
+        <Text style={styles.title}>{jobTitle ? t('jobCard.applyingFor', { title: jobTitle }) : t('jobCard.which')}</Text>
         <View style={styles.line}>
           <Ionicons name="ellipse-outline" size={20} color={Colors.textMuted} />
           <View style={styles.flex}>
-            <Text style={styles.lineLabel}>Job advert</Text>
-            <Text style={styles.detail}>Paste the advert here, send a photo of it, or pick a saved job.</Text>
+            <Text style={styles.lineLabel}>{t('jobCard.advert')}</Text>
+            <Text style={styles.detail}>{t('jobCard.pasteAdvert')}</Text>
           </View>
         </View>
         {choices.map((choice) => (
@@ -144,10 +146,10 @@ export function JobTaskCard({
                 {[choice.advert.employer, deadlineLabel(choice.advert.deadline)].filter(Boolean).join(' · ')}
               </Text>
             </View>
-            <Text style={styles.action}>Use</Text>
+            <Text style={styles.action}>{t('jobCard.use')}</Text>
           </Pressable>
         ))}
-        {['Your career details', 'CV and cover letter', 'Supporting documents', 'Send your application'].map((label) => (
+        {[t('jobCard.career'), t('jobCard.cv'), t('jobCard.docs'), t('jobCard.applySend')].map((label) => (
           <View key={label} style={styles.line}>
             <Ionicons name="ellipse-outline" size={20} color={Colors.border} />
             <Text style={[styles.lineLabel, styles.later]}>{label}</Text>
@@ -155,18 +157,18 @@ export function JobTaskCard({
         ))}
         <Pressable onPress={() => router.push('/jobs' as Href)} style={({ pressed }) => [styles.secondary, pressed && styles.dim]}>
           <Ionicons name="search" size={16} color={Colors.primary} />
-          <Text style={styles.action}>Find jobs</Text>
+          <Text style={styles.action}>{t('jobCard.find')}</Text>
         </Pressable>
       </View>
     );
   }
 
-  const lines = linesFor(job, profile);
+  const lines = linesFor(t, job, profile);
   const done = lines.filter((l) => l.done).length;
   const next = lines.find((l) => !l.done);
   return (
     <View style={styles.card}>
-      <Text style={styles.kicker}>JOB APPLICATION</Text>
+      <Text style={styles.kicker}>{t('jobCard.kicker')}</Text>
       <Text style={styles.title} numberOfLines={2}>
         {job.advert.title}
       </Text>
@@ -192,11 +194,11 @@ export function JobTaskCard({
       ))}
       {next ? (
         <Pressable onPress={() => next.route && router.push(next.route as Href)} style={({ pressed }) => [styles.primary, pressed && styles.dim]}>
-          <Text style={styles.primaryText}>Next: {next.label}</Text>
+          <Text style={styles.primaryText}>{t('jobCard.next', { step: next.label })}</Text>
           <Ionicons name="arrow-forward" size={16} color={Colors.onDark} />
         </Pressable>
       ) : (
-        <Text style={styles.detail}>All done. Track replies and practise for the interview on the Jobs screen.</Text>
+        <Text style={styles.detail}>{t('jobCard.allDone')}</Text>
       )}
     </View>
   );

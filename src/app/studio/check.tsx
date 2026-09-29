@@ -13,18 +13,19 @@ import { FileRow, Problem, ResultCard, workbenchStyles as ui, Working } from '@/
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { findPreset, generalPresets, officialPresets, type Preset } from '@/data/presets';
 import { fileById } from '@/lib/chat-files';
+import { useLanguage, type Translate } from '@/lib/i18n';
 import { pickImages } from '@/lib/images';
 import { formatSize, pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked } from '@/lib/workbench/image';
 import { WorkbenchError } from '@/lib/workbench/pdf';
 import { checkAgainst, fixToRule, typesLabel, type RuleCheck } from '@/lib/workbench/validate';
 
-function ruleSummary(preset: Preset) {
+function ruleSummary(t: Translate, preset: Preset) {
   const parts = [typesLabel(preset.types)];
   if (preset.width && preset.height) parts.push(`${preset.width} × ${preset.height} px`);
-  if (preset.minWidth) parts.push(`at least ${preset.minWidth} px`);
-  if (preset.maxKB) parts.push(`up to ${formatSize(preset.maxKB * 1024)}`);
-  if (preset.maxPages) parts.push(`up to ${preset.maxPages} page${preset.maxPages === 1 ? '' : 's'}`);
+  if (preset.minWidth) parts.push(t('wb.check.atLeast', { n: preset.minWidth }));
+  if (preset.maxKB) parts.push(t('wb.check.upTo', { size: formatSize(preset.maxKB * 1024) }));
+  if (preset.maxPages) parts.push(preset.maxPages === 1 ? t('wb.check.upToOnePage') : t('wb.check.upToPages', { n: preset.maxPages }));
   return parts.join(' · ');
 }
 
@@ -35,6 +36,7 @@ function longDate(date: string) {
 
 export default function CheckScreen() {
   const engine = useEngine();
+  const { t } = useLanguage();
   const params = useLocalSearchParams<{ rule?: string; file?: string }>();
   const [preset, setPreset] = useState<Preset>(findPreset(params.rule) ?? officialPresets[0] ?? generalPresets[0]);
   const [file, setFile] = useState<WorkFile | null>(null);
@@ -51,7 +53,7 @@ export default function CheckScreen() {
       setChecks(await checkAgainst(next, rule));
     } catch (error) {
       setChecks([]);
-      setProblem(error instanceof WorkbenchError ? error.message : 'That file couldn’t be read. Try another one.');
+      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.fileRead'));
     }
   };
 
@@ -79,13 +81,13 @@ export default function CheckScreen() {
 
   const fix = async () => {
     if (!file) return;
-    setBusy('Fixing…');
+    setBusy(t('wb.check.fixing'));
     setProblem(null);
     try {
       const result = await fixToRule(file, preset, engine);
       setFixed({ ...result, checks: await checkAgainst(result.file, preset) });
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : 'That didn’t work. Try again.');
+      setProblem(error instanceof Error ? error.message : t('wb.err.tryAgain'));
     } finally {
       setBusy(null);
     }
@@ -96,36 +98,36 @@ export default function CheckScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Check upload rules" />
-      <Text style={ui.intro}>Pick the form’s rule, then your file. You’ll see what passes, and Fix it makes a copy that meets the rule.</Text>
+      <SubHeader title={t('wb.check.title')} />
+      <Text style={ui.intro}>{t('wb.check.intro')}</Text>
 
-      {officialPresets.length > 0 && <RuleGroup title="Official portals" presets={officialPresets} selected={preset} onSelect={chooseRule} />}
-      <RuleGroup title="Common limits" presets={generalPresets} selected={preset} onSelect={chooseRule} />
+      {officialPresets.length > 0 && <RuleGroup title={t('wb.check.official')} presets={officialPresets} selected={preset} onSelect={chooseRule} />}
+      <RuleGroup title={t('wb.check.common')} presets={generalPresets} selected={preset} onSelect={chooseRule} />
 
       <View style={styles.rule}>
         <Text style={styles.ruleTitle}>{preset.title}</Text>
         <Text style={styles.ruleWhere}>{preset.where}</Text>
-        <Text style={styles.ruleLine}>{ruleSummary(preset)}</Text>
+        <Text style={styles.ruleLine}>{ruleSummary(t, preset)}</Text>
         {preset.note && <Text style={styles.ruleWhere}>{preset.note}</Text>}
         {preset.source ? (
           <Pressable onPress={() => Linking.openURL(preset.source!.url)} style={styles.source} accessibilityRole="link">
             <Ionicons name="shield-checkmark" size={14} color={Colors.success} />
             <Text style={styles.sourceText}>
               {preset.source.label}
-              {preset.lastChecked ? ` · Last checked ${longDate(preset.lastChecked)}` : ''}
+              {preset.lastChecked ? t('wb.check.lastChecked', { date: longDate(preset.lastChecked) }) : ''}
             </Text>
             <Ionicons name="open-outline" size={14} color={Colors.primary} />
           </Pressable>
         ) : (
-          <Text style={styles.ruleWhere}>A common limit. If the form states its own rule, follow the form.</Text>
+          <Text style={styles.ruleWhere}>{t('wb.check.commonNote')}</Text>
         )}
       </View>
 
       {wantsPhoto ? (
-        <PickButtons onPick={pickPhoto} busy={!!busy} />
+        <PickButtons onPick={pickPhoto} busy={!!busy} libraryLabel={t('wb.choosePhoto')} />
       ) : (
         <View style={ui.row}>
-          <Button label={file ? 'Choose another file' : 'Choose file'} icon="document-attach" variant={file ? 'secondary' : 'primary'} onPress={pickDocument} />
+          <Button label={file ? t('wb.chooseAnotherFile') : t('wb.chooseFile')} icon="document-attach" variant={file ? 'secondary' : 'primary'} onPress={pickDocument} />
         </View>
       )}
 
@@ -139,11 +141,11 @@ export default function CheckScreen() {
             </View>
           ))}
           {allOk ? (
-            <Text style={styles.okText}>This file already meets the rule.</Text>
+            <Text style={styles.okText}>{t('wb.check.meets')}</Text>
           ) : (
             checks.length > 0 && (
               <View style={ui.row}>
-                <Button label="Fix it" icon="construct" onPress={fix} busy={!!busy} />
+                <Button label={t('wb.check.fix')} icon="construct" onPress={fix} busy={!!busy} />
               </View>
             )
           )}
@@ -151,7 +153,7 @@ export default function CheckScreen() {
       )}
       {busy && <Working text={busy} />}
       {problem && <Problem text={problem} />}
-      {fixed && <ResultCard file={fixed.file} before={file ?? undefined} checks={fixed.checks} note={fixed.notes.join(' ') || undefined} title="Meets the rule" />}
+      {fixed && <ResultCard file={fixed.file} before={file ?? undefined} checks={fixed.checks} note={fixed.notes.join(' ') || undefined} title={t('wb.check.meetsTitle')} />}
       {preset.photo && (fixed?.file ?? file)?.kind === 'image' && <PhotoCheckCard key={(fixed?.file ?? file)!.name} file={(fixed?.file ?? file)!} checks={preset.photo} />}
     </Screen>
   );

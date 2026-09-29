@@ -8,10 +8,11 @@ import { Button } from '@/components/button';
 import { QrCode } from '@/components/print/qr-code';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { FileRow, Problem, Toggle, workbenchStyles } from '@/components/workbench/ui';
+import { FileRow, pagesLabel, Problem, Toggle, workbenchStyles } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { fileById } from '@/lib/chat-files';
+import { useLanguage, type Translate } from '@/lib/i18n';
 import { GUEST_ID } from '@/lib/profile-store';
 import {
   cancelQuickPrint,
@@ -26,14 +27,14 @@ import {
 import { supabase } from '@/lib/supabase';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
 
-function until(iso: string) {
+function until(t: Translate, iso: string) {
   const date = new Date(iso);
   const time = date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-  return date.toDateString() === new Date().toDateString() ? `today ${time}` : `tomorrow ${time}`;
+  return date.toDateString() === new Date().toDateString() ? t('print.today', { time }) : t('print.tomorrow', { time });
 }
 
-function stateOf(print: QuickPrint) {
-  return print.openedAt ? 'Opened at a cyber' : 'Waiting for a cyber';
+function stateOf(t: Translate, print: QuickPrint) {
+  return print.openedAt ? t('print.opened') : t('print.waiting');
 }
 
 // Print at any cyber: the file gets a short code and a QR code. The cyber
@@ -41,6 +42,7 @@ function stateOf(print: QuickPrint) {
 export default function PrintByCodeScreen() {
   const router = useRouter();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const userId = user?.id ?? GUEST_ID;
   const params = useLocalSearchParams<{ file?: string }>();
   const [file, setFile] = useState<WorkFile | null>(() => (params.file ? fileById(params.file) ?? null : null));
@@ -71,7 +73,7 @@ export default function PrintByCodeScreen() {
   const make = async () => {
     if (!file) return;
     if (usePin === 'yes' && !/^\d{4}$/.test(pin)) {
-      setProblem('Type a 4-number PIN, or choose No PIN.');
+      setProblem(t('print.pinError'));
       return;
     }
     setBusy(true);
@@ -81,14 +83,19 @@ export default function PrintByCodeScreen() {
       setMade(print);
       refresh();
     } catch (error) {
-      setProblem(error instanceof QuickPrintError ? error.message : 'Couldn’t make a print code. Check your connection and try again.');
+      setProblem(error instanceof QuickPrintError ? error.message : t('print.failed'));
     } finally {
       setBusy(false);
     }
   };
 
   const share = (print: QuickPrint) => {
-    const message = `Please print my document: open ${printPageUrl()} and type the code ${displayCode(print.code)}${print.hasPin ? ' (I’ll tell you the PIN)' : ''}. Or scan: ${printPageUrl(print.code)}`;
+    const message = t('print.shareMessage', {
+      url: printPageUrl(),
+      code: displayCode(print.code),
+      pin: print.hasPin ? t('print.sharePin') : '',
+      scan: printPageUrl(print.code),
+    });
     // Browsers without a share sheet get it copied instead.
     Share.share({ message }).catch(() => Clipboard.setStringAsync(message).catch(() => {}));
   };
@@ -101,37 +108,35 @@ export default function PrintByCodeScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Print at any cyber" />
-      <Text style={workbenchStyles.intro}>
-        Get a print code for your document. At any cyber, the attendant scans the QR code or types the code on their computer, prints it, and you pay them as usual. They don’t need an account.
-      </Text>
+      <SubHeader title={t('wb.printAnyCyber')} />
+      <Text style={workbenchStyles.intro}>{t('print.intro')}</Text>
 
       {needsSignIn ? (
         <View style={styles.card}>
-          <Text style={styles.text}>Sign in first, so your document is kept private until the cyber opens it.</Text>
-          <Button label="Sign in" icon="log-in" onPress={() => router.push('/sign-in')} />
+          <Text style={styles.text}>{t('print.signInNote')}</Text>
+          <Button label={t('common.signIn')} icon="log-in" onPress={() => router.push('/sign-in')} />
         </View>
       ) : made ? (
         <View style={styles.ticket}>
-          <Text style={styles.kicker}>YOUR PRINT CODE</Text>
+          <Text style={styles.kicker}>{t('print.yourCode')}</Text>
           <QrCode value={printPageUrl(made.code)} size={200} />
           <Text style={styles.code} selectable>
             {displayCode(made.code)}
           </Text>
           <Text style={styles.fileLine} numberOfLines={1}>
-            {made.fileName} · {made.pages} page{made.pages === 1 ? '' : 's'}
+            {made.fileName} · {pagesLabel(t, made.pages)}
           </Text>
           <View style={styles.how}>
-            <Text style={styles.text}>At the cyber, show this screen. They scan the QR code, or open</Text>
+            <Text style={styles.text}>{t('print.howStart')}</Text>
             <Text style={styles.link} selectable>
               {printPageUrl()}
             </Text>
-            <Text style={styles.text}>and type the code{made.hasPin ? ', then your PIN' : ''}.</Text>
+            <Text style={styles.text}>{made.hasPin ? t('print.howEndPin') : t('print.howEnd')}</Text>
           </View>
-          <Text style={styles.muted}>Works until {until(made.expiresAt)}, or until the cyber taps Printed. Then the file is deleted.</Text>
+          <Text style={styles.muted}>{t('print.worksUntil', { when: until(t, made.expiresAt) })}</Text>
           <View style={workbenchStyles.row}>
-            <Button label="Share code" icon="share-social" onPress={() => share(made)} />
-            <Button label="Another file" icon="add" variant="secondary" onPress={() => { setMade(null); setFile(null); }} />
+            <Button label={t('print.share')} icon="share-social" onPress={() => share(made)} />
+            <Button label={t('print.another')} icon="add" variant="secondary" onPress={() => { setMade(null); setFile(null); }} />
           </View>
         </View>
       ) : (
@@ -139,14 +144,14 @@ export default function PrintByCodeScreen() {
           {file ? (
             <FileRow file={file} onRemove={() => setFile(null)} />
           ) : (
-            <Button label="Choose a PDF or photo" icon="document-attach" onPress={choose} />
+            <Button label={t('print.choose')} icon="document-attach" onPress={choose} />
           )}
-          {file?.kind === 'image' && <Text style={styles.muted}>The photo is put on an A4 page as a PDF, ready to print.</Text>}
-          <Text style={workbenchStyles.label}>PIN</Text>
+          {file?.kind === 'image' && <Text style={styles.muted}>{t('print.photoNote')}</Text>}
+          <Text style={workbenchStyles.label}>{t('print.pin')}</Text>
           <Toggle
             options={[
-              { value: 'no', label: 'No PIN' },
-              { value: 'yes', label: 'Add a PIN' },
+              { value: 'no', label: t('print.noPin') },
+              { value: 'yes', label: t('print.addPin') },
             ]}
             value={usePin}
             onChange={(v) => setUsePin(v as 'no' | 'yes')}
@@ -156,23 +161,23 @@ export default function PrintByCodeScreen() {
               <TextInput
                 value={pin}
                 onChangeText={(v) => setPin(v.replace(/\D/g, '').slice(0, 4))}
-                placeholder="4 numbers"
+                placeholder={t('print.pinPlaceholder')}
                 keyboardType="number-pad"
                 secureTextEntry
                 maxLength={4}
                 style={[workbenchStyles.input, styles.pin]}
               />
-              <Text style={styles.muted}>Tell the cyber the PIN yourself. Good for ID copies and other private papers.</Text>
+              <Text style={styles.muted}>{t('print.pinNote')}</Text>
             </>
           )}
           {!!problem && <Problem text={problem} />}
-          <Button label="Make print code" icon="qr-code" onPress={make} busy={busy} disabled={!file} />
+          <Button label={t('print.makeCode')} icon="qr-code" onPress={make} busy={busy} disabled={!file} />
         </View>
       )}
 
       {codes.filter((c) => c.id !== made?.id).length > 0 && (
         <View style={styles.list}>
-          <Text style={styles.groupTitle}>Your print codes</Text>
+          <Text style={styles.groupTitle}>{t('print.yourCodes')}</Text>
           {codes
             .filter((c) => c.id !== made?.id)
             .map((print) => (
@@ -183,18 +188,18 @@ export default function PrintByCodeScreen() {
                     {displayCode(print.code)} · {print.fileName}
                   </Text>
                   <Text style={styles.muted}>
-                    {stateOf(print)} · until {until(print.expiresAt)}
+                    {t('print.stateUntil', { state: stateOf(t, print), when: until(t, print.expiresAt) })}
                   </Text>
                 </Pressable>
                 <Pressable onPress={() => cancel(print)} hitSlop={6}>
-                  <Text style={styles.cancel}>Cancel</Text>
+                  <Text style={styles.cancel}>{t('common.cancel')}</Text>
                 </Pressable>
               </View>
             ))}
         </View>
       )}
       {!needsSignIn && !supabase && (
-        <Text style={styles.muted}>Demo mode: codes only work in this browser or phone ({siteUrl()}). Connect Supabase to print at a real cyber.</Text>
+        <Text style={styles.muted}>{t('print.demo', { site: siteUrl() })}</Text>
       )}
     </Screen>
   );

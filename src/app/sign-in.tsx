@@ -9,6 +9,7 @@ import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { DEMO_CODE, useAuth } from '@/lib/auth';
 import { findGuestWork, moveGuestWork, type GuestWork } from '@/lib/guest-move';
+import { useLanguage, type Translate } from '@/lib/i18n';
 import { normaliseKenyanPhone } from '@/lib/phone';
 
 type Stage = 'phone' | 'code' | 'move' | 'name';
@@ -16,6 +17,7 @@ type Stage = 'phone' | 'code' | 'move' | 'name';
 export default function SignInScreen() {
   const router = useRouter();
   const { sendCode, verifyCode, setName, demoMode } = useAuth();
+  const { t } = useLanguage();
   const [stage, setStage] = useState<Stage>('phone');
   const [phoneInput, setPhoneInput] = useState('');
   const [phone, setPhone] = useState('');
@@ -32,7 +34,7 @@ export default function SignInScreen() {
     try {
       await action();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Something went wrong. Please try again.');
+      setError(e instanceof Error ? e.message : t('signin.error'));
     } finally {
       setBusy(false);
     }
@@ -41,7 +43,7 @@ export default function SignInScreen() {
   const submitPhone = () =>
     run(async () => {
       const normalised = normaliseKenyanPhone(phoneInput);
-      if (!normalised) throw new Error('Enter a Kenyan phone number, like 0712 345 678.');
+      if (!normalised) throw new Error(t('signin.badPhone'));
       await sendCode(normalised);
       setPhone(normalised);
       setStage('code');
@@ -72,30 +74,25 @@ export default function SignInScreen() {
 
   return (
     <Screen>
-      <SubHeader title="Sign in" help={false} />
+      <SubHeader title={t('common.signIn')} help={false} />
 
       <View style={styles.hero}>
         <View style={styles.heroIcon}>
           <Ionicons name="shield-checkmark" size={28} color={Colors.onDark} />
         </View>
-        <Text style={styles.heroText}>
-          Sign in with your phone number to keep your documents safe in your Digital Locker.
-        </Text>
+        <Text style={styles.heroText}>{t('signin.hero')}</Text>
       </View>
 
       {demoMode && (
         <View style={styles.demo}>
           <Ionicons name="information-circle" size={18} color={Colors.primary} />
-          <Text style={styles.demoText}>
-            Demo mode: no SMS is sent. Use code {DEMO_CODE}. Files stay on this device until sign-in is
-            connected.
-          </Text>
+          <Text style={styles.demoText}>{t('signin.demo', { code: DEMO_CODE })}</Text>
         </View>
       )}
 
       {stage === 'phone' && (
         <>
-          <Text style={styles.label}>Phone number</Text>
+          <Text style={styles.label}>{t('signin.phoneLabel')}</Text>
           <TextInput
             value={phoneInput}
             onChangeText={setPhoneInput}
@@ -107,14 +104,14 @@ export default function SignInScreen() {
             onSubmitEditing={submitPhone}
           />
           <View style={styles.row}>
-            <Button label="Send code" icon="chatbox-ellipses" onPress={submitPhone} busy={busy} />
+            <Button label={t('signin.sendCode')} icon="chatbox-ellipses" onPress={submitPhone} busy={busy} />
           </View>
         </>
       )}
 
       {stage === 'code' && (
         <>
-          <Text style={styles.label}>Enter the 6-digit code sent to {phone}</Text>
+          <Text style={styles.label}>{t('signin.codeLabel', { phone })}</Text>
           <TextInput
             value={code}
             onChangeText={setCode}
@@ -127,47 +124,44 @@ export default function SignInScreen() {
             onSubmitEditing={submitCode}
           />
           <View style={styles.row}>
-            <Button label="Change number" variant="secondary" onPress={() => setStage('phone')} />
-            <Button label="Verify" onPress={submitCode} busy={busy} disabled={code.trim().length < 6} />
+            <Button label={t('signin.changeNumber')} variant="secondary" onPress={() => setStage('phone')} />
+            <Button label={t('signin.verify')} onPress={submitCode} busy={busy} disabled={code.trim().length < 6} />
           </View>
         </>
       )}
 
       {stage === 'move' && work && (
         <View style={styles.move}>
-          <Text style={styles.label}>Keep what you did before signing in?</Text>
-          <Text style={styles.moveText}>This phone has:</Text>
-          {guestLines(work).map((line) => (
+          <Text style={styles.label}>{t('signin.keepQuestion')}</Text>
+          <Text style={styles.moveText}>{t('signin.phoneHas')}</Text>
+          {guestLines(t, work).map((line) => (
             <View key={line} style={styles.moveLine}>
               <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
               <Text style={styles.moveText}>{line}</Text>
             </View>
           ))}
-          <Text style={styles.moveNote}>
-            It will be saved on your account, so you can see it on any phone. Details already on your account stay as
-            they are.
-          </Text>
+          <Text style={styles.moveNote}>{t('signin.moveNote')}</Text>
           <View style={styles.row}>
-            <Button label="Leave on phone" variant="secondary" onPress={() => setStage('name')} />
-            <Button label="Keep them" icon="cloud-upload" onPress={keepWork} busy={busy} />
+            <Button label={t('signin.leave')} variant="secondary" onPress={() => setStage('name')} />
+            <Button label={t('signin.keep')} icon="cloud-upload" onPress={keepWork} busy={busy} />
           </View>
         </View>
       )}
 
       {stage === 'name' && (
         <>
-          <Text style={styles.label}>You’re in! What should we call you?</Text>
+          <Text style={styles.label}>{t('signin.nameQuestion')}</Text>
           <TextInput
             value={name}
             onChangeText={setNameInput}
-            placeholder="Your full name"
+            placeholder={t('signin.namePlaceholder')}
             placeholderTextColor={Colors.textMuted}
             autoComplete="name"
             style={styles.input}
             onSubmitEditing={submitName}
           />
           <View style={styles.row}>
-            <Button label="Continue" onPress={submitName} busy={busy} />
+            <Button label={t('signin.continue')} onPress={submitName} busy={busy} />
           </View>
         </>
       )}
@@ -177,13 +171,12 @@ export default function SignInScreen() {
   );
 }
 
-function guestLines(work: GuestWork) {
-  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+function guestLines(t: Translate, work: GuestWork) {
   return [
-    work.details ? `Your details (${plural(work.details, 'item', 'items')})` : '',
-    work.jobs ? plural(work.jobs, 'job', 'jobs') : '',
-    work.chats ? plural(work.chats, 'chat', 'chats') : '',
-    work.other ? plural(work.other, 'other saved item', 'other saved items') : '',
+    work.details ? (work.details === 1 ? t('signin.detailsOne') : t('signin.details', { n: work.details })) : '',
+    work.jobs ? (work.jobs === 1 ? t('signin.jobOne') : t('signin.jobs', { n: work.jobs })) : '',
+    work.chats ? (work.chats === 1 ? t('signin.chatOne') : t('signin.chats', { n: work.chats })) : '',
+    work.other ? (work.other === 1 ? t('signin.otherOne') : t('signin.others', { n: work.other })) : '',
   ].filter(Boolean);
 }
 
