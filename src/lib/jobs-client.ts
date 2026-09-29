@@ -62,3 +62,15 @@ export async function interviewQuestions(advert: JobAdvert, profile: Record<stri
     return sampleQuestions(advert);
   }
 }
+
+export type OldCvResult = { details: Record<string, string>; problems: string[]; mode: 'ai' | 'sample' };
+
+// Reads an old CV (one photo as base64 JPEG, or a PDF as base64) into My
+// Details fields for the person to check.
+export async function readOldCv(file: { image?: string; pdf?: string }): Promise<OldCvResult> {
+  try {
+    return await post<OldCvResult>({ action: 'read_cv', ...file });
+  } catch {
+    return { details: {}, problems: ['Couldn’t read your CV right now. Check your connection and try again.'], mode: 'sample' };
+  }
+}

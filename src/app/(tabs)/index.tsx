@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
@@ -13,6 +13,7 @@ import { services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
 import { loadContinueItems, shortDate, type ContinueItem } from '@/lib/continue';
 import { serviceText, useLanguage } from '@/lib/i18n';
+import { needsOnboarding } from '@/lib/onboarding';
 import { GUEST_ID } from '@/lib/profile-store';
 
 function greetingKey(date = new Date()) {
@@ -47,6 +48,12 @@ const orderedServices = [...services].sort((a, b) => Number(isLiveService(b.id))
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  // First open: the three welcome screens.
+  useEffect(() => {
+    needsOnboarding().then((needed) => needed && router.push('/welcome'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { user } = useAuth();
   const firstName = user?.fullName?.split(' ')[0];
   const { t } = useLanguage();

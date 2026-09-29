@@ -5,6 +5,7 @@ import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Card, Note } from '@/components/gov/ui';
 import { PickButtons } from '@/components/pick-buttons';
+import { CvImport } from '@/components/profile/cv-import';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -60,6 +61,15 @@ export default function ProfileScreen() {
     }
   };
 
+  // Fills only details that are still empty, so nothing typed is lost.
+  const fillFromCv = (details: Record<string, string>) => {
+    const found = cleanProfile(details);
+    const fresh = Object.fromEntries(Object.entries(found).filter(([key]) => !values[key as keyof Profile]?.trim()));
+    setValues((current) => ({ ...current, ...fresh }));
+    setSaved(false);
+    return Object.keys(fresh).length;
+  };
+
   const save = async () => {
     setSaving(true);
     const found = validateAnswers(checkFields, values);
@@ -83,6 +93,11 @@ export default function ProfileScreen() {
           You’re not signed in, so these stay on this phone only. Sign in to keep them safe in your private profile.
         </Note>
       )}
+
+      <Card title="Import my old CV">
+        <Text style={styles.intro}>Send your old CV and we fill in your career, education, skills and contacts. You check them before saving.</Text>
+        <CvImport onFound={fillFromCv} />
+      </Card>
 
       <Card title="Scan your ID">
         <PickButtons onPick={scanId} busy={reading} libraryLabel="Choose ID photo" />

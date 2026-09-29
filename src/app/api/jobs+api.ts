@@ -3,10 +3,11 @@ import Anthropic from '@anthropic-ai/sdk';
 import { cleanProfile } from '@/data/profile-fields';
 import { emptyAdvert, sampleAdvert, sampleApplication, sampleMatch, sampleQuestions } from '@/lib/jobs-sample';
 import type { FindJobsResult, JobAdvert, ReadAdvertResult } from '@/lib/jobs-types';
-import { findJobs, interviewQuestions, JOB_SITES, matchJob, readAdvert, tailorApplication } from '@/server/jobs-agent';
+import { findJobs, interviewQuestions, JOB_SITES, matchJob, readAdvert, readOldCv, tailorApplication } from '@/server/jobs-agent';
 import { withUsage } from '@/server/usage';
 
 const MAX_IMAGE_BASE64 = 5_000_000;
+const MAX_PDF_BASE64 = 4_300_000;
 const methods = ['email', 'portal', 'in_person', 'post', 'unknown'] as const;
 
 function str(value: unknown, max = 300) {
@@ -83,6 +84,20 @@ async function handle(request: Request) {
           } satisfies ReadAdvertResult);
         }
         return Response.json(await readAdvert({ text, url, image: image || undefined }));
+      }
+
+      case 'read_cv': {
+        const image = typeof body.image === 'string' ? body.image : '';
+        const pdf = typeof body.pdf === 'string' ? body.pdf : '';
+        if (!image && !pdf) return Response.json({ error: 'Send a photo or PDF of the CV' }, { status: 400 });
+        if (image.length > MAX_IMAGE_BASE64 || pdf.length > MAX_PDF_BASE64) {
+          return Response.json({ error: 'That file is too big. Send a PDF under 3 MB or one photo.' }, { status: 413 });
+        }
+        if (!hasKey) {
+          return Response.json({ details: {}, problems: ['Reading a CV needs the AI to be switched on. Type your details for now.'], mode: 'sample' });
+        }
+        const result = await readOldCv(pdf ? { pdf } : { image });
+        return Response.json({ ...result, details: cleanProfile(result.details) });
       }
 
       case 'find': {
