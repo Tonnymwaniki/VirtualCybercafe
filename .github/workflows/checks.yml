@@ -1,0 +1,49 @@
+# Runs on every push and pull request: typecheck, app tests, and the print
+# code rules against a real Postgres.
+name: Checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npx jest --ci
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print code rules
+        run: |
+          createdb vctest
+          psql -q -v ON_ERROR_STOP=1 -d vctest \
+            -f tests/sql/stub.sql \
+            -f supabase/migrations/0004_quick_print.sql \
+            -f tests/sql/quick-print.test.sql

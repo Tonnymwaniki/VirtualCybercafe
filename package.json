@@ -34,7 +34,10 @@
     "react-native-webview": "13.16.1"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.5",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -42,7 +45,24 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "check-keys": "node --env-file-if-exists=.env scripts/check-keys.mjs"
+    "check-keys": "node --env-file-if-exists=.env scripts/check-keys.mjs",
+    "test": "jest",
+    "typecheck": "tsc --noEmit"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.ts"
+    ],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|pdf-lib|@pdf-lib/.*)"
+    ],
+    "setupFiles": [
+      "<rootDir>/tests/setup.ts"
+    ]
+  }
 }
