@@ -8,6 +8,7 @@ import { isLiveWorkspace } from '@/data/launch';
 import { useAuth } from '@/lib/auth';
 import { addJobDocument, deadlineLabel, GUEST_ID, loadJobs, openJobs } from '@/lib/jobs-store';
 import type { Job } from '@/lib/jobs-types';
+import { LockerFullError } from '@/lib/locker-store';
 import { supabase } from '@/lib/supabase';
 import { saveToLocker, size, type WorkFile } from '@/lib/workbench/files';
 
@@ -51,8 +52,8 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
       const path = lockerPath ?? (await saveToLocker(userId, file as WorkFile, 'Certificates'));
       await addJobDocument(userId, job.id, { path, name: file.name, mimeType: file.mimeType, bytes, addedAt: new Date().toISOString() });
       setState({ step: 'added', job });
-    } catch {
-      setState({ step: 'failed', text: 'Couldn’t add it. Check your connection and try again.' });
+    } catch (error) {
+      setState({ step: 'failed', text: error instanceof LockerFullError ? error.message : 'Couldn’t add it. Check your connection and try again.' });
     }
   };
 

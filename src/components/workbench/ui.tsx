@@ -10,6 +10,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { keepFile } from '@/lib/chat-files';
 import { GUEST_ID } from '@/lib/profile-store';
+import { LockerFullError } from '@/lib/locker-store';
 import { fileUri, formatSize, saveToLocker, shareFile, size, type WorkFile } from '@/lib/workbench/files';
 
 // Shared pieces of the Workbench screens: the file being worked on, size
@@ -143,12 +144,14 @@ export function Problem({ text }: { text: string }) {
 function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
   const { user } = useAuth();
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'failed'>('idle');
+  const [full, setFull] = useState<string | null>(null);
   const toLocker = async () => {
     setState('saving');
     try {
       await saveToLocker(user?.id ?? GUEST_ID, file);
       setState('saved');
-    } catch {
+    } catch (error) {
+      setFull(error instanceof LockerFullError ? error.message : null);
       setState('failed');
     }
   };
@@ -181,7 +184,7 @@ function SaveButtons({ file, compact }: { file: WorkFile; compact?: boolean }) {
           disabled={state === 'saved'}
         />
       </View>
-      {state === 'failed' && <Problem text="Couldn’t save to the Locker. Check your connection and try again." />}
+      {state === 'failed' && <Problem text={full ?? 'Couldn’t save to the Locker. Check your connection and try again.'} />}
     </>
   );
 }

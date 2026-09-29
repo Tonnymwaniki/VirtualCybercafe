@@ -1,5 +1,5 @@
 # Runs on pull requests and pushes to main: typecheck, app tests, and the print
-# code rules against a real Postgres.
+# code rules and Locker limit against a real Postgres.
 name: Checks
 
 on:
@@ -41,10 +41,13 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
-      - name: Print code rules
+      - name: Print code rules and Locker limit
         run: |
           createdb vctest
           psql -q -v ON_ERROR_STOP=1 -d vctest \
             -f tests/sql/stub.sql \
+            -f supabase/migrations/0001_locker.sql \
             -f supabase/migrations/0004_quick_print.sql \
-            -f tests/sql/quick-print.test.sql
+            -f supabase/migrations/0005_locker_quota.sql \
+            -f tests/sql/quick-print.test.sql \
+            -f tests/sql/locker-quota.test.sql

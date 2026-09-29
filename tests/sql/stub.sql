@@ -8,6 +8,6 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 grant usage on schema auth, storage, extensions, public to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
 create table storage.buckets (id text primary key, name text, public boolean, file_size_limit bigint, allowed_mime_types text[]);
-create table storage.objects (bucket_id text, name text);
+create table storage.objects (bucket_id text, name text, metadata jsonb);
 alter table storage.objects enable row level security;
 create function storage.foldername(name text) returns text[] language sql as $$ select string_to_array(name, '/') $$;

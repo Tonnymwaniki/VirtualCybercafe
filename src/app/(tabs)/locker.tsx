@@ -13,7 +13,7 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { guessCategory, lockerFilters, lockerLabels, type LockerCategory } from '@/data/locker';
 import { useAuth } from '@/lib/auth';
 import { formatBytes, pickImages } from '@/lib/images';
-import { listFiles, previewLinks, uploadFile, type StoredFile } from '@/lib/locker-store';
+import { LOCKER_LIMIT_BYTES, LockerFullError, listFiles, previewLinks, uploadFile, type StoredFile } from '@/lib/locker-store';
 
 type Filter = (typeof lockerFilters)[number];
 
@@ -78,8 +78,8 @@ export default function LockerScreen() {
         await uploadFile(user.id, { uri: asset.uri, name: asset.name, mimeType, bytes: asset.size ?? null, category: folder(asset.name, mimeType) });
       }
       await refresh();
-    } catch {
-      setError('Upload failed. Please try again.');
+    } catch (e) {
+      setError(e instanceof LockerFullError ? e.message : 'Upload failed. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -155,6 +155,8 @@ export default function LockerScreen() {
         </Text>
       </View>
 
+      <UsageBar used={files.reduce((sum, f) => sum + (f.bytes ?? 0), 0)} />
+
       <View style={styles.filters}>
         {lockerFilters.map((option) => {
           const active = option === filter;
@@ -218,7 +220,30 @@ export default function LockerScreen() {
   );
 }
 
+// How full the Locker is, with a warning from 80%.
+function UsageBar({ used }: { used: number }) {
+  const share = Math.min(1, used / LOCKER_LIMIT_BYTES);
+  const warn = share >= 0.8;
+  return (
+    <View style={styles.usage}>
+      <View style={styles.usageTrack}>
+        <View style={[styles.usageFill, { width: `${Math.max(share * 100, 1)}%` }, warn && styles.usageWarn]} />
+      </View>
+      <Text style={[styles.usageText, warn && styles.usageWarnText]}>
+        {formatBytes(used)} of 200 MB used
+        {warn ? '. Almost full: delete old files or shrink big ones in the Document Workbench.' : ''}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  usage: { gap: 6 },
+  usageTrack: { height: 8, borderRadius: 4, backgroundColor: Colors.border, overflow: 'hidden' },
+  usageFill: { height: 8, borderRadius: 4, backgroundColor: Colors.primary },
+  usageWarn: { backgroundColor: Colors.warning },
+  usageText: { fontSize: 12, color: Colors.textMuted },
+  usageWarnText: { color: Colors.warning, fontWeight: '600' },
   detailsLink: {
     flexDirection: 'row',
     alignItems: 'center',

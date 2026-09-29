@@ -66,9 +66,25 @@ export async function listFiles(userId: string): Promise<StoredFile[]> {
   return perCategory.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+// Each person's Locker holds up to 200 MB (supabase/migrations/0005_locker_quota.sql).
+export const LOCKER_LIMIT_BYTES = 200 * 1024 * 1024;
+
+export class LockerFullError extends Error {}
+
+// Bytes used in the person's Locker, or null if it can't be told.
+export async function lockerBytesUsed(userId: string): Promise<number | null> {
+  if (!supabase) return demoFiles.filter((f) => f.path.startsWith(`${userId}/`)).reduce((sum, f) => sum + (f.bytes ?? 0), 0);
+  const { data, error } = await supabase.rpc('locker_bytes_used');
+  return error || typeof data !== 'number' ? null : data;
+}
+
 // Returns the new file's storage path.
 export async function uploadFile(userId: string, input: UploadInput): Promise<string> {
   const path = `${userId}/${input.category}/${Date.now()}-${safeName(input.name)}`;
+  const used = await lockerBytesUsed(userId);
+  if (used !== null && used + (input.bytes ?? 0) > LOCKER_LIMIT_BYTES) {
+    throw new LockerFullError('Your Locker is full (200 MB). Delete files you no longer need, or shrink big PDFs and photos in the Document Workbench.');
+  }
   if (!supabase) {
     demoFiles.unshift({
       path,

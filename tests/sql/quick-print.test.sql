@@ -3,7 +3,7 @@
 \set ON_ERROR_STOP 1
 insert into auth.users values ('11111111-1111-1111-1111-111111111111');
 
-create function pg_temp.check(ok boolean, what text) returns void language plpgsql as $$
+create or replace function pg_temp.check(ok boolean, what text) returns void language plpgsql as $$
 begin
   if not ok then raise exception 'FAILED: %', what; end if;
 end $$;

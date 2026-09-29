@@ -188,6 +188,13 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
    ```
    Optionally add `AT_SENDER_ID` once Africa's Talking approves a sender name.
 
+### Locker limit and hourly clean-up
+
+- **Locker limit:** run `supabase/migrations/0005_locker_quota.sql` in the SQL Editor. Each person gets 200 MB; the Locker shows how much is used, warns from 80%, and uploads past the limit are refused with a friendly message.
+- **Hourly clean-up:** `supabase/functions/cleanup` deletes print-at-any-cyber files and codes once they are expired, or printed over an hour ago, even if the owner never opens the app. Storage files can only be deleted through the Storage API, so it runs as an Edge Function with the service role key Supabase gives it; that key never leaves Supabase.
+  1. Deploy it: `npx supabase functions deploy cleanup` (after `login` and `link` as above).
+  2. In Supabase, open **Integrations > Cron**, enable it, and add a job: name `cleanup`, schedule `0 * * * *` (every hour), type **Supabase Edge Function**, function `cleanup`, method POST.
+
 ## Project layout
 
 - `src/app/`: screens (every file is a route)
@@ -203,6 +210,7 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
 - `src/lib/`: chat helpers, the sample attendant, image/PDF helpers, sign-in and Locker storage
 - `supabase/migrations/`: database and storage rules
 - `supabase/functions/send-sms/`: sends sign-in codes through Africa's Talking
+- `supabase/functions/cleanup/`: hourly clean-up of used print codes
 - `src/components/`: shared UI pieces
 - `src/constants/theme.ts`: colours and spacing
 - `src/data/`: sample data used until the backend exists
