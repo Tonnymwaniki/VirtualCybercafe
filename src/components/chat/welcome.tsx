@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Mascot } from '@/components/mascot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Suggestion } from '@/lib/chat-suggest';
-import type { ContinueItem } from '@/lib/continue';
+import { shortDate, type ContinueItem } from '@/lib/continue';
 import { useLanguage } from '@/lib/i18n';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -63,7 +63,7 @@ export function ChatWelcome({
                   {item.place ? t('continue.trip', { place: item.place }) : item.title}
                 </Text>
                 <Text style={styles.continueNext} numberOfLines={1}>
-                  {item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
+                  {item.due ? t('continue.due', { date: shortDate(item.due) }) : item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textMuted} />

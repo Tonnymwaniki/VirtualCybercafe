@@ -19,3 +19,4 @@ export const modelOptions = isHaiku
 export const effortOption = isHaiku ? {} : { effort: 'medium' as const };
 
 export const webSearchType = isHaiku ? ('web_search_20250305' as const) : ('web_search_20260209' as const);
+export const webFetchType = isHaiku ? ('web_fetch_20250910' as const) : ('web_fetch_20260209' as const);

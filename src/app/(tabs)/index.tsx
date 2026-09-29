@@ -10,7 +10,7 @@ import { Screen } from '@/components/screen';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
-import { loadContinueItems, type ContinueItem } from '@/lib/continue';
+import { loadContinueItems, shortDate, type ContinueItem } from '@/lib/continue';
 import { serviceText, useLanguage } from '@/lib/i18n';
 import { GUEST_ID } from '@/lib/profile-store';
 
@@ -69,7 +69,7 @@ export default function HomeScreen() {
                   {item.place ? t('continue.trip', { place: item.place }) : item.title}
                 </Text>
                 <Text style={styles.continueNext} numberOfLines={1}>
-                  {item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
+                  {item.due ? t('continue.due', { date: shortDate(item.due) }) : item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.primary} />

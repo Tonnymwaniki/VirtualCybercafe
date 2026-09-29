@@ -1,4 +1,26 @@
+import type { JobAdvert } from '@/lib/jobs-types';
+import type { TripPurpose } from '@/lib/travel-types';
+
 export type ChatRole = 'user' | 'assistant';
+
+type LabeledValue = { key: string; label: string; value: string };
+
+// Something the attendant offers to do in the app. Nothing changes until the
+// user taps "Do it" on its card (see lib/chat-actions.ts).
+export type ProposedAction =
+  | { kind: 'details'; fields: LabeledValue[] }
+  | { kind: 'task'; taskId: string; title: string; answers: LabeledValue[] }
+  | { kind: 'job'; advert: JobAdvert }
+  | { kind: 'trip'; destination: string; purpose: TripPurpose; departDate: string; returnDate: string }
+  | { kind: 'reminder'; title: string; date: string; route: string };
+
+export type ActionState = {
+  status: 'done' | 'undone' | 'dismissed';
+  // What Undo needs, and where to go afterwards.
+  undo?: Record<string, unknown>;
+  route?: string;
+  note?: string;
+};
 
 // Things the attendant hands back, shown as cards under its reply.
 export type ChatAction =
@@ -8,7 +30,8 @@ export type ChatAction =
   | { type: 'checklist'; title: string; items: string[] }
   | { type: 'steps'; title: string; steps: string[] }
   | { type: 'fee'; amount: string; note: string; source: string }
-  | { type: 'warning'; text: string };
+  | { type: 'warning'; text: string }
+  | { type: 'confirm'; id: string; action: ProposedAction; state?: ActionState };
 
 export type ChatMessage = {
   id?: string;

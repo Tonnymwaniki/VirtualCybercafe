@@ -5,16 +5,19 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-import type { GovTask } from '@/data/gov-tasks';
+import { bizTasks, eduTasks, findGovTask, govTasks, travelTasks, type GovTask } from '@/data/gov-tasks';
 import { catalogue, findEntry, routeWith, type CatalogueEntry } from '@/data/catalogue';
 import { guides } from '@/data/guides';
 import { cleanProfile, profileFields } from '@/data/profile-fields';
-import type { ChatAction, ChatMessage } from '@/lib/chat-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import type { ChatAction, ChatMessage, ProposedAction } from '@/lib/chat-types';
+import { mergeSignals, scamSignals } from '@/lib/job-scam';
+import { effortOption, MODEL, modelOptions, webFetchType, webSearchType } from '@/server/model';
 import { claude } from '@/server/claude';
 
 // Upper bound on model calls per user message, to cap cost and latency.
 const MAX_STEPS = 6;
+
+const ALL_TASKS = [...govTasks, ...eduTasks, ...bizTasks, ...travelTasks];
 
 const SYSTEM_PROMPT = `You are the virtual attendant at Virtual Cybercafe, a mobile app that does what a Kenyan cybercafe does.
 You get tasks done for people: government services (eCitizen, KRA, NTSA, passports, Good Conduct), jobs (CVs, cover letters, applications), education (KUCCPS, HELB), documents, printing, business registration, travel and bills.
@@ -31,7 +34,15 @@ How to work:
 - When filling a form, writing a letter or CV, or checking what a task needs, call get_my_details to use what the user already saved (ID, contacts, KRA PIN, family, education, work experience, skills, business and passport) instead of asking again. Never make up personal details; ask for what is missing.
 - When the user is signed in and a task needs documents, call check_locker to see what they already have, and say what is still missing.
 - When the user needs a letter, email, complaint, application text or similar, write it with create_document so they can download it as a PDF. Never invent facts about the user; ask for missing details first.
-- You cannot submit forms or make payments on government sites for the user. Guide them step by step and prepare everything they need.`;
+- Work alongside the user like a cybercafe attendant: when a step can be done in the app, offer to do it with an action tool. The user sees a card and nothing changes until they tap "Do it", so offer the action and say in one line what it will do.
+  - save_my_details when the user tells you (or shows in a photo) a detail such as their KRA PIN, email or passport expiry. Only values they gave in this chat, never guesses.
+  - start_task when they want to begin a guided task; pass form answers they already gave.
+  - track_job when they paste or describe a job advert they want to apply for.
+  - track_trip when they plan travel with a destination.
+  - add_reminder for a deadline or date they should not miss (YYYY-MM-DD).
+  Offer at most two actions per reply.
+- When the user pastes a link, or you need the text of an official page, use web_fetch to read it and summarise what matters.
+- You cannot submit forms, log in or make payments on government sites for the user, and never ask for passwords, PINs or OTP codes. Guide them step by step and prepare everything they need.`;
 
 const tools: Anthropic.Beta.BetaToolUnion[] = [
   {
@@ -164,6 +175,116 @@ const tools: Anthropic.Beta.BetaToolUnion[] = [
     strict: true,
   },
   {
+    name: 'save_my_details',
+    description:
+      'Offer to save details the user gave in this chat to My Details, so every form fills from them. Shows a card; nothing is saved until they confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        fields: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              key: { type: 'string', enum: profileFields.map((f) => f.key) },
+              value: { type: 'string' },
+            },
+            required: ['key', 'value'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['fields'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'start_task',
+    description:
+      'Offer to start a guided task in the app. It ticks the documents already in their Locker and fills the form answers you pass (only answers the user gave). Shows a card; nothing changes until they confirm.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'string', enum: ALL_TASKS.map((t) => t.id) },
+        answers: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: { key: { type: 'string' }, value: { type: 'string' } },
+            required: ['key', 'value'],
+            additionalProperties: false,
+          },
+        },
+      },
+      required: ['task_id', 'answers'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'track_job',
+    description:
+      'Offer to save a job advert the user wants to apply for, so the Jobs workspace can match it, write the CV and letter, and track it. Use only facts from the advert; leave unknown fields empty.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        employer: { type: 'string' },
+        location: { type: 'string' },
+        deadline: { type: 'string', description: 'YYYY-MM-DD, or empty' },
+        deadline_text: { type: 'string' },
+        salary: { type: 'string' },
+        how_to_apply: { type: 'string' },
+        apply_email: { type: 'string' },
+        apply_url: { type: 'string' },
+        requirements: { type: 'array', items: { type: 'string' } },
+        documents: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['title', 'employer', 'location', 'deadline', 'deadline_text', 'salary', 'how_to_apply', 'apply_email', 'apply_url', 'requirements', 'documents'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'track_trip',
+    description: 'Offer to save a trip in the Travel workspace, which then checks the visa, documents and passport validity.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        destination: { type: 'string', description: 'Country' },
+        purpose: { type: 'string', enum: ['visit', 'tourism', 'study', 'work', 'business', 'medical'] },
+        depart_date: { type: 'string', description: 'YYYY-MM-DD, or empty' },
+        return_date: { type: 'string', description: 'YYYY-MM-DD, or empty' },
+      },
+      required: ['destination', 'purpose', 'depart_date', 'return_date'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'add_reminder',
+    description:
+      'Offer to add a reminder for a deadline or date to "Continue" on the Home screen. screen is the app screen that helps with it, or "none".',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', description: 'Short, e.g. "HELB application closes"' },
+        date: { type: 'string', description: 'YYYY-MM-DD' },
+        screen: { type: 'string', enum: ['none', ...catalogue.filter((e) => !e.hidden).map((e) => e.id)] },
+      },
+      required: ['title', 'date', 'screen'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: webFetchType,
+    name: 'web_fetch',
+    max_uses: 2,
+    max_content_tokens: 8000,
+  },
+  {
     type: webSearchType,
     name: 'web_search',
     max_uses: 3,
@@ -222,6 +343,13 @@ async function checkLocker(accessToken: string | null): Promise<string> {
   return lines.length ? lines.join('\n') : 'The Locker is empty.';
 }
 
+// Adds an action card the user confirms in the chat.
+function offer(context: ToolContext, action: ProposedAction): string {
+  if (context.actions.filter((a) => a.type === 'confirm').length >= 2) return 'Only two actions per reply; offer the rest later.';
+  context.actions.push({ type: 'confirm', id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`, action });
+  return 'A card is shown to the user. Nothing has changed yet: they tap "Do it" to confirm. Do not say it is done.';
+}
+
 async function runTool(name: string, input: Record<string, unknown>, context: ToolContext): Promise<string> {
   switch (name) {
     case 'get_service_guide': {
@@ -276,6 +404,66 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
     case 'show_warning': {
       context.actions.push({ type: 'warning', text: String(input.text ?? '').slice(0, 300) });
       return 'The warning card is shown.';
+    }
+    case 'save_my_details': {
+      const raw = Array.isArray(input.fields) ? (input.fields as { key: string; value: string }[]) : [];
+      const clean = cleanProfile(Object.fromEntries(raw.map((f) => [f.key, f.value])));
+      const fields = profileFields.filter((f) => clean[f.key]).map((f) => ({ key: f.key, label: f.label, value: clean[f.key] }));
+      if (!fields.length) return 'Nothing to save: give at least one detail with a value.';
+      return offer(context, { kind: 'details', fields });
+    }
+    case 'start_task': {
+      const task = findGovTask(String(input.task_id ?? ''));
+      if (!task) return 'Unknown task.';
+      const raw = Array.isArray(input.answers) ? (input.answers as { key: string; value: string }[]) : [];
+      const answers = task.fields
+        .map((field) => ({ key: field.key, label: field.label, value: String(raw.find((a) => a.key === field.key)?.value ?? '').trim().slice(0, 300) }))
+        .filter((a) => a.value);
+      return offer(context, { kind: 'task', taskId: task.id, title: task.title, answers });
+    }
+    case 'track_job': {
+      const text = (key: string, max = 200) => String(input[key] ?? '').trim().slice(0, max);
+      const list = (key: string) => (Array.isArray(input[key]) ? (input[key] as unknown[]).map(String).slice(0, 15) : []);
+      const email = text('apply_email');
+      const url = /^https:\/\//.test(text('apply_url', 500)) ? text('apply_url', 500) : '';
+      const title = text('title');
+      if (!title) return 'A job needs at least a title.';
+      const deadline = /^\d{4}-\d{2}-\d{2}$/.test(text('deadline')) ? text('deadline') : '';
+      const howTo = text('how_to_apply', 600);
+      const all = [title, text('employer'), howTo, email, ...list('requirements')].join('\n');
+      return offer(context, {
+        kind: 'job',
+        advert: {
+          title,
+          employer: text('employer'),
+          location: text('location'),
+          deadline,
+          deadlineText: text('deadline_text'),
+          salary: text('salary'),
+          howToApply: { method: email ? 'email' : url ? 'portal' : 'unknown', email, url, instructions: howTo },
+          requirements: list('requirements'),
+          duties: [],
+          documents: list('documents'),
+          scamSignals: mergeSignals(scamSignals(all, email)),
+          sourceUrl: '',
+        },
+      });
+    }
+    case 'track_trip': {
+      const date = (key: string) => (/^\d{4}-\d{2}-\d{2}$/.test(String(input[key] ?? '')) ? String(input[key]) : '');
+      const destination = String(input.destination ?? '').trim().slice(0, 60);
+      if (!destination) return 'A trip needs a destination.';
+      const purposes = ['visit', 'tourism', 'study', 'work', 'business', 'medical'] as const;
+      const purpose = purposes.find((p) => p === input.purpose) ?? 'visit';
+      return offer(context, { kind: 'trip', destination, purpose, departDate: date('depart_date'), returnDate: date('return_date') });
+    }
+    case 'add_reminder': {
+      const date = String(input.date ?? '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return 'The date must be YYYY-MM-DD.';
+      const entry = input.screen === 'none' ? undefined : findEntry(String(input.screen ?? ''));
+      const title = String(input.title ?? '').trim().slice(0, 80);
+      if (!title) return 'A reminder needs a title.';
+      return offer(context, { kind: 'reminder', title, date, route: entry ? routeWith(entry) : '' });
     }
     case 'share_link': {
       const url = String(input.url ?? '');
@@ -333,8 +521,9 @@ export async function runAttendant(
   });
 
   const start = messages.length;
+  let activeTools = tools;
   for (let step = 0; step < MAX_STEPS; step++) {
-    const response = await client.beta.messages.create({
+    const request = () => client.beta.messages.create({
       model: MODEL,
       max_tokens: 16000,
       ...modelOptions,
@@ -348,9 +537,20 @@ export async function runAttendant(
           ? [{ type: 'text' as const, text: 'The user set the app to Kiswahili. Reply in Swahili unless they write to you in English.' }]
           : []),
       ],
-      tools,
+      tools: activeTools,
       messages,
     });
+    let response: Anthropic.Beta.BetaMessage;
+    try {
+      response = await request();
+    } catch (error) {
+      // If this model or account can't use web fetch, carry on without it.
+      const aboutFetch = error instanceof Anthropic.BadRequestError && /web_fetch/.test(error.message);
+      if (!aboutFetch || activeTools !== tools) throw error;
+      console.warn('Web fetch is not available, continuing without it:', (error as Error).message);
+      activeTools = tools.filter((tool) => !('name' in tool) || tool.name !== 'web_fetch');
+      response = await request();
+    }
 
     if (response.stop_reason === 'refusal') {
       return { reply: 'Sorry, I can’t help with that one. Is there something else you need done?', actions: [] };

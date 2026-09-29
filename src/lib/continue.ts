@@ -8,6 +8,7 @@ import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
 import { taskColors } from '@/data/task-colors';
 import { tripStages } from '@/data/visa-form';
 import { TENDER_KEY, tenderStatuses, type SavedTender } from '@/lib/biz-types';
+import { REMINDER_KEY, type Reminder } from '@/lib/chat-actions';
 import { loadAllProgress } from '@/lib/gov-store';
 import { loadJobs } from '@/lib/jobs-store';
 import { jobStatuses } from '@/lib/jobs-types';
@@ -25,11 +26,14 @@ export type ContinueItem = {
   color: string;
   // For the trip title, which is translated on screen.
   place?: string;
+  // A reminder's date (YYYY-MM-DD), shown as "Due ..." instead of a next step.
+  due?: string;
   at: string;
 };
 
 export async function loadContinueItems(userId: string, limit = 3): Promise<ContinueItem[]> {
-  const [progress, jobs, trips, tenders] = await Promise.all([
+  const [reminders, progress, jobs, trips, tenders] = await Promise.all([
+    loadRecords<Reminder>(userId, REMINDER_KEY),
     loadAllProgress(userId),
     loadJobs(userId),
     loadRecords<Trip>(userId, TRIP_KEY),
@@ -97,5 +101,27 @@ export async function loadContinueItems(userId: string, limit = 3): Promise<Cont
     });
   }
 
-  return items.sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, limit);
+  // Reminders from the chat come first, soonest first, until their day passes.
+  const today = new Date().toISOString().slice(0, 10);
+  const due: ContinueItem[] = Object.values(reminders)
+    .filter((r) => r && r.date >= today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map((r) => ({
+      id: `remind:${r.id}`,
+      title: r.title,
+      next: '',
+      due: r.date,
+      route: r.route || '/chat',
+      icon: 'alarm',
+      color: '#F59E0B',
+      at: r.createdAt,
+    }));
+
+  return [...due, ...items.sort((a, b) => (b.at || '').localeCompare(a.at || ''))].slice(0, limit);
+}
+
+// "30 Oct" for a YYYY-MM-DD date.
+export function shortDate(date: string) {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }

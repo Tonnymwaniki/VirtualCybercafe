@@ -42,7 +42,7 @@ import {
   titleFrom,
 } from '@/lib/chat-store';
 import { followUps, starterSuggestions } from '@/lib/chat-suggest';
-import type { ChatMessage, ChatResponse, Conversation } from '@/lib/chat-types';
+import type { ActionState, ChatMessage, ChatResponse, Conversation } from '@/lib/chat-types';
 import { loadContinueItems, type ContinueItem } from '@/lib/continue';
 import { useLanguage, type TextKey } from '@/lib/i18n';
 import { canUseCamera, pickImages, processImage } from '@/lib/images';
@@ -215,6 +215,23 @@ export default function ChatScreen() {
       ...c,
       messages: [...c.messages, { id: newId(), role: 'assistant', text: response.reply, actions: response.actions, at: new Date().toISOString() }],
     }), true);
+  };
+
+  // A confirm card was done, undone or skipped: keep that in the saved chat.
+  const setActionState = (messageId: string | undefined, actionId: string, state: ActionState | undefined) => {
+    update(
+      (c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === messageId
+            ? { ...m, actions: m.actions?.map((a) => (a.type === 'confirm' && a.id === actionId ? { ...a, state } : a)) }
+            : m,
+        ),
+      }),
+      true,
+    );
+    // New work shows under "Continue" on the welcome screen.
+    loadContinueItems(userId, 2).then(setContinueItems).catch(() => {});
   };
 
   const retry = (message: ChatMessage) => {
@@ -465,6 +482,7 @@ export default function ChatScreen() {
                       onSpeak={() => readAloud(id, message.text)}
                       onShare={() => share(id, message.text)}
                       onRetry={() => retry(message)}
+                      onActionChange={(actionId, state) => setActionState(message.id, actionId, state)}
                     />
                   </View>
                 );

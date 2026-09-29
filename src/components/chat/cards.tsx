@@ -3,6 +3,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { ActionCard } from '@/components/chat/action-card';
 import { DocActions } from '@/components/biz/doc-actions';
 import { IconBadge } from '@/components/icon-badge';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -10,7 +11,7 @@ import { entryForPath, type Workspace } from '@/data/catalogue';
 import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
 import { services } from '@/data/services';
 import { taskColors } from '@/data/task-colors';
-import type { ChatAction } from '@/lib/chat-types';
+import type { ActionState, ChatAction } from '@/lib/chat-types';
 import { documentHtml } from '@/lib/document-html';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -211,9 +212,17 @@ function WarningCard({ text }: { text: string }) {
 
 // The cards under an attendant reply, in a steady order: warnings first,
 // then what to do, then where to go.
-const order: ChatAction['type'][] = ['warning', 'checklist', 'steps', 'fee', 'document', 'open', 'link'];
+const order: ChatAction['type'][] = ['warning', 'confirm', 'checklist', 'steps', 'fee', 'document', 'open', 'link'];
 
-export function ChatCards({ actions, lockerNames }: { actions: ChatAction[]; lockerNames: string[] }) {
+export function ChatCards({
+  actions,
+  lockerNames,
+  onActionChange,
+}: {
+  actions: ChatAction[];
+  lockerNames: string[];
+  onActionChange?: (id: string, state: ActionState | undefined) => void;
+}) {
   const sorted = [...actions].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
   return (
     <View style={styles.list}>
@@ -233,6 +242,16 @@ export function ChatCards({ actions, lockerNames }: { actions: ChatAction[]; loc
             return <FeeCard key={index} amount={action.amount} note={action.note} source={action.source} />;
           case 'warning':
             return <WarningCard key={index} text={action.text} />;
+          case 'confirm':
+            return (
+              <ActionCard
+                key={action.id}
+                action={action.action}
+                state={action.state}
+                lockerNames={lockerNames}
+                onChange={(state) => onActionChange?.(action.id, state)}
+              />
+            );
         }
       })}
     </View>

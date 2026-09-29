@@ -7,7 +7,7 @@ import { Markdown } from '@/components/chat/markdown';
 import { Mascot } from '@/components/mascot';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { clockTime } from '@/lib/chat-store';
-import type { ChatMessage } from '@/lib/chat-types';
+import type { ActionState, ChatMessage } from '@/lib/chat-types';
 import { useLanguage } from '@/lib/i18n';
 
 type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -23,6 +23,7 @@ type Props = {
   onSpeak: () => void;
   onShare: () => void;
   onRetry: () => void;
+  onActionChange?: (id: string, state: ActionState | undefined) => void;
 };
 
 function MenuButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
@@ -38,7 +39,7 @@ function MenuButton({ icon, label, onPress }: { icon: IconName; label: string; o
 // formatted answer on the left with its cards underneath and buttons to
 // read it aloud, copy or share. Tap and hold your own message (or tap its
 // time) to copy or share it.
-export function MessageBubble({ message, lockerNames, menuOpen, speaking, copied, onToggleMenu, onCopy, onSpeak, onShare, onRetry }: Props) {
+export function MessageBubble({ message, lockerNames, menuOpen, speaking, copied, onToggleMenu, onCopy, onSpeak, onShare, onRetry, onActionChange }: Props) {
   const { t } = useLanguage();
   const mine = message.role === 'user';
   const time = message.at ? clockTime(message.at) : '';
@@ -93,7 +94,7 @@ export function MessageBubble({ message, lockerNames, menuOpen, speaking, copied
               <Markdown text={message.text} />
             </View>
           )}
-          {!!message.actions?.length && <ChatCards actions={message.actions} lockerNames={lockerNames} />}
+          {!!message.actions?.length && <ChatCards actions={message.actions} lockerNames={lockerNames} onActionChange={onActionChange} />}
           <View style={styles.metaRow}>
             {!!time && <Text style={styles.time}>{time}</Text>}
             <Pressable onPress={onSpeak} hitSlop={6} accessibilityLabel={speaking ? t('chat.stop') : t('chat.listen')}>
