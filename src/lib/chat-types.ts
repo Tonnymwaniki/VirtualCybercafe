@@ -65,7 +65,10 @@ export type ChatAction =
   | { type: 'fee'; amount: string; note: string; source: string }
   | { type: 'warning'; text: string }
   | { type: 'confirm'; id: string; action: ProposedAction; state?: ActionState }
-  | { type: 'work'; id: string; request: WorkRequest; outcome?: WorkOutcome };
+  | { type: 'work'; id: string; request: WorkRequest; outcome?: WorkOutcome }
+  // A live card for a task, such as applying for a job. jobId is set once a
+  // saved job is linked; jobTitle is what the person asked about.
+  | { type: 'task'; id: string; task: 'job_application'; jobId?: string; jobTitle?: string; createdAt: string };
 
 export type ChatMessage = {
   id?: string;

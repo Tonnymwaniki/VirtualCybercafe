@@ -65,6 +65,7 @@ function withFiles(text: string, sent?: FileMeta[], actions?: ChatMessage['actio
     ...(sent?.length ? [`[Sent: ${sent.map((f) => `${f.name} (${f.id})`).join(', ')}]`] : []),
     text,
     ...(made.length ? [`[The phone made: ${made.map((f) => `${f.name} (${f.id})`).join(', ')}]`] : []),
+    ...((actions ?? []).some((a) => a.type === 'task') ? ['[Job application card shown]'] : []),
   ];
   return parts.filter(Boolean).join(' ');
 }

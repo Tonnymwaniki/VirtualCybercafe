@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { UseInApplication } from '@/components/jobs/use-in-application';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { GUEST_ID } from '@/lib/profile-store';
@@ -206,6 +207,7 @@ export function ResultCard({ file, checks, note, title = 'Ready' }: { file: Work
       </View>
       {note && <Text style={styles.note}>{note}</Text>}
       <SaveButtons file={file} />
+      <UseInApplication file={file} />
     </View>
   );
 }

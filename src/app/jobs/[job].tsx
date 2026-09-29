@@ -19,11 +19,13 @@ import { deleteJob, GUEST_ID, loadJob, saveJob } from '@/lib/jobs-store';
 import type { Job } from '@/lib/jobs-types';
 import { listFiles, type StoredFile } from '@/lib/locker-store';
 import { loadProfile, saveProfile } from '@/lib/profile-store';
+import { supabase } from '@/lib/supabase';
 
 
 export default function JobScreen() {
   const router = useRouter();
-  const { job: jobId } = useLocalSearchParams<{ job: string }>();
+  // ?step= opens a step directly (from the chat's task card).
+  const { job: jobId, step: stepParam } = useLocalSearchParams<{ job: string; step?: string }>();
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
 
@@ -41,12 +43,15 @@ export default function JobScreen() {
     loadJob(userId, jobId).then((found) => {
       jobRef.current = found;
       setJob(found);
+      const wanted = Number(stepParam);
+      if (found && wanted >= 0 && wanted <= 4) setStep(wanted);
       // Returning users land on the tracker once they've applied.
-      if (found && found.status >= 1) setStep(4);
+      else if (found && found.status >= 1) setStep(4);
     });
     loadProfile(userId).then(setProfile);
-    if (user) listFiles(user.id).then(setLockerFiles).catch(() => {});
-  }, [jobId, userId, user]);
+    // Demo mode keeps a Locker on this device for guests too.
+    if (user || !supabase) listFiles(userId).then(setLockerFiles).catch(() => {});
+  }, [jobId, userId, user, stepParam]);
 
   if (job === undefined) {
     return (

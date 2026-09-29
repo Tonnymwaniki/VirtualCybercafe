@@ -6,6 +6,7 @@ import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
+import type { LockerCategory } from '@/data/locker';
 import { readBytes, uploadFile } from '@/lib/locker-store';
 
 export type WorkKind = 'pdf' | 'image';
@@ -114,12 +115,13 @@ export async function shareFile(file: WorkFile) {
   });
 }
 
-export async function saveToLocker(userId: string, file: WorkFile) {
-  await uploadFile(userId, {
+// Returns the file's path in the Locker.
+export async function saveToLocker(userId: string, file: WorkFile, category?: LockerCategory) {
+  return uploadFile(userId, {
     uri: fileUri(file),
     name: file.name,
     mimeType: file.mimeType,
     bytes: size(file),
-    category: file.kind === 'pdf' ? 'Documents' : 'Photos',
+    category: category ?? (file.kind === 'pdf' ? 'Documents' : 'Photos'),
   });
 }

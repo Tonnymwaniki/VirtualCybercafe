@@ -5,13 +5,26 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Job, JobAdvert } from '@/lib/jobs-types';
+import type { Job, JobAdvert, JobDocument } from '@/lib/jobs-types';
 import { usesCloud } from '@/lib/profile-store';
 import { supabase } from '@/lib/supabase';
 
 export { GUEST_ID } from '@/lib/profile-store';
 
 const PREFIX = 'job:';
+
+// Screens and chat cards that show jobs listen here, so a change made on one
+// shows on the others straight away.
+const listeners = new Set<() => void>();
+
+export function onJobsChanged(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+const changed = () => listeners.forEach((listener) => listener());
 const localKey = (userId: string) => `jobs:${userId}`;
 
 async function readLocal(userId: string): Promise<Record<string, Job>> {
@@ -58,21 +71,29 @@ export async function saveJob(userId: string, job: Job): Promise<Job> {
     const { error } = await supabase
       .from('task_progress')
       .upsert({ user_id: userId, task_id: PREFIX + job.id, progress: stamped, updated_at: stamped.updatedAt });
-    if (!error) return stamped;
+    if (!error) {
+      changed();
+      return stamped;
+    }
     console.warn('Could not save the job online, saving on this device:', error.message);
   }
   await writeLocal(userId, { ...(await readLocal(userId)), [job.id]: stamped });
+  changed();
   return stamped;
 }
 
 export async function deleteJob(userId: string, id: string): Promise<void> {
   if (usesCloud(userId) && supabase) {
     const { error } = await supabase.from('task_progress').delete().eq('task_id', PREFIX + id);
-    if (!error) return;
+    if (!error) {
+      changed();
+      return;
+    }
     console.warn('Could not delete the job online:', error.message);
   }
   const { [id]: _, ...rest } = await readLocal(userId);
   await writeLocal(userId, rest);
+  changed();
 }
 
 export function newJob(advert: JobAdvert): Job {
@@ -101,4 +122,16 @@ export function deadlineLabel(deadline: string): string {
   if (days === 0) return 'Closes today';
   if (days === 1) return 'Closes tomorrow';
   return `${days} days left`;
+}
+
+// Adds a supporting document to a saved job.
+export async function addJobDocument(userId: string, jobId: string, document: JobDocument): Promise<Job | null> {
+  const job = await loadJob(userId, jobId);
+  if (!job) return null;
+  return saveJob(userId, { ...job, documents: [...(job.documents ?? []).filter((d) => d.path !== document.path), document] });
+}
+
+// Jobs the person hasn't applied for yet, soonest deadline first.
+export function openJobs(jobs: Job[]) {
+  return jobs.filter((job) => !job.closed && job.status < 1);
 }

@@ -128,6 +128,7 @@ const isImage = (file: StoredFile) => file.mimeType.startsWith('image/');
 // Step 4: the application pack, the email draft, and the form helper for
 // online portals.
 export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePortal, onHelperAction, onApplied }: ApplyProps) {
+  const router = useRouter();
   const { advert, application } = job;
   const how = advert.howToApply;
   const answers = cvAnswersFor(advert, profile);
@@ -135,8 +136,10 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
     () => lockerFiles.filter((file) => file.category === 'Certificates' || file.category === 'Documents'),
     [lockerFiles],
   );
+  // Files added to this job with "Use in application".
+  const added = useMemo(() => new Set((job.documents ?? []).map((d) => d.path)), [job.documents]);
   const [picked, setPicked] = useState<string[]>(() =>
-    lockerFiles.filter((file) => file.category === 'Certificates' && isImage(file)).map((file) => file.path),
+    lockerFiles.filter((file) => (file.category === 'Certificates' || added.has(file.path)) && isImage(file)).map((file) => file.path),
   );
   const [packing, setPacking] = useState(false);
   const [packProblem, setPackProblem] = useState('');
@@ -179,6 +182,19 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
     <>
       <ScamWarning advert={advert} />
 
+      {(advert.documents.length > 0 || !!job.documents?.length) && (
+        <Card title="Supporting documents">
+          {advert.documents.length > 0 && <Text style={styles.muted}>The advert asks for: {advert.documents.join(', ')}.</Text>}
+          {(job.documents ?? []).map((document) => (
+            <CheckRow key={document.path} label={document.name} detail="Added for this job, in your Locker" checked />
+          ))}
+          <Text style={styles.muted}>
+            Get a file ready in the Document Workbench or the chat, then tap “Use in application” on the result to add it here.
+          </Text>
+          <LinkButton label="Open Document Workbench" icon="arrow-forward-circle" onPress={() => router.push('/studio')} />
+        </Card>
+      )}
+
       <Card title="Application pack">
         {!application ? (
           <>
@@ -198,12 +214,17 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
                 <CheckRow
                   key={file.path}
                   label={file.name}
-                  detail={file.category}
+                  detail={added.has(file.path) ? 'Added for this job' : file.category}
                   checked={picked.includes(file.path)}
                   onToggle={() => togglePick(file.path)}
                 />
               ) : (
-                <CheckRow key={file.path} label={file.name} detail="PDF: attach it separately" checked={false} />
+                <CheckRow
+                  key={file.path}
+                  label={file.name}
+                  detail={added.has(file.path) ? 'Added for this job. PDF: attach it separately' : 'PDF: attach it separately'}
+                  checked={false}
+                />
               ),
             )}
             {!!packProblem && <Note tone="warn">{packProblem}</Note>}

@@ -43,6 +43,9 @@ export type InterviewQuestion = { question: string; tip: string };
 
 export const jobStatuses = ['Saved', 'Applied', 'Shortlisted', 'Interview', 'Offer'] as const;
 
+// A file added to the application, kept in the Locker.
+export type JobDocument = { path: string; name: string; mimeType: string; bytes: number; addedAt: string };
+
 export type Job = {
   id: string;
   advert: JobAdvert;
@@ -54,6 +57,8 @@ export type Job = {
   application?: TailoredApplication;
   questions?: InterviewQuestion[];
   portalAnswers?: Record<string, string>;
+  // Supporting documents added with "Use in application".
+  documents?: JobDocument[];
   createdAt: string;
   updatedAt: string;
 };

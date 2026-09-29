@@ -3,6 +3,7 @@ import { useRouter, type Href } from 'expo-router';
 import { useState, type ComponentProps } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { JobTaskCard } from '@/components/chat/job-task-card';
 import { WorkCard } from '@/components/chat/work-card';
 import { ActionCard } from '@/components/chat/action-card';
 import { DocActions } from '@/components/biz/doc-actions';
@@ -213,16 +214,18 @@ function WarningCard({ text }: { text: string }) {
 
 // The cards under an attendant reply, in a steady order: warnings first,
 // then what to do, then where to go.
-const order: ChatAction['type'][] = ['work', 'warning', 'confirm', 'checklist', 'steps', 'fee', 'document', 'open', 'link'];
+const order: ChatAction['type'][] = ['task', 'work', 'warning', 'confirm', 'checklist', 'steps', 'fee', 'document', 'open', 'link'];
 
 export function ChatCards({
   actions,
   lockerNames,
   onActionChange,
+  onTaskLink,
 }: {
   actions: ChatAction[];
   lockerNames: string[];
   onActionChange?: (id: string, state: ActionState | undefined) => void;
+  onTaskLink?: (id: string, jobId: string) => void;
 }) {
   const sorted = [...actions].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
   return (
@@ -243,6 +246,16 @@ export function ChatCards({
             return <FeeCard key={index} amount={action.amount} note={action.note} source={action.source} />;
           case 'warning':
             return <WarningCard key={index} text={action.text} />;
+          case 'task':
+            return (
+              <JobTaskCard
+                key={action.id}
+                jobId={action.jobId}
+                jobTitle={action.jobTitle}
+                createdAt={action.createdAt}
+                onLink={(jobId) => onTaskLink?.(action.id, jobId)}
+              />
+            );
           case 'work':
             return <WorkCard key={action.id} outcome={action.outcome} />;
           case 'confirm':

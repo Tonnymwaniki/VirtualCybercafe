@@ -41,6 +41,7 @@ How to work:
 ${FULL_APP ? '  - start_task when they want to begin a guided task; pass form answers they already gave.\n' : ''}  - track_job when they paste or describe a job advert they want to apply for.
 ${FULL_APP ? '  - track_trip when they plan travel with a destination.\n' : ''}  - add_reminder for a deadline or date they should not miss (YYYY-MM-DD).
   Offer at most two actions per reply.
+- When the user wants to apply for a job, call show_job_application once in the chat (with the job title if known). It shows a live checklist of the application (advert, career details, CV and letter, supporting documents, sending it) that ticks itself as they work, in the chat or on the Jobs screen. If they paste or photograph an advert, also call track_job; once they tap "Do it" the card links to that job. Then help with the next unticked item.
 - When the user pastes a link, or you need the text of an official page, use web_fetch to read it and summarise what matters.
 - You cannot submit forms, log in or make payments on government sites for the user, and never ask for passwords, PINs or OTP codes. Guide them step by step and prepare everything they need.`;
 
@@ -290,6 +291,20 @@ const allTools: Anthropic.Beta.BetaToolUnion[] = [
         screen: { type: 'string', enum: ['none', ...liveCatalogue.map((e) => e.id)] },
       },
       required: ['title', 'date', 'screen'],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    name: 'show_job_application',
+    description:
+      'Show the live job application card: a checklist from the saved job record, My Details and the documents added to the job. Use once when the user wants to apply for a job.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        job_title: { type: 'string', description: 'The job they want, or empty if not known.' },
+      },
+      required: ['job_title'],
       additionalProperties: false,
     },
     strict: true,
@@ -553,6 +568,18 @@ async function runTool(name: string, input: Record<string, unknown>, context: To
       const title = String(input.title ?? '').trim().slice(0, 80);
       if (!title) return 'A reminder needs a title.';
       return offer(context, { kind: 'reminder', title, date, route: entry ? routeWith(entry) : '' });
+    }
+    case 'show_job_application': {
+      if (context.actions.some((a) => a.type === 'task')) return 'The card is already shown.';
+      const jobTitle = String(input.job_title ?? '').trim().slice(0, 80);
+      context.actions.push({
+        type: 'task',
+        id: `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+        task: 'job_application',
+        ...(jobTitle ? { jobTitle } : {}),
+        createdAt: new Date().toISOString(),
+      });
+      return 'The card is shown under your reply and ticks items from the saved job. Do not repeat its list; say the next thing to do.';
     }
     case 'work_on_files': {
       if (!context.files.length) return 'No files are in this chat yet. Ask the user to tap + and send the file.';

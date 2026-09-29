@@ -54,6 +54,7 @@ import { GUEST_ID, loadProfile, usesCloud } from '@/lib/profile-store';
 import { newId } from '@/lib/record-store';
 import { confidentIntent, localReply } from '@/lib/route-intent';
 import { isSwahili } from '@/lib/swahili';
+import { taskIntent } from '@/lib/task-intent';
 import { fileUri, formatSize, pickFiles, toBase64, type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked, shrinkImage } from '@/lib/workbench/image';
 import { pageCount } from '@/lib/workbench/pdf';
@@ -297,6 +298,13 @@ export default function ChatScreen() {
       return;
     }
 
+    // "I need to apply for a job" starts the task card here, free.
+    const started = !files.length && !task && !screenEntry ? taskIntent(trimmed, language) : null;
+    if (started) {
+      addReply(conversationId, started.reply, started.actions);
+      return;
+    }
+
     // A short request that clearly names a screen is answered here, free.
     const match = !usedAi.current && !files.length && !task && !screenEntry ? confidentIntent(trimmed) : null;
     if (match) {
@@ -348,6 +356,19 @@ export default function ChatScreen() {
     );
     // New work shows under "Continue" on the welcome screen.
     loadContinueItems(userId, 2).then(setContinueItems).catch(() => {});
+  };
+
+  // A task card was linked to a saved job: keep that in the saved chat.
+  const linkTask = (messageId: string | undefined, actionId: string, jobId: string) => {
+    update(
+      (c) => ({
+        ...c,
+        messages: c.messages.map((m) =>
+          m.id === messageId ? { ...m, actions: m.actions?.map((a) => (a.type === 'task' && a.id === actionId ? { ...a, jobId } : a)) } : m,
+        ),
+      }),
+      true,
+    );
   };
 
   const retry = (message: ChatMessage) => {
@@ -608,6 +629,7 @@ export default function ChatScreen() {
                       onShare={() => share(id, message.text)}
                       onRetry={() => retry(message)}
                       onActionChange={(actionId, state) => setActionState(message.id, actionId, state)}
+                      onTaskLink={(actionId, jobId) => linkTask(message.id, actionId, jobId)}
                     />
                   </View>
                 );

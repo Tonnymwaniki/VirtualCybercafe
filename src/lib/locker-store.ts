@@ -66,7 +66,8 @@ export async function listFiles(userId: string): Promise<StoredFile[]> {
   return perCategory.flat().sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-export async function uploadFile(userId: string, input: UploadInput): Promise<void> {
+// Returns the new file's storage path.
+export async function uploadFile(userId: string, input: UploadInput): Promise<string> {
   const path = `${userId}/${input.category}/${Date.now()}-${safeName(input.name)}`;
   if (!supabase) {
     demoFiles.unshift({
@@ -78,13 +79,14 @@ export async function uploadFile(userId: string, input: UploadInput): Promise<vo
       mimeType: input.mimeType,
       localUri: input.uri,
     });
-    return;
+    return path;
   }
   const body = await readBytes(input.uri);
   const { error } = await supabase.storage
     .from(LOCKER_BUCKET)
     .upload(path, body, { contentType: input.mimeType, upsert: false });
   if (error) throw error;
+  return path;
 }
 
 export async function deleteFile(file: StoredFile): Promise<void> {
