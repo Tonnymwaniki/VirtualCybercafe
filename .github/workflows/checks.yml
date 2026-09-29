@@ -1,9 +1,10 @@
-# Runs on every push and pull request: typecheck, app tests, and the print
+# Runs on pull requests and pushes to main: typecheck, app tests, and the print
 # code rules against a real Postgres.
 name: Checks
 
 on:
   push:
+    branches: [main]
   pull_request:
 
 jobs:

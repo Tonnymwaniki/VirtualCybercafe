@@ -212,4 +212,4 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
 
 - `npx tsc --noEmit` typechecks and `npm test` runs the tests in `tests/` (file requests in the chat, page lists, PDF tools, Locker folders, guest work at sign-in, the AI sign-in rule).
 - `tests/sql/quick-print.test.sql` checks the print code rules (PINs, lock after 5 wrong PINs, used-up codes, slow-down) on Postgres.
-- GitHub runs all of these on every push (`.github/workflows/checks.yml`); the result shows as a tick or cross next to each commit.
+- GitHub runs all of these on every pull request and on main (`.github/workflows/checks.yml`); the result shows as a tick or cross next to each commit.
