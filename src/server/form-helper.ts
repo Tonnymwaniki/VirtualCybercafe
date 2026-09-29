@@ -10,7 +10,7 @@ import type { FormTask } from '@/data/gov-tasks';
 import { appTools, type AppToolId } from '@/data/guides';
 import { profileFields } from '@/data/profile-fields';
 import type { FieldUpdate, HelperAction, HelperRequest, HelperResponse } from '@/lib/gov-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { claude } from '@/server/claude';
 
 const MAX_STEPS = 5;
@@ -25,7 +25,8 @@ Rules:
 - Common causes: names not matching the ID exactly, extra spaces, wrong date format, a phone or ID number with a typo, an email they can't open, an expired session, or a payment still processing.
 - When a document is missing, point to open_app_tool (for example the passport photo tool) or the Locker. Tick requirements with mark_ready only when the user says they have the item, or their Locker has it.
 - Tick progress with set_progress only when the user says they finished that stage.
-- You cannot log in to government sites, submit, or pay. Never ask for PINs or passwords; if the user shares one, tell them to change it.`;
+- You cannot log in to government sites, submit, or pay. Never ask for PINs or passwords; if the user shares one, tell them to change it.
+- ${WEB_CAUTION}`;
 
 function tools(task: FormTask): Anthropic.Beta.BetaToolUnion[] {
   return [

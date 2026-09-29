@@ -65,6 +65,9 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 - Every Claude reply is logged to `.cache/usage.jsonl` (tokens, web searches and an estimated cost, per feature). Open `/api/usage?days=7` on the server for totals. The Anthropic Console shows the real bill.
 - AI results that rarely change (requirement checks, visa rules, job, course and tender searches) are cached in `.cache/ai-cache.json`, so they survive restarts and aren't paid for twice.
 - Each phone gets `AI_DAILY_LIMIT` AI requests a day (default 40), and the whole app stops calling the AI for the day once `AI_DAILY_BUDGET_USD` is spent (default 1). Answers from the cache don't count. Set either in `.env`.
+- On the hosted app the AI routes answer only signed-in users (the app sends the Supabase access token, and the server checks it with Supabase), and the daily limit also counts per account. On the PC dev server guests can still use the AI. `AI_REQUIRE_SIGN_IN=1` or `0` overrides this.
+- Web pages and search results the AI reads are treated as information, never as instructions.
+- On the hosted app, `/api/usage` needs `?key=` matching `USAGE_KEY`.
 
 ## Document Workbench
 

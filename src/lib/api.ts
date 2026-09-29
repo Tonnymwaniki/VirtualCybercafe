@@ -1,8 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { supabase } from '@/lib/supabase';
+
 // Calls the app's own API routes with a random id for this phone, so the
 // server can apply the daily AI limit per device. The id identifies nothing
-// about the person.
+// about the person. When someone is signed in, their Supabase access token
+// goes too: the hosted app only answers signed-in users.
 
 const DEVICE_KEY = 'vc-device-id';
 let deviceId: Promise<string> | null = null;
@@ -26,8 +29,41 @@ function getDeviceId() {
   return deviceId;
 }
 
+async function accessToken() {
+  if (!supabase) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data.session?.access_token ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Screens listen for "sign in to use the AI" so one notice can show wherever
+// the AI was asked, even when the feature falls back to a sample answer.
+type Listener = (message: string) => void;
+const signInListeners = new Set<Listener>();
+
+export function onSignInNeeded(listener: Listener) {
+  signInListeners.add(listener);
+  return () => {
+    signInListeners.delete(listener);
+  };
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set('x-device-id', await getDeviceId());
-  return fetch(path, { ...init, headers });
+  const token = await accessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(path, { ...init, headers });
+  if (response.status === 401) {
+    try {
+      const body = (await response.clone().json()) as { error?: string; signIn?: boolean };
+      if (body.signIn) for (const listener of signInListeners) listener(body.error ?? '');
+    } catch {
+      // Not the sign-in answer.
+    }
+  }
+  return response;
 }

@@ -41,6 +41,7 @@ export async function askAttendant(
         ...(pdf ? { pdf } : {}),
       }),
     });
+    if (response.status === 401) return { reply: '', actions: [], mode: 'ai', signIn: true };
     if (response.status === 429 || response.status === 413) {
       const body = (await response.json()) as { error?: string };
       return {

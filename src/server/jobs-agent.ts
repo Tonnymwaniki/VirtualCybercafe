@@ -21,7 +21,7 @@ import type {
   ReadAdvertResult,
   TailoredApplication,
 } from '@/lib/jobs-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { persistentCache } from '@/server/cache';
 import { claude } from '@/server/claude';
 
@@ -241,7 +241,7 @@ export async function findJobs(query: string, county: string): Promise<FindJobsR
       max_tokens: 3000,
       ...modelOptions,
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
-      system: `You find job openings for job seekers in Kenya. Today is ${today}. Search the trusted job sites only. Report only real openings you saw in the results, with the link to each. Skip anything asking applicants for money.`,
+      system: `You find job openings for job seekers in Kenya. Today is ${today}. Search the trusted job sites only. Report only real openings you saw in the results, with the link to each. Skip anything asking applicants for money. ${WEB_CAUTION}`,
       tools: [{ type: webSearchType, name: 'web_search', max_uses: 3, allowed_domains: JOB_SITES }, reportJobsTool],
       messages,
     });

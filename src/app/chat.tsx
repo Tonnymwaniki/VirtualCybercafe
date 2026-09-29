@@ -330,9 +330,11 @@ export default function ChatScreen() {
     // The user switched to another chat while waiting: drop the late reply.
     if (currentRef.current.id !== conversationId) return;
 
-    if (response.offline) {
+    // Not signed in on the hosted app: the sign-in notice shows, and the
+    // message can be sent again after signing in.
+    if (response.offline || response.signIn) {
       if (files.length) failedFiles.current[message.id!] = files;
-      setStatus('offline');
+      if (response.offline) setStatus('offline');
       update((c) => ({ ...c, messages: c.messages.map((m) => (m.id === message.id ? { ...m, failed: true } : m)) }));
       return;
     }

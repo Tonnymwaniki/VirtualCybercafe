@@ -7,7 +7,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import type { GovTask } from '@/data/gov-tasks';
 import type { IdDetails, IdReadResult, RequirementsCheck } from '@/lib/gov-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { persistentCache } from '@/server/cache';
 import { claude } from '@/server/claude';
 
@@ -96,7 +96,7 @@ Search the official sites for the current requirements, fee and steps, then call
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
       system: `You check Kenyan government service requirements for the Virtual Cybercafe app. Today is ${today}.
 Use web search on the official sites only. Report facts only as the official source states them; never guess a fee. Keep every item short and plain, for someone on a phone.
-Where the official source doesn't say, keep what we already know. Do not include this app's tools or advice in the report.`,
+Where the official source doesn't say, keep what we already know. Do not include this app's tools or advice in the report. ${WEB_CAUTION}`,
       tools: [
         {
           type: webSearchType,

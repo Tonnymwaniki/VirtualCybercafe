@@ -9,7 +9,7 @@ import { letterWarnings } from '@/lib/edu-sample';
 import type { AdmissionLetter, CourseDemand, CourseQuery, CourseSearch, CourseSuggestion, DemandReport, ReadLetterResult } from '@/lib/edu-types';
 import { JOB_SITES } from '@/server/jobs-agent';
 import { mergeSignals } from '@/lib/job-scam';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { persistentCache } from '@/server/cache';
 import { claude } from '@/server/claude';
 
@@ -77,7 +77,7 @@ Search KUCCPS for up to 8 suitable programmes, then call report_courses.`,
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
       system: `You help Kenyan students choose KUCCPS programmes for the Virtual Cybercafe app. Today is ${new Date().toISOString().slice(0, 10)}.
 Search the KUCCPS sites only. Report requirements and cut-offs exactly as KUCCPS states them; never guess a cut-off.
-Mark fit "likely" only when the student's grades clearly meet every stated requirement, "possible" when they meet the minimums but competition is high or a detail is unclear, and "reach" otherwise. Only KUCCPS decides placement; you advise.`,
+Mark fit "likely" only when the student's grades clearly meet every stated requirement, "possible" when they meet the minimums but competition is high or a detail is unclear, and "reach" otherwise. Only KUCCPS decides placement; you advise. ${WEB_CAUTION}`,
       tools: [{ type: webSearchType, name: 'web_search', max_uses: 3, allowed_domains: KUCCPS_SITES }, reportTool],
       messages,
     });
@@ -241,7 +241,7 @@ Research the current job market in Kenya for each: search recent job adverts for
       ...modelOptions,
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
       system: `You research the Kenyan job market for students choosing courses, for the Virtual Cybercafe app. Today is ${new Date().toISOString().slice(0, 10)}.
-Search the trusted job sites and official statistics only. Base demand on what you actually saw: the number and recency of adverts, and statistics. Quote pay only as stated in a source. Be honest and balanced: demand is one factor; the student's interest and ability matter too.`,
+Search the trusted job sites and official statistics only. Base demand on what you actually saw: the number and recency of adverts, and statistics. Quote pay only as stated in a source. Be honest and balanced: demand is one factor; the student's interest and ability matter too. ${WEB_CAUTION}`,
       tools: [{ type: webSearchType, name: 'web_search', max_uses: 5, allowed_domains: DEMAND_SITES }, demandTool],
       messages,
     });

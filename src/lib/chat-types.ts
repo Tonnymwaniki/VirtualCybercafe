@@ -97,6 +97,8 @@ export type ChatResponse = {
   mode: 'ai' | 'sample' | 'local';
   // Set when the daily AI allowance is used up.
   limited?: boolean;
+  // The hosted app needs sign-in before the AI answers.
+  signIn?: boolean;
   // The server couldn't be reached; the user message can be retried.
   offline?: boolean;
 };

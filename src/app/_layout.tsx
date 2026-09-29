@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { SignInNotice } from '@/components/sign-in-notice';
 import { EngineProvider } from '@/components/workbench/engine';
 import { AuthProvider } from '@/lib/auth';
 import { LanguageProvider } from '@/lib/i18n';
@@ -13,6 +14,7 @@ export default function RootLayout() {
         <EngineProvider>
           <Stack screenOptions={{ headerShown: false }} />
         </EngineProvider>
+        <SignInNotice />
         <StatusBar style="dark" />
       </AuthProvider>
     </LanguageProvider>

@@ -13,7 +13,7 @@ import { presets } from '@/data/presets';
 import { cleanProfile, profileFields } from '@/data/profile-fields';
 import type { ChatAction, ChatMessage, FileMeta, ProposedAction, WorkRequest } from '@/lib/chat-types';
 import { mergeSignals, scamSignals } from '@/lib/job-scam';
-import { effortOption, MODEL, modelOptions, webFetchType, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webFetchType, webSearchType, WEB_CAUTION } from '@/server/model';
 import { claude } from '@/server/claude';
 
 // Upper bound on model calls per user message, to cap cost and latency.
@@ -43,7 +43,8 @@ ${FULL_APP ? '  - track_trip when they plan travel with a destination.\n' : ''} 
   Offer at most two actions per reply.
 - When the user wants to apply for a job, call show_job_application once in the chat (with the job title if known). It shows a live checklist of the application (advert, career details, CV and letter, supporting documents, sending it) that ticks itself as they work, in the chat or on the Jobs screen. If they paste or photograph an advert, also call track_job; once they tap "Do it" the card links to that job. Then help with the next unticked item.
 - When the user pastes a link, or you need the text of an official page, use web_fetch to read it and summarise what matters.
-- You cannot submit forms, log in or make payments on government sites for the user, and never ask for passwords, PINs or OTP codes. Guide them step by step and prepare everything they need.`;
+- You cannot submit forms, log in or make payments on government sites for the user, and never ask for passwords, PINs or OTP codes. Guide them step by step and prepare everything they need.
+- ${WEB_CAUTION}`;
 
 // Version one: only some services have screens yet.
 const VERSION_ONE = `This is version one of the app. What works in the app now: Jobs & CV (find and save job adverts, match, tailored CV, cover letter and application email, application pack, tracking, interview practice, scam checks), the Document Workbench (shrink a PDF or photo to an upload limit, resize to exact pixels, passport photo, scan a page, photos to PDF, join PDFs, pick or split pages, PDF to JPG; all on the phone), My Details, the Locker, and Print at any cyber (print_qr: a QR code and short code any cyber can open to print the document, no account needed; codes last 24 hours, with an optional PIN).

@@ -1,13 +1,16 @@
 // Usage log and daily limits for the AI features.
 // - Each Claude reply is logged to .cache/usage.jsonl with its feature, tokens,
 //   web searches and an estimated cost. /api/usage sums it up.
-// - Each device gets AI_DAILY_LIMIT AI requests a day (default 40), and the
-//   whole app stops calling the AI for the day after AI_DAILY_BUDGET_USD
-//   (default 1) is spent. Answers from the cache don't count.
+// - Each device, and each signed-in account, gets AI_DAILY_LIMIT AI requests a
+//   day (default 40), and the whole app stops calling the AI for the day after
+//   AI_DAILY_BUDGET_USD (default 1) is spent. Answers from the cache don't count.
+// - On the hosted app the AI routes need a signed-in user (see caller.ts).
 
 import { AsyncLocalStorage } from 'node:async_hooks';
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { callerId, signInRequired } from '@/server/caller';
 
 type UsageNumbers = {
   input_tokens?: number | null;
@@ -122,6 +125,7 @@ function deviceOf(request: Request) {
 
 export const limitMessages = {
   device: 'You’ve used today’s free AI help. It starts again tomorrow. Everything else in the app still works.',
+  signIn: 'Please sign in with your phone number to use the AI helper. It’s free. Everything else in the app works without signing in.',
   budget: 'The AI helper has reached today’s limit. Please try again tomorrow. Everything else in the app still works.',
 };
 
@@ -129,12 +133,20 @@ export const limitMessages = {
 // feature name. Returns a 429 when a limit is reached.
 export async function withUsage(request: Request, feature: string, run: () => Promise<Response>): Promise<Response> {
   if (!process.env.ANTHROPIC_API_KEY) return run();
+  const userId = await callerId(request);
+  if (!userId && signInRequired()) {
+    return Response.json({ error: limitMessages.signIn, signIn: true }, { status: 401 });
+  }
   const state = today();
   const device = deviceOf(request);
+  // Counted per phone and per account, so a new phone id doesn't reset an
+  // account and one account can't be shared across many phones for free.
+  const keys = userId ? [device, `user:${userId}`] : [device];
   if (state.cost >= numberFromEnv('AI_DAILY_BUDGET_USD', 1)) {
     return Response.json({ error: limitMessages.budget, limited: true }, { status: 429 });
   }
-  if ((state.devices[device] ?? 0) >= numberFromEnv('AI_DAILY_LIMIT', 40)) {
+  const limit = numberFromEnv('AI_DAILY_LIMIT', 40);
+  if (keys.some((key) => (state.devices[key] ?? 0) >= limit)) {
     return Response.json({ error: limitMessages.device, limited: true }, { status: 429 });
   }
   // Name the feature after the route and its action, e.g. travel.visa.
@@ -149,7 +161,7 @@ export async function withUsage(request: Request, feature: string, run: () => Pr
   const response = await storage.run(context, run);
   if (context.calls > 0) {
     const current = today();
-    current.devices[device] = (current.devices[device] ?? 0) + 1;
+    for (const key of keys) current.devices[key] = (current.devices[key] ?? 0) + 1;
     saveToday(current);
   }
   return response;
@@ -187,7 +199,8 @@ export function usageSummary(days: number) {
     today: {
       costUsd: round(state.cost),
       budgetUsd: numberFromEnv('AI_DAILY_BUDGET_USD', 1),
-      devices: Object.keys(state.devices).length,
+      devices: Object.keys(state.devices).filter((key) => !key.startsWith('user:')).length,
+      accounts: Object.keys(state.devices).filter((key) => key.startsWith('user:')).length,
       perDeviceLimit: numberFromEnv('AI_DAILY_LIMIT', 40),
     },
     note: 'Costs are estimates from token counts. Your Anthropic Console shows the real bill.',

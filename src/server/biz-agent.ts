@@ -9,7 +9,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Profile } from '@/data/profile-fields';
 import { tenderScamSignals } from '@/lib/biz-sample';
 import type { Tender, TenderGroup, TenderSearch, WriteBrief, WrittenContent, WrittenKind } from '@/lib/biz-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { persistentCache } from '@/server/cache';
 import { claude } from '@/server/claude';
 
@@ -171,7 +171,7 @@ export async function findTenders(query: string, county: string, agpoCategory: s
       max_tokens: 4000,
       ...modelOptions,
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
-      system: `You find public tenders for small businesses in Kenya. Today is ${today}. Search the official tender sites only. Report only real tenders you saw in the results, with the link to each. Skip anything that asks bidders to pay a fee to a person or promises an award.`,
+      system: `You find public tenders for small businesses in Kenya. Today is ${today}. Search the official tender sites only. Report only real tenders you saw in the results, with the link to each. Skip anything that asks bidders to pay a fee to a person or promises an award. ${WEB_CAUTION}`,
       tools: [{ type: webSearchType, name: 'web_search', max_uses: 3, allowed_domains: TENDER_SITES }, reportTendersTool],
       messages,
     });

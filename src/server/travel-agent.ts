@@ -21,7 +21,7 @@ import {
   type VisaCheck,
   type VisaNeed,
 } from '@/lib/travel-types';
-import { effortOption, MODEL, modelOptions, webSearchType } from '@/server/model';
+import { effortOption, MODEL, modelOptions, webSearchType, WEB_CAUTION } from '@/server/model';
 import { persistentCache } from '@/server/cache';
 import { claude } from '@/server/claude';
 
@@ -54,7 +54,7 @@ async function searchAndReport<T>({ system, prompt, tool, allowedDomains }: Tool
       max_tokens: 3000,
       ...modelOptions,
       ...(Object.keys(effortOption).length ? { output_config: effortOption } : {}),
-      system,
+      system: `${system} ${WEB_CAUTION}`,
       tools: [
         { type: webSearchType, name: 'web_search', max_uses: 3, ...(allowedDomains ? { allowed_domains: allowedDomains } : {}) },
         tool,
