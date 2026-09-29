@@ -89,10 +89,3 @@ export const services: Service[] = [
     color: '#EC4899',
   },
 ];
-
-export const examplePrompts = [
-  'Apply for a passport',
-  'Help me create a CV',
-  'Print my documents',
-  'Find a job application',
-];

@@ -30,11 +30,13 @@ async function handle(request: Request) {
   let messages: ChatMessage[];
   let taskId: unknown;
   let screenPath: unknown;
+  let language: 'en' | 'sw' = 'en';
   try {
     const body = await request.json();
     messages = cleanHistory(body?.messages);
     taskId = body?.taskId;
     screenPath = body?.screen;
+    if (body?.language === 'sw') language = 'sw';
   } catch {
     return Response.json({ error: 'Invalid JSON' }, { status: 400 });
   }
@@ -46,7 +48,7 @@ async function handle(request: Request) {
 
   // Until an API key is configured, answer with canned sample replies.
   if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json({ ...sampleReply(lastUser.text), mode: 'sample' } satisfies ChatResponse);
+    return Response.json({ ...sampleReply(lastUser.text, language), mode: 'sample' } satisfies ChatResponse);
   }
 
   const auth = request.headers.get('Authorization');
@@ -56,7 +58,7 @@ async function handle(request: Request) {
     // From a "Help me here" button: the screen the user was on.
     const screen = typeof screenPath === 'string' ? entryForPath(screenPath.slice(0, 200)) : undefined;
     const task = findGovTask(typeof taskId === 'string' ? taskId : screen?.id);
-    const { reply, actions } = await runAttendant(messages, accessToken, task, screen);
+    const { reply, actions } = await runAttendant(messages, accessToken, task, screen, language);
     return Response.json({ reply, actions, mode: 'ai' } satisfies ChatResponse);
   } catch (error) {
     if (error instanceof Anthropic.AuthenticationError) {

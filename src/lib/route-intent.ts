@@ -80,14 +80,14 @@ export function confidentIntent(text: string): CatalogueEntry | null {
   return top.entry;
 }
 
-export function openAction(entry: CatalogueEntry, params = {}): ChatAction {
-  return { type: 'open', label: `Open ${entry.title}`, route: routeWith(entry, params) };
+export function openAction(entry: CatalogueEntry, params = {}, language = 'en'): ChatAction {
+  return { type: 'open', label: `${language === 'sw' ? 'Fungua' : 'Open'} ${entry.title}`, route: routeWith(entry, params) };
 }
 
 // The reply the chat shows for a confident match, without calling the AI.
-export function localReply(text: string, entry: CatalogueEntry): { reply: string; actions: ChatAction[] } {
-  const reply = isSwahili(text)
+export function localReply(text: string, entry: CatalogueEntry, language = 'en'): { reply: string; actions: ChatAction[] } {
+  const reply = isSwahili(text) || language === 'sw'
     ? `Sawa! Hii inafanyika kwenye ${entry.title}: ${entry.description}. Bonyeza hapa chini kuanza, au niulize swali lolote kuihusu.`
     : `You can do that in ${entry.title}: ${entry.description}. Tap below to start, or ask me anything about it.`;
-  return { reply, actions: [openAction(entry)] };
+  return { reply, actions: [openAction(entry, {}, language)] };
 }

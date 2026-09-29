@@ -1,16 +1,18 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { LinkButton, Note } from '@/components/gov/ui';
 import { AdvertStep, MatchStep } from '@/components/jobs/advert-match-steps';
 import { ApplyStep, CvStep } from '@/components/jobs/cv-apply-steps';
 import { JobTrackStep } from '@/components/jobs/track-step';
 import { Screen } from '@/components/screen';
+import { StepFooter, StepHeader } from '@/components/stepper';
 import { SubHeader } from '@/components/sub-header';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 import type { Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import type { HelperAction } from '@/lib/gov-types';
 import { checkMatch, interviewQuestions, tailorApplication } from '@/lib/jobs-client';
 import { deleteJob, GUEST_ID, loadJob, saveJob } from '@/lib/jobs-store';
@@ -18,7 +20,6 @@ import type { Job } from '@/lib/jobs-types';
 import { listFiles, type StoredFile } from '@/lib/locker-store';
 import { loadProfile, saveProfile } from '@/lib/profile-store';
 
-const stepNames = ['Advert', 'Match', 'CV & letter', 'Apply', 'Track'];
 
 export default function JobScreen() {
   const router = useRouter();
@@ -29,6 +30,8 @@ export default function JobScreen() {
   const [job, setJob] = useState<Job | null | undefined>(undefined);
   const jobRef = useRef<Job | null>(null);
   const [step, setStep] = useState(0);
+  const { t } = useLanguage();
+  const stepNames = ([1, 2, 3, 4, 5] as const).map((n) => t(`job.step${n}`));
   const [profile, setProfile] = useState<Profile>({});
   const [lockerFiles, setLockerFiles] = useState<StoredFile[]>([]);
   const [busy, setBusy] = useState<'match' | 'write' | 'questions' | null>(null);
@@ -129,18 +132,10 @@ export default function JobScreen() {
   };
 
   return (
-    <Screen>
+    <Screen scrollKey={step}>
       <SubHeader title={job.advert.title} />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-        {stepNames.map((name, index) => (
-          <Pressable key={name} onPress={() => setStep(index)} style={[styles.tab, index === step && styles.tabActive]}>
-            <Text style={[styles.tabText, index === step && styles.tabTextActive]}>
-              {index + 1}. {name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <StepHeader names={stepNames} step={step} onStep={setStep} />
 
       {!!problem && <Note tone="warn">{problem}</Note>}
 
@@ -174,11 +169,7 @@ export default function JobScreen() {
       )}
 
       <View style={styles.footer}>
-        {step < stepNames.length - 1 && (
-          <Pressable onPress={() => setStep(step + 1)} style={({ pressed }) => [styles.next, pressed && styles.dim]}>
-            <Text style={styles.nextText}>Next: {stepNames[step + 1]}</Text>
-          </Pressable>
-        )}
+        <StepFooter names={stepNames} step={step} onStep={setStep} />
         <LinkButton
           icon="chatbubbles"
           label="Ask about this job"
@@ -195,26 +186,5 @@ export default function JobScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabs: { gap: Spacing.sm },
-  tab: {
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-  },
-  tabActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },
-  tabText: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  tabTextActive: { color: Colors.onDark },
   footer: { gap: Spacing.md, alignItems: 'flex-start' },
-  next: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.md,
-    paddingVertical: 14,
-  },
-  nextText: { fontSize: 15, fontWeight: '600', color: Colors.onDark },
-  dim: { opacity: 0.7 },
 });

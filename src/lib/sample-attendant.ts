@@ -87,15 +87,15 @@ const fallback = {
   sw: 'Mimi ni mhudumu wako wa kidijitali. Naweza kukusaidia na huduma za serikali, CV na maombi ya kazi, nyaraka, uchapishaji na malipo. Unahitaji nini?',
 };
 
-export function sampleReply(text: string): { reply: string; actions: ChatAction[] } {
+export function sampleReply(text: string, preferred: 'en' | 'sw' = 'en'): { reply: string; actions: ChatAction[] } {
   const lower = text.toLowerCase();
-  const language = isSwahili(text) ? 'sw' : 'en';
+  const language = isSwahili(text) ? 'sw' : preferred;
   const topic = topics.find((t) => t.keywords.some((k) => lower.includes(k)));
   const actions: ChatAction[] = (topic?.tools ?? []).map((tool) => ({ type: 'open', ...appTools[tool] }));
   // Point to the screen that does it, when the words clearly name one.
   const [match] = matchIntent(text, 1);
   if (match && match.score >= 4 && !actions.some((a) => a.type === 'open' && a.route === match.entry.route)) {
-    actions.unshift(openAction(match.entry));
+    actions.unshift(openAction(match.entry, {}, language));
   }
   if (topic?.link) actions.push({ type: 'link', ...topic.link });
   return { reply: (topic ?? fallback)[language], actions: actions.slice(0, 3) };

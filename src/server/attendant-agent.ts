@@ -232,6 +232,7 @@ export async function runAttendant(
   accessToken: string | null,
   task?: GovTask,
   screen?: CatalogueEntry,
+  language: 'en' | 'sw' = 'en',
 ): Promise<{ reply: string; actions: ChatAction[] }> {
   const client = claude();
   const context: ToolContext = { accessToken, actions: [] };
@@ -252,6 +253,9 @@ export async function runAttendant(
         { type: 'text', text: `Screens in the app (id: title):\n${catalogueText}`, cache_control: { type: 'ephemeral' } },
         ...(task ? [{ type: 'text' as const, text: taskFocus(task) }] : []),
         ...(screen && !task ? [{ type: 'text' as const, text: screenFocus(screen) }] : []),
+        ...(language === 'sw'
+          ? [{ type: 'text' as const, text: 'The user set the app to Kiswahili. Reply in Swahili unless they write to you in English.' }]
+          : []),
       ],
       tools,
       messages,

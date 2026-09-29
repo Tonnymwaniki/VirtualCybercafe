@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { DetailsStep } from '@/components/gov/details-step';
 import { NeedsStep } from '@/components/gov/needs-step';
@@ -8,17 +8,18 @@ import { PayStep, TrackStep } from '@/components/gov/pay-track-steps';
 import { ReadyStep } from '@/components/gov/ready-step';
 import { LinkButton, Note } from '@/components/gov/ui';
 import { Screen } from '@/components/screen';
+import { StepFooter, StepHeader } from '@/components/stepper';
 import { SubHeader } from '@/components/sub-header';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { findGovTask } from '@/data/gov-tasks';
 import type { Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import { fetchRequirements } from '@/lib/gov-client';
 import { GUEST_ID, loadAllProgress, saveProgress } from '@/lib/gov-store';
 import { emptyProgress, type HelperAction, type RequirementsCheck, type TaskProgress } from '@/lib/gov-types';
 import { loadProfile, saveProfile } from '@/lib/profile-store';
 
-const stepNames = ['What you need', 'Are you ready?', 'Your details', 'Pay', 'Track'];
 
 export default function GovTaskScreen() {
   const router = useRouter();
@@ -28,6 +29,8 @@ export default function GovTaskScreen() {
   const userId = user?.id ?? GUEST_ID;
 
   const [step, setStep] = useState(0);
+  const { t } = useLanguage();
+  const stepNames = ([1, 2, 3, 4, 5] as const).map((n) => t(`gov.step${n}`));
   const [check, setCheck] = useState<RequirementsCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [progress, setProgress] = useState<TaskProgress>(emptyProgress);
@@ -113,21 +116,10 @@ export default function GovTaskScreen() {
   };
 
   return (
-    <Screen>
+    <Screen scrollKey={step}>
       <SubHeader title={task.title} />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-        {stepNames.map((name, index) => (
-          <Pressable
-            key={name}
-            onPress={() => setStep(index)}
-            style={[styles.tab, index === step && styles.tabActive]}>
-            <Text style={[styles.tabText, index === step && styles.tabTextActive]}>
-              {index + 1}. {name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <StepHeader names={stepNames} step={step} onStep={setStep} />
 
       {step === 0 && <NeedsStep task={task} check={check} loading={checking} onRefresh={() => runCheck(true)} />}
       {step === 1 && <ReadyStep task={task} user={user} ready={progress.ready} onToggle={toggleReady} />}
@@ -145,14 +137,10 @@ export default function GovTaskScreen() {
       {step === 4 && <TrackStep task={task} progress={progress} onSetStage={setStage} />}
 
       <View style={styles.footer}>
-        {step < stepNames.length - 1 && (
-          <Pressable onPress={() => setStep(step + 1)} style={({ pressed }) => [styles.next, pressed && styles.dim]}>
-            <Text style={styles.nextText}>Next: {stepNames[step + 1]}</Text>
-          </Pressable>
-        )}
+        <StepFooter names={stepNames} step={step} onStep={setStep} />
         <LinkButton
           icon="chatbubbles"
-          label="Ask about this task"
+          label={t('task.ask')}
           onPress={() => router.push({ pathname: '/chat', params: { task: task.id } })}
         />
       </View>
@@ -161,26 +149,5 @@ export default function GovTaskScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabs: { gap: Spacing.sm },
-  tab: {
-    borderRadius: Radius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    backgroundColor: Colors.card,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-  },
-  tabActive: { backgroundColor: Colors.navy, borderColor: Colors.navy },
-  tabText: { fontSize: 13, fontWeight: '600', color: Colors.text },
-  tabTextActive: { color: Colors.onDark },
   footer: { gap: Spacing.md, alignItems: 'flex-start' },
-  next: {
-    alignSelf: 'stretch',
-    alignItems: 'center',
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.md,
-    paddingVertical: 14,
-  },
-  nextText: { fontSize: 15, fontWeight: '600', color: Colors.onDark },
-  dim: { opacity: 0.7 },
 });

@@ -1,17 +1,19 @@
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DocActions } from '@/components/biz/doc-actions';
 import { Button } from '@/components/button';
 import { DetailsStep } from '@/components/gov/details-step';
 import { Card, CheckRow, LinkButton, Note, openUrl } from '@/components/gov/ui';
 import { Screen } from '@/components/screen';
+import { StepFooter, StepHeader } from '@/components/stepper';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import type { Profile } from '@/data/profile-fields';
 import { tripStages, visaFormTask } from '@/data/visa-form';
 import { useAuth } from '@/lib/auth';
+import { useLanguage } from '@/lib/i18n';
 import { documentHtml } from '@/lib/document-html';
 import type { HelperAction } from '@/lib/gov-types';
 import { listFiles, type StoredFile } from '@/lib/locker-store';
@@ -29,7 +31,6 @@ import {
   type Trip,
 } from '@/lib/travel-types';
 
-const stepNames = ['Visa check', 'Documents', 'Visa form', 'Letters', 'Track'];
 
 // Words that tie a required document to a Locker file name.
 const lockerHints: [RegExp, RegExp][] = [
@@ -59,6 +60,8 @@ export default function TripScreen() {
   const [profile, setProfile] = useState<Profile>({});
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [step, setStep] = useState(0);
+  const { t } = useLanguage();
+  const stepNames = ([1, 2, 3, 4, 5] as const).map((n) => t(`trip.step${n}`));
   const [busy, setBusy] = useState<string | null>(null);
   const [problem, setProblem] = useState('');
   const [letterKind, setLetterKind] = useState<LetterKind>('cover');
@@ -148,7 +151,7 @@ export default function TripScreen() {
     : visaFormTask;
 
   return (
-    <Screen>
+    <Screen scrollKey={step}>
       <SubHeader title={trip.destination} />
       <Text style={styles.muted}>
         {purposeLabel[trip.purpose]} · {[trip.departDate, trip.returnDate].filter(Boolean).join(' to ') || 'No dates yet'} ·{' '}
@@ -159,15 +162,7 @@ export default function TripScreen() {
         <LinkButton label="Renew my passport" icon="arrow-forward-circle" onPress={() => router.push('/gov/passport' as Href)} />
       )}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-        {stepNames.map((name, index) => (
-          <Pressable key={name} onPress={() => setStep(index)} style={[styles.tab, index === step && styles.tabActive]}>
-            <Text style={[styles.tabText, index === step && styles.tabTextActive]}>
-              {index + 1}. {name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <StepHeader names={stepNames} step={step} onStep={setStep} />
 
       {step === 0 && (
         <Card title="Do I need a visa?">
@@ -315,6 +310,8 @@ export default function TripScreen() {
           {trip.stage >= 4 && <Note tone="good">Safe travels! Keep a copy of your visa and passport page in your Locker.</Note>}
         </Card>
       )}
+
+      <StepFooter names={stepNames} step={step} onStep={setStep} />
 
       <View style={styles.row}>
         <Button

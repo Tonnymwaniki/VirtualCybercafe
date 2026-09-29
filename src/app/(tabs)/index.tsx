@@ -1,34 +1,50 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useRouter, type Href } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useFocusEffect, useRouter, type Href } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { IconBadge } from '@/components/icon-badge';
 import { Screen } from '@/components/screen';
+import { WelcomeCard } from '@/components/welcome-card';
 import { Colors, Radius, Spacing } from '@/constants/theme';
-import { examplePrompts, services } from '@/data/services';
+import { services } from '@/data/services';
 import { useAuth } from '@/lib/auth';
+import { loadContinueItems, type ContinueItem } from '@/lib/continue';
+import { serviceText, useLanguage } from '@/lib/i18n';
+import { GUEST_ID } from '@/lib/profile-store';
 import { matchIntent } from '@/lib/route-intent';
 
-function greeting(date = new Date()) {
+function greetingKey(date = new Date()) {
   const hour = date.getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'greeting.morning' as const;
+  if (hour < 17) return 'greeting.afternoon' as const;
+  return 'greeting.evening' as const;
 }
 
 const trustPoints = [
-  { icon: 'lock-closed', title: 'Secure & private', text: 'Your data is always protected' },
-  { icon: 'flash', title: 'Fast & reliable', text: 'Get things done, quickly' },
-  { icon: 'location', title: 'Local support', text: 'Available in Kiswahili and English' },
+  { icon: 'lock-closed', title: 'trust.secure', text: 'trust.secureText' },
+  { icon: 'flash', title: 'trust.fast', text: 'trust.fastText' },
+  { icon: 'location', title: 'trust.local', text: 'trust.localText' },
 ] as const;
+
+const examplePrompts = ['example.passport', 'example.cv', 'example.print', 'example.job'] as const;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const firstName = user?.fullName?.split(' ')[0];
+  const { t } = useLanguage();
+  const userId = user?.id ?? GUEST_ID;
   const [request, setRequest] = useState('');
+  const [micNote, setMicNote] = useState(false);
+  const [continueItems, setContinueItems] = useState<ContinueItem[]>([]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadContinueItems(userId).then(setContinueItems).catch(() => setContinueItems([]));
+    }, [userId]),
+  );
   // Matching screens as the user types, found on the phone for free.
   const suggestions = useMemo(() => (request.trim().length >= 3 ? matchIntent(request, 3) : []), [request]);
 
@@ -46,10 +62,35 @@ export default function HomeScreen() {
 
       <View>
         <Text style={styles.greeting}>
-          {greeting()}{firstName ? `, ${firstName}` : ''} 👋
+          {t(greetingKey())}{firstName ? `, ${firstName}` : ''} 👋
         </Text>
-        <Text style={styles.subtitle}>What do you need done today?</Text>
+        <Text style={styles.subtitle}>{t('home.subtitle')}</Text>
       </View>
+
+      <WelcomeCard />
+
+      {continueItems.length > 0 && (
+        <View style={styles.continueBlock}>
+          <Text style={styles.sectionTitle}>{t('continue.title')}</Text>
+          {continueItems.map((item) => (
+            <Pressable
+              key={item.id}
+              onPress={() => router.push(item.route as Href)}
+              style={({ pressed }) => [styles.continueCard, pressed && styles.pressed]}>
+              <IconBadge icon={item.icon} color={item.color} />
+              <View style={styles.continueText}>
+                <Text style={styles.continueTitle} numberOfLines={1}>
+                  {item.place ? t('continue.trip', { place: item.place }) : item.title}
+                </Text>
+                <Text style={styles.continueNext} numberOfLines={1}>
+                  {item.next ? t('continue.next', { step: item.next }) : t('continue.started')}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
+            </Pressable>
+          ))}
+        </View>
+      )}
 
       <View style={styles.attendantCard}>
         <View style={styles.inputRow}>
@@ -57,12 +98,12 @@ export default function HomeScreen() {
             value={request}
             onChangeText={setRequest}
             onSubmitEditing={() => send(request)}
-            placeholder="Tell me what you need done..."
+            placeholder={t('home.placeholder')}
             placeholderTextColor={Colors.textMuted}
             style={styles.input}
             returnKeyType="send"
           />
-          <Pressable accessibilityLabel="Tap to speak" hitSlop={8} style={styles.micButton}>
+          <Pressable accessibilityLabel="Tap to speak" hitSlop={8} onPress={() => setMicNote((v) => !v)} style={styles.micButton}>
             <Ionicons name="mic" size={20} color={Colors.primary} />
           </Pressable>
           <Pressable
@@ -73,9 +114,11 @@ export default function HomeScreen() {
           </Pressable>
         </View>
 
+        {micNote && <Text style={styles.micNote}>{t('chat.mic')}</Text>}
+
         {suggestions.length > 0 && (
           <View style={styles.suggestions}>
-            <Text style={styles.examplesLabel}>Go straight there</Text>
+            <Text style={styles.examplesLabel}>{t('home.goStraight')}</Text>
             {suggestions.map(({ entry }) => (
               <Pressable
                 key={entry.id}
@@ -96,21 +139,21 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <Text style={styles.examplesLabel}>Examples</Text>
+        <Text style={styles.examplesLabel}>{t('home.examples')}</Text>
         <View style={styles.chips}>
           {examplePrompts.map((prompt) => (
             <Pressable
               key={prompt}
-              onPress={() => send(prompt)}
+              onPress={() => send(t(prompt))}
               style={({ pressed }) => [styles.chip, pressed && styles.pressed]}>
-              <Text style={styles.chipText}>{prompt}</Text>
+              <Text style={styles.chipText}>{t(prompt)}</Text>
             </Pressable>
           ))}
         </View>
 
       </View>
 
-      <Text style={styles.sectionTitle}>Quick Services</Text>
+      <Text style={styles.sectionTitle}>{t('home.quickServices')}</Text>
       <View style={styles.grid}>
         {services.map((service) => (
           <Pressable
@@ -118,12 +161,12 @@ export default function HomeScreen() {
             onPress={() =>
               service.route
                 ? router.push(service.route)
-                : router.push({ pathname: '/chat', params: { q: `I need help with ${service.title}` } })
+                : router.push({ pathname: '/chat', params: { q: serviceText(t, service.id).title } })
             }
             style={({ pressed }) => [styles.gridItem, pressed && styles.pressed]}>
             <IconBadge icon={service.icon} color={service.color} size={44} />
             <Text style={styles.gridLabel} numberOfLines={1}>
-              {service.shortTitle}
+              {serviceText(t, service.id).short}
             </Text>
           </Pressable>
         ))}
@@ -132,22 +175,20 @@ export default function HomeScreen() {
       <Pressable
         onPress={() => router.navigate('/services')}
         style={({ pressed }) => [styles.moreRow, pressed && styles.pressed]}>
-        <Text style={styles.moreText}>More services</Text>
+        <Text style={styles.moreText}>{t('home.moreServices')}</Text>
         <Ionicons name="chevron-forward" size={18} color={Colors.primary} />
       </Pressable>
 
       <View style={styles.banner}>
-        <Text style={styles.bannerTitle}>From digital to physical. We’ve got you.</Text>
-        <Text style={styles.bannerText}>
-          Complete online tasks, get documents printed, and more, all in one place.
-        </Text>
+        <Text style={styles.bannerTitle}>{t('home.bannerTitle')}</Text>
+        <Text style={styles.bannerText}>{t('home.bannerText')}</Text>
         <View style={styles.trustList}>
           {trustPoints.map((point) => (
             <View key={point.title} style={styles.trustRow}>
               <Ionicons name={point.icon} size={20} color={Colors.onDark} />
               <View style={styles.trustTextBlock}>
-                <Text style={styles.trustTitle}>{point.title}</Text>
-                <Text style={styles.trustText}>{point.text}</Text>
+                <Text style={styles.trustTitle}>{t(point.title)}</Text>
+                <Text style={styles.trustText}>{t(point.text)}</Text>
               </View>
             </View>
           ))}
@@ -190,6 +231,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  continueBlock: { gap: Spacing.sm },
+  continueCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.card,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.primarySoft,
+    borderLeftWidth: 4,
+    borderLeftColor: Colors.primary,
+    padding: Spacing.md,
+  },
+  continueText: { flex: 1, gap: 2 },
+  continueTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
+  continueNext: { fontSize: 13, fontWeight: '600', color: Colors.primary },
+  micNote: { fontSize: 13, color: Colors.textMuted, lineHeight: 18 },
   suggestions: { gap: Spacing.sm },
   suggestion: {
     flexDirection: 'row',

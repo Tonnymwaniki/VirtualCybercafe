@@ -3,12 +3,14 @@ import { usePathname, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
+import { useLanguage } from '@/lib/i18n';
 
 // Title row with a back arrow, for screens opened on top of the tabs. The
 // help button opens the attendant, told which screen the user is on.
 export function SubHeader({ title, help = true }: { title: string; help?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useLanguage();
   return (
     <View style={styles.row}>
       <Pressable
@@ -25,7 +27,7 @@ export function SubHeader({ title, help = true }: { title: string; help?: boolea
           onPress={() => router.push({ pathname: '/chat', params: { from: pathname } })}
           style={({ pressed }) => [styles.help, pressed && styles.dim]}>
           <Ionicons name="help-circle" size={18} color={Colors.primary} />
-          <Text style={styles.helpText}>Help</Text>
+          <Text style={styles.helpText}>{t('help')}</Text>
         </Pressable>
       )}
     </View>

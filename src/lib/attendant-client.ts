@@ -7,7 +7,12 @@ import { supabase } from '@/lib/supabase';
 // the server can't be reached (for example, a build without the API server).
 // taskId narrows the attendant to one guided task; screen is the path of the
 // screen whose "Help me here" button opened the chat.
-export async function askAttendant(messages: ChatMessage[], taskId?: string, screen?: string): Promise<ChatResponse> {
+export async function askAttendant(
+  messages: ChatMessage[],
+  taskId?: string,
+  screen?: string,
+  language: 'en' | 'sw' = 'en',
+): Promise<ChatResponse> {
   try {
     // Lets the attendant look inside the signed-in user's Locker.
     const session = supabase ? (await supabase.auth.getSession()).data.session : null;
@@ -17,7 +22,7 @@ export async function askAttendant(messages: ChatMessage[], taskId?: string, scr
         'Content-Type': 'application/json',
         ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
       },
-      body: JSON.stringify({ messages: messages.map(({ role, text }) => ({ role, text })), taskId, screen }),
+      body: JSON.stringify({ messages: messages.map(({ role, text }) => ({ role, text })), taskId, screen, language }),
     });
     if (response.status === 429) {
       const body = (await response.json()) as { error?: string };
@@ -27,6 +32,6 @@ export async function askAttendant(messages: ChatMessage[], taskId?: string, scr
     return (await response.json()) as ChatResponse;
   } catch {
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-    return { ...sampleReply(lastUser?.text ?? ''), mode: 'sample' };
+    return { ...sampleReply(lastUser?.text ?? '', language), mode: 'sample' };
   }
 }

@@ -2,8 +2,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router/js-tabs';
 
 import { Colors } from '@/constants/theme';
+import { useLanguage } from '@/lib/i18n';
 
 export default function TabLayout() {
+  const { t } = useLanguage();
   return (
     <Tabs
       screenOptions={{
@@ -15,21 +17,21 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: t('tab.home'),
           tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="services"
         options={{
-          title: 'Services',
+          title: t('tab.services'),
           tabBarIcon: ({ color, size }) => <Ionicons name="grid" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="locker"
         options={{
-          title: 'Locker',
+          title: t('tab.locker'),
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="lock-closed" color={color} size={size} />
           ),

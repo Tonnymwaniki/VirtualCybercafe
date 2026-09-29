@@ -34,7 +34,7 @@ export async function loadAllProgress(userId: string): Promise<Partial<Record<Go
     if (!error) {
       return Object.fromEntries(
         (data ?? [])
-          .filter((row) => !/^(job|edu):/.test(String(row.task_id)))
+          .filter((row) => !String(row.task_id).includes(':'))
           .map((row) => [row.task_id, { ...emptyProgress, ...row.progress }]),
       );
     }

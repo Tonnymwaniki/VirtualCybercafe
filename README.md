@@ -51,6 +51,14 @@ It never submits forms or makes payments; the person does that. Tapping a servic
 - AI results that rarely change (requirement checks, visa rules, job, course and tender searches) are cached in `.cache/ai-cache.json`, so they survive restarts and aren't paid for twice.
 - Each phone gets `AI_DAILY_LIMIT` AI requests a day (default 40), and the whole app stops calling the AI for the day once `AI_DAILY_BUDGET_USD` is spent (default 1). Answers from the cache don't count. Set either in `.env`.
 
+## Look and feel
+
+- **Continue on Home** (`src/lib/continue.ts`): unfinished guided tasks, trips, jobs and tenders, each with its next step.
+- **One step at a time** (`src/components/stepper.tsx`): guided tasks, jobs and trips show "Step 2 of 5", a progress bar, dots to jump between steps, and Back/Next.
+- **English / Kiswahili** (`src/lib/i18n.tsx`): the EN/SW switch in the header changes Home, the menus, service tiles, buttons, step names and the chat. With Kiswahili on, the attendant answers in Swahili by default. Task details (requirements and steps) are still in English.
+- **Read aloud** (`expo-speech`): a "Read aloud" button under each attendant reply. Talking to type needs a development build, so the mic says it's coming soon.
+- **Mascot** (`src/components/mascot.tsx`, drawn with views), a first-visit welcome card on Home, and the Services tab grouped by area with every task as a chip.
+
 ## Government Services
 
 The Government tile opens a workspace for nine tasks (`src/data/gov-tasks.ts`): Certificate of Good Conduct, KRA PIN, KRA tax returns, passport, replacing a lost ID, NTSA driving licence, birth certificate, SHA registration and business name registration. Each task has five steps:
