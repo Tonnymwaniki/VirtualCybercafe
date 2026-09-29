@@ -8,9 +8,10 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { DEMO_CODE, useAuth } from '@/lib/auth';
+import { findGuestWork, moveGuestWork, type GuestWork } from '@/lib/guest-move';
 import { normaliseKenyanPhone } from '@/lib/phone';
 
-type Stage = 'phone' | 'code' | 'name';
+type Stage = 'phone' | 'code' | 'move' | 'name';
 
 export default function SignInScreen() {
   const router = useRouter();
@@ -22,6 +23,8 @@ export default function SignInScreen() {
   const [name, setNameInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState('');
+  const [work, setWork] = useState<GuestWork | null>(null);
 
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
@@ -46,7 +49,18 @@ export default function SignInScreen() {
 
   const submitCode = () =>
     run(async () => {
-      await verifyCode(phone, code.trim());
+      const id = await verifyCode(phone, code.trim());
+      setUserId(id);
+      // Work done before signing in: offer to bring it into the account.
+      const found = await findGuestWork().catch(() => null);
+      if (found?.fullName) setNameInput(found.fullName);
+      setWork(found);
+      setStage(found ? 'move' : 'name');
+    });
+
+  const keepWork = () =>
+    run(async () => {
+      await moveGuestWork(userId);
       setStage('name');
     });
 
@@ -119,6 +133,27 @@ export default function SignInScreen() {
         </>
       )}
 
+      {stage === 'move' && work && (
+        <View style={styles.move}>
+          <Text style={styles.label}>Keep what you did before signing in?</Text>
+          <Text style={styles.moveText}>This phone has:</Text>
+          {guestLines(work).map((line) => (
+            <View key={line} style={styles.moveLine}>
+              <Ionicons name="checkmark-circle" size={18} color={Colors.primary} />
+              <Text style={styles.moveText}>{line}</Text>
+            </View>
+          ))}
+          <Text style={styles.moveNote}>
+            It will be saved on your account, so you can see it on any phone. Details already on your account stay as
+            they are.
+          </Text>
+          <View style={styles.row}>
+            <Button label="Leave on phone" variant="secondary" onPress={() => setStage('name')} />
+            <Button label="Keep them" icon="cloud-upload" onPress={keepWork} busy={busy} />
+          </View>
+        </View>
+      )}
+
       {stage === 'name' && (
         <>
           <Text style={styles.label}>You’re in! What should we call you?</Text>
@@ -140,6 +175,16 @@ export default function SignInScreen() {
       {error && <Text style={styles.error}>{error}</Text>}
     </Screen>
   );
+}
+
+function guestLines(work: GuestWork) {
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+  return [
+    work.details ? `Your details (${plural(work.details, 'item', 'items')})` : '',
+    work.jobs ? plural(work.jobs, 'job', 'jobs') : '',
+    work.chats ? plural(work.chats, 'chat', 'chats') : '',
+    work.other ? plural(work.other, 'other saved item', 'other saved items') : '',
+  ].filter(Boolean);
 }
 
 const styles = StyleSheet.create({
@@ -179,5 +224,16 @@ const styles = StyleSheet.create({
   },
   codeInput: { letterSpacing: 8, textAlign: 'center', fontSize: 22 },
   row: { flexDirection: 'row', gap: Spacing.md },
+  move: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  moveLine: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  moveText: { fontSize: 15, color: Colors.text },
+  moveNote: { fontSize: 13, color: Colors.textMuted, marginVertical: Spacing.xs },
   error: { color: '#DC2626', fontSize: 14 },
 });

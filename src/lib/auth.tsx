@@ -18,7 +18,8 @@ type AuthContextValue = {
   loading: boolean;
   demoMode: boolean;
   sendCode: (phone: string) => Promise<void>;
-  verifyCode: (phone: string, code: string) => Promise<void>;
+  // Returns the signed-in user's id.
+  verifyCode: (phone: string, code: string) => Promise<string>;
   setName: (fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
 };
@@ -78,11 +79,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async verifyCode(phone, code) {
       if (!supabase) {
         if (code !== DEMO_CODE) throw new Error('That code is not right. In demo mode it is 123456.');
-        await saveDemoUser({ id: `demo-${phone}`, phone, fullName: null });
-        return;
+        const id = `demo-${phone}`;
+        await saveDemoUser({ id, phone, fullName: null });
+        return id;
       }
-      const { error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
+      const { data, error } = await supabase.auth.verifyOtp({ phone, token: code, type: 'sms' });
       if (error) throw error;
+      if (!data.user) throw new Error('Sign-in did not finish. Please try again.');
+      return data.user.id;
     },
     async setName(fullName) {
       if (!user) return;
