@@ -172,11 +172,11 @@ const toolEntries: CatalogueEntry[] = [
   {
     id: 'passport_photo',
     title: 'Passport photo',
-    description: 'Crop and shrink a photo to passport size for online forms',
+    description: 'Passport photo for online forms (600 × 600, under 200 KB) and an A4 sheet of print photos for any cyber',
     route: '/studio/passport',
     workspace: 'documents',
-    keywords: ['passport photo', 'picha ya pasipoti', 'passport size', 'id photo', 'photo 600'],
-    help: 'Take or pick a photo with a plain light background. I crop it to the size forms ask for and keep it under the file limit.',
+    keywords: ['passport photo', 'picha ya pasipoti', 'passport size', 'id photo', 'photo 600', 'passport print', 'print passport'],
+    help: 'Take or pick a photo in front of a plain white wall. You get the digital photo for online forms and an A4 sheet of print photos (2 × 2 in, or 35 × 45 mm for visas); tap Print at any cyber on the sheet to print it.',
   },
   {
     id: 'scan',

@@ -1,122 +1,125 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-import { Button } from '@/components/button';
 import { PickButtons } from '@/components/pick-buttons';
-import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { Colors, Radius, Spacing } from '@/constants/theme';
+import { PhotoCheckCard } from '@/components/workbench/photo-check';
+import { checksFor, Problem, ResultCard, Toggle, Working, workbenchStyles } from '@/components/workbench/ui';
+import { Colors, Spacing } from '@/constants/theme';
+import { pickImages } from '@/lib/images';
+import type { WorkFile } from '@/lib/workbench/files';
+import { imageFromPicked } from '@/lib/workbench/image';
 import {
-  formatBytes,
-  pickImages,
-  processImage,
-  shareImage,
-  type PickedImage,
-  type ProcessedImage,
-} from '@/lib/images';
-import { fromBase64 } from '@/lib/workbench/files';
+  digitalPassport,
+  PASSPORT_MAX_BYTES,
+  PASSPORT_SIDE,
+  passportSheet,
+  printSizes,
+  type PrintSize,
+} from '@/lib/workbench/passport';
 
-// eCitizen passport photo rules as shown in the design.
-const SIDE = 600;
-const MAX_BYTES = 200 * 1024;
-
-type Check = { label: string; ok: boolean | 'manual' };
-
-function checksFor(original: PickedImage, photo: ProcessedImage): Check[] {
-  return [
-    { label: `Dimensions: ${photo.width} × ${photo.height}`, ok: photo.width === SIDE && photo.height === SIDE },
-    { label: `File size: ${formatBytes(photo.bytes)} (max 200 KB)`, ok: photo.bytes <= MAX_BYTES },
-    { label: 'Format: JPG', ok: true },
-    {
-      label: 'Quality: original is sharp enough',
-      ok: Math.min(original.width, original.height) >= SIDE,
-    },
-    { label: 'Background: plain white (check yourself)', ok: 'manual' },
-    { label: 'Face centred and looking at the camera (check yourself)', ok: 'manual' },
-  ];
-}
-
+// A passport photo from any clear photo: the digital photo for online forms
+// (600 × 600 JPG under 200 KB) and an A4 sheet of print photos for a cyber
+// to print and cut.
 export default function PassportPhotoScreen() {
-  const [original, setOriginal] = useState<PickedImage | null>(null);
-  const [photo, setPhoto] = useState<ProcessedImage | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [original, setOriginal] = useState<WorkFile | null>(null);
+  const [digital, setDigital] = useState<{ file: WorkFile; sharpEnough: boolean } | null>(null);
+  const [sheet, setSheet] = useState<WorkFile | null>(null);
+  const [size, setSize] = useState<PrintSize>('kenya');
+  const [busy, setBusy] = useState<'photo' | 'sheet' | null>(null);
+  const [error, setError] = useState('');
 
-  const pick = async (source: 'camera' | 'library') => {
-    setError(null);
-    const [image] = await pickImages(source);
-    if (!image) return;
-    setBusy(true);
+  const makeSheet = async (from: WorkFile, printSize: PrintSize) => {
+    setBusy('sheet');
     try {
-      setOriginal(image);
-      setPhoto(await processImage(image, { square: true, maxSide: SIDE, maxBytes: MAX_BYTES }));
+      setSheet(await passportSheet(from, printSize));
     } catch {
-      setError('Sorry, that photo could not be processed. Try another one.');
+      setError('The print sheet couldn’t be made. Try another photo.');
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
+  const pick = async (source: 'camera' | 'library') => {
+    setError('');
+    const [picked] = await pickImages(source);
+    if (!picked) return;
+    setBusy('photo');
+    setDigital(null);
+    setSheet(null);
+    try {
+      const file = await imageFromPicked(picked);
+      setOriginal(file);
+      setDigital(await digitalPassport(file));
+      await makeSheet(file, size);
+    } catch {
+      setError('Sorry, that photo could not be processed. Try another one.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const changeSize = (value: string) => {
+    setSize(value as PrintSize);
+    if (original) makeSheet(original, value as PrintSize);
+  };
+
+  const spec = printSizes[size];
+
   return (
     <Screen>
-      <SubHeader title="Passport Photo" />
-      <Text style={styles.intro}>
-        Use a clear photo of your face on a plain white background. We crop it square, resize it to
-        600 × 600 and shrink it under 200 KB.
+      <SubHeader title="Passport photo" />
+      <Text style={workbenchStyles.intro}>
+        Stand in front of a plain white wall in good light, look straight at the camera, no glasses or hat. You get the digital photo for online forms and a sheet of print photos for any cyber.
       </Text>
 
-      <PickButtons onPick={pick} busy={busy} />
-      {error && <Text style={styles.error}>{error}</Text>}
+      <PickButtons onPick={pick} busy={busy === 'photo'} />
+      {busy === 'photo' && <Working text="Making your passport photo…" />}
+      {!!error && <Problem text={error} />}
 
-      {original && photo && (
+      {digital && (
         <>
-          <View style={styles.fileCard}>
-            <Image source={{ uri: `data:image/jpeg;base64,${photo.base64}` }} style={styles.preview} />
-            <View style={styles.fileText}>
-              <Text style={styles.fileName}>passport-photo.jpg</Text>
-              <Text style={styles.fileMeta}>
-                {formatBytes(original.bytes)} → {formatBytes(photo.bytes)}
-              </Text>
-            </View>
-          </View>
-
-          {photo.bytes <= MAX_BYTES && (
-            <View style={styles.success}>
-              <Ionicons name="checkmark-circle" size={20} color={Colors.success} />
-              <Text style={styles.successText}>
-                Photo has been resized and compressed to meet requirements.
-              </Text>
-            </View>
-          )}
-
-          <Text style={styles.sectionTitle}>Requirements</Text>
-          <View style={styles.checks}>
-            {checksFor(original, photo).map((check) => (
-              <View key={check.label} style={styles.checkRow}>
-                <Ionicons
-                  name={check.ok === 'manual' ? 'eye' : check.ok ? 'checkmark-circle' : 'alert-circle'}
-                  size={18}
-                  color={check.ok === 'manual' ? Colors.textMuted : check.ok ? Colors.success : '#DC2626'}
-                />
-                <Text style={styles.checkText}>{check.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.actions}>
-            <Button
-              label="Save / share"
-              icon="share-outline"
-              onPress={() => shareImage(photo, 'passport-photo.jpg')}
-            />
-          </View>
-          <PhotoCheckCard
-            key={photo.uri}
-            file={{ name: 'passport-photo.jpg', kind: 'image', mimeType: 'image/jpeg', bytes: fromBase64(photo.base64), uri: photo.uri, width: photo.width, height: photo.height }}
-            checks={['face', 'whiteBackground', 'noGlasses', 'sharp']}
+          <Text style={styles.sectionTitle}>For online forms</Text>
+          <ResultCard
+            file={digital.file}
+            title="Passport photo ready"
+            checks={[
+              ...checksFor(digital.file, { maxBytes: PASSPORT_MAX_BYTES, width: PASSPORT_SIDE, height: PASSPORT_SIDE }),
+              {
+                ok: digital.sharpEnough,
+                label: digital.sharpEnough ? 'Original is sharp enough' : 'The original photo is small; take a closer, sharper one',
+              },
+            ]}
+            note="Cropped to your face from the middle of the photo. Check nothing was cut off; your face must be exactly as it is, so it isn’t edited."
           />
+          <PhotoCheckCard key={digital.file.name + digital.file.bytes.byteLength} file={digital.file} checks={['face', 'whiteBackground', 'noGlasses', 'sharp']} />
+        </>
+      )}
+
+      {original && (
+        <>
+          <Text style={styles.sectionTitle}>To print at a cyber</Text>
+          <Toggle
+            options={[
+              { value: 'kenya', label: '2 × 2 in (passport)' },
+              { value: 'visa', label: '35 × 45 mm' },
+            ]}
+            value={size}
+            onChange={changeSize}
+          />
+          {busy === 'sheet' && <Working text="Making the print sheet…" />}
+          {sheet && busy !== 'sheet' && (
+            <ResultCard
+              file={sheet}
+              title="Print sheet ready"
+              checks={[
+                { ok: true, label: 'A4 PDF, 1 page' },
+                { ok: true, label: `${spec.rows * spec.columns} photos at ${spec.label}` },
+              ]}
+              note="Ask the cyber to print at actual size (100%), not “fit to page”, on photo paper if they have it. Tap Print at any cyber to get a code for them."
+            />
+          )}
         </>
       )}
     </Screen>
@@ -124,41 +127,5 @@ export default function PassportPhotoScreen() {
 }
 
 const styles = StyleSheet.create({
-  intro: { fontSize: 14, color: Colors.textMuted, lineHeight: 20 },
-  error: { color: '#DC2626', fontSize: 14 },
-  fileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-  },
-  preview: { width: 96, height: 96, borderRadius: Radius.sm, backgroundColor: Colors.background },
-  fileText: { flex: 1, gap: 4 },
-  fileName: { fontSize: 15, fontWeight: '600', color: Colors.text },
-  fileMeta: { fontSize: 14, color: Colors.textMuted },
-  success: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: '#EAF7EF',
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-  },
-  successText: { flex: 1, fontSize: 13, color: Colors.text },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: Colors.text },
-  checks: {
-    backgroundColor: Colors.card,
-    borderRadius: Radius.lg,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    padding: Spacing.md,
-    gap: Spacing.md,
-  },
-  checkRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  checkText: { flex: 1, fontSize: 14, color: Colors.text },
-  actions: { flexDirection: 'row', gap: Spacing.md },
+  sectionTitle: { fontSize: 13, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: Spacing.sm },
 });

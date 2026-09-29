@@ -45,7 +45,9 @@ export type WorkRequest =
   | { op: 'pick_pages'; fileIds: string[]; pages: string }
   | { op: 'to_jpg'; fileIds: string[]; pages?: string }
   | { op: 'check_rule'; fileIds: string[]; ruleId: string }
-  | { op: 'scan'; fileIds: string[]; look: 'clean' | 'bw' | 'enhance' };
+  | { op: 'scan'; fileIds: string[]; look: 'clean' | 'bw' | 'enhance' }
+  // A passport photo (600 × 600, under 200 KB) and an A4 print sheet.
+  | { op: 'passport'; fileIds: string[]; printSize: 'kenya' | 'visa' };
 
 export type WorkOutcome = {
   status: 'done' | 'failed';

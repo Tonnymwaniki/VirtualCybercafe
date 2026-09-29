@@ -1,15 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { ResultCard, ResultList, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { fileById } from '@/lib/chat-files';
-import type { WorkOutcome } from '@/lib/chat-types';
+import type { WorkOutcome, WorkRequest } from '@/lib/chat-types';
 import { formatSize } from '@/lib/workbench/files';
 
 // The result of Workbench work asked for in the chat: each new file with
 // what was measured on it, and Download / Save to Locker.
-export function WorkCard({ outcome }: { outcome?: WorkOutcome }) {
+export function WorkCard({ outcome, request }: { outcome?: WorkOutcome; request?: WorkRequest }) {
   if (!outcome) {
     return (
       <View style={styles.card}>
@@ -53,6 +54,10 @@ export function WorkCard({ outcome }: { outcome?: WorkOutcome }) {
       {live.map((o, i) => (
         <ResultCard key={o.file.id} file={o.work!} checks={o.checks} note={i === live.length - 1 ? note : undefined} />
       ))}
+      {/* A passport photo also gets the AI check of the face and background, on tap. */}
+      {request?.op === 'passport' && live[0]?.work?.kind === 'image' && (
+        <PhotoCheckCard file={live[0].work} checks={['face', 'whiteBackground', 'noGlasses', 'sharp']} />
+      )}
     </View>
   );
 }

@@ -257,7 +257,7 @@ export function ChatCards({
               />
             );
           case 'work':
-            return <WorkCard key={action.id} outcome={action.outcome} />;
+            return <WorkCard key={action.id} outcome={action.outcome} request={action.request} />;
           case 'confirm':
             return (
               <ActionCard

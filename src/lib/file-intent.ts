@@ -45,6 +45,10 @@ export function fileIntent(text: string, files: FileMeta[]): WorkRequest | null 
   const kb = sizeLimitKB(text);
   const dims = dimensions(text);
 
+  if (images.length && /\bpassport\s*(?:photo|size|picture|pic)|\bpicha\s+ya\s+pasipoti\b|\bpassport\b.*\bpicha\b/i.test(text)) {
+    return { op: 'passport', fileIds: [images[images.length - 1].id], printSize: /\b35\s*[x×]\s*45|\bvisa\b/i.test(text) ? 'visa' : 'kenya' };
+  }
+
   const rule = /\b(for|check|ya|kwa)\b/i.test(text) ? ruleFor(text, files) : null;
   if (rule) return { op: 'check_rule', fileIds, ruleId: rule };
 
@@ -94,5 +98,9 @@ export function workIntro(request: WorkRequest, language: 'en' | 'sw') {
       return sw ? 'Ninakagua dhidi ya sheria ya kupakia:' : 'Checking it against the upload rule:';
     case 'scan':
       return sw ? 'Sawa, ninasafisha kama skana:' : 'Sure. Cleaning it up like a scanner:';
+    case 'passport':
+      return sw
+        ? 'Sawa. Hii ni picha yako ya pasipoti kwa fomu za mtandaoni, na karatasi ya picha za kuchapisha kwenye cyber:'
+        : 'Here’s your passport photo for online forms, and a sheet of print photos for any cyber:';
   }
 }

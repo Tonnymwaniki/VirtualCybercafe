@@ -52,7 +52,7 @@ Government services, education, business, travel, the Print Hub partner shops an
 // Files sent in the chat, and how the attendant works on them.
 const FILES_PROMPT = `Files: the user can send PDFs and photos in the chat with the + button. The files in this chat are listed under "Files in this chat" with their ids, newest last; files the phone made for them are listed too.
 - To change a file, call work_on_files. The phone does the work itself and shows a result card under your reply with the measured size, pixels and pages, plus Download and Save to Locker. Never state a final size or say it passed; the card shows the real numbers. Say in one line what you asked for.
-- Ops: shrink (max_kb) makes a PDF or photo smaller than a limit; resize (width, height, exact) sets a photo's pixels, optionally with max_kb; to_pdf puts photos and PDFs, in the order given, into one PDF, optionally under max_kb; pick_pages (pages like "1-3,5") keeps pages of one PDF; to_jpg turns PDF pages into JPG pictures (pages optional); check_rule (rule_id) checks the file against an upload rule and fixes what it can; scan (look: clean, bw or enhance) cleans a photo of a paper like a scanner.
+- Ops: shrink (max_kb) makes a PDF or photo smaller than a limit; resize (width, height, exact) sets a photo's pixels, optionally with max_kb; to_pdf puts photos and PDFs, in the order given, into one PDF, optionally under max_kb; pick_pages (pages like "1-3,5") keeps pages of one PDF; to_jpg turns PDF pages into JPG pictures (pages optional); check_rule (rule_id) checks the file against an upload rule and fixes what it can; scan (look: clean, bw or enhance) cleans a photo of a paper like a scanner; passport (print_size) turns a photo of a face into a 600 x 600 passport photo under 200 KB plus an A4 sheet of print photos (2 x 2 in for a Kenyan passport, 35 x 45 mm for visas), with an on-tap AI check. The face is only cropped, never edited; never offer to change a face, background or clothes.
 - When the user names a site with a rule below, use check_rule with that rule. Otherwise use their numbers. If they don't say a limit and the site isn't listed, ask for the limit shown on the upload page; never invent one.
 - Use the newest file unless they say otherwise. At most two file jobs per reply.
 - Every result card also has Use in application and Print at any cyber. When they want a file printed, point them to that button, or open print_qr for other files.
@@ -317,7 +317,7 @@ const allTools: Anthropic.Beta.BetaToolUnion[] = [
     input_schema: {
       type: 'object',
       properties: {
-        op: { type: 'string', enum: ['shrink', 'resize', 'to_pdf', 'pick_pages', 'to_jpg', 'check_rule', 'scan'] },
+        op: { type: 'string', enum: ['shrink', 'resize', 'to_pdf', 'pick_pages', 'to_jpg', 'check_rule', 'scan', 'passport'] },
         file_ids: { type: 'array', items: { type: 'string' }, description: 'Ids from "Files in this chat", in order.' },
         max_kb: { type: 'integer', description: 'Size limit in KB (1 MB = 1024).' },
         width: { type: 'integer' },
@@ -326,6 +326,7 @@ const allTools: Anthropic.Beta.BetaToolUnion[] = [
         pages: { type: 'string', description: 'Pages like "1-3,5".' },
         rule_id: { type: 'string', enum: presets.map((p) => p.id) },
         look: { type: 'string', enum: ['clean', 'bw', 'enhance'] },
+        print_size: { type: 'string', enum: ['kenya', 'visa'], description: 'passport: kenya = 2 x 2 in (Kenyan passport), visa = 35 x 45 mm.' },
       },
       required: ['op', 'file_ids'],
       additionalProperties: false,
@@ -392,6 +393,9 @@ function workRequest(input: Record<string, unknown>, files: FileMeta[]): WorkReq
       const rule = presets.find((p) => p.id === input.rule_id);
       return rule ? { op: 'check_rule', fileIds, ruleId: rule.id } : 'Give rule_id from the upload rules list.';
     }
+    case 'passport':
+      if (chosen[0].kind !== 'image') return 'passport needs a photo of the face.';
+      return { op: 'passport', fileIds: [fileIds[0]], printSize: input.print_size === 'visa' ? 'visa' : 'kenya' };
     case 'scan':
       if (chosen.some((f) => f.kind !== 'image')) return 'scan works on photos only.';
       return { op: 'scan', fileIds, look: input.look === 'bw' || input.look === 'enhance' ? input.look : 'clean' };

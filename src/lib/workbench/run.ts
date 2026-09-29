@@ -10,6 +10,7 @@ import type { WorkOutcome, WorkRequest } from '@/lib/chat-types';
 import { renamed, type WorkFile } from '@/lib/workbench/files';
 import { editImage, shrinkImage } from '@/lib/workbench/image';
 import { joinFiles, keepPages, pageCount, parsePages, WorkbenchError } from '@/lib/workbench/pdf';
+import { digitalPassport, PASSPORT_MAX_BYTES, PASSPORT_SIDE, passportSheet, printSizes } from '@/lib/workbench/passport';
 import { shrinkPdf } from '@/lib/workbench/shrink-pdf';
 import { checkAgainst, fixToRule } from '@/lib/workbench/validate';
 
@@ -104,6 +105,23 @@ async function run(request: WorkRequest, engine: Engine): Promise<{ outputs: Out
         outputs.push({ file: fixed.file, checks: await checkAgainst(fixed.file, preset) });
       }
       if (preset.source) notes.push(`Rule from ${preset.source.label}.`);
+      break;
+    }
+    case 'passport': {
+      const [file] = files;
+      if (file.kind !== 'image') throw new WorkbenchError('A passport photo needs a photo of your face, not a PDF.');
+      const digital = await digitalPassport(file);
+      outputs.push({
+        file: digital.file,
+        checks: [
+          ...checksFor(digital.file, { maxBytes: PASSPORT_MAX_BYTES, width: PASSPORT_SIDE, height: PASSPORT_SIDE }),
+          ...(digital.sharpEnough ? [] : [{ ok: false, label: 'The original photo is small; take a closer, sharper one' }]),
+        ],
+      });
+      const spec = printSizes[request.printSize];
+      const sheet = await passportSheet(file, request.printSize);
+      outputs.push({ file: sheet, checks: [{ ok: true, label: 'A4 PDF, 1 page' }, { ok: true, label: `${spec.rows * spec.columns} photos at ${spec.label}` }] });
+      notes.push('The photo is only cropped and resized, never edited. Check nothing was cut off. Print the sheet at actual size (100%), not “fit to page”.');
       break;
     }
     case 'scan': {
