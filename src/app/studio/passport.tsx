@@ -83,6 +83,7 @@ export default function PassportPhotoScreen() {
           <Text style={styles.sectionTitle}>For online forms</Text>
           <ResultCard
             file={digital.file}
+            before={original ?? undefined}
             title="Passport photo ready"
             checks={[
               ...checksFor(digital.file, { maxBytes: PASSPORT_MAX_BYTES, width: PASSPORT_SIDE, height: PASSPORT_SIDE }),

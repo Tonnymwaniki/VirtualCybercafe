@@ -198,7 +198,18 @@ function PrintByCode({ file }: { file: WorkFile }) {
 }
 
 // The finished file: what was measured, and what to do with it.
-export function ResultCard({ file, checks, note, title = 'Ready' }: { file: WorkFile; checks: Check[]; note?: string; title?: string }) {
+type Retry = { smaller?: () => void; clearer?: () => void };
+
+export function ResultCard({ file, checks, note, title = 'Ready', before, retry }: {
+  file: WorkFile;
+  checks: Check[];
+  note?: string;
+  title?: string;
+  // The file it was made from, shown beside the result so the change is clear.
+  before?: WorkFile;
+  // "Try smaller" / "Try clearer" when the result isn't what the person wanted.
+  retry?: Retry;
+}) {
   const allOk = checks.every((c) => c.ok);
   return (
     <View style={[styles.result, !allOk && styles.resultWarn]}>
@@ -219,12 +230,63 @@ export function ResultCard({ file, checks, note, title = 'Ready' }: { file: Work
           </View>
         ))}
       </View>
+      {before && <BeforeAfter before={before} after={file} />}
       {note && <Text style={styles.note}>{note}</Text>}
+      {retry && (retry.smaller || retry.clearer) && (
+        <View style={styles.retryRow}>
+          {retry.smaller && (
+            <Pressable onPress={retry.smaller} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="contract-outline" size={15} color={Colors.primary} />
+              <Text style={styles.retryText}>Try smaller</Text>
+            </Pressable>
+          )}
+          {retry.clearer && (
+            <Pressable onPress={retry.clearer} style={({ pressed }) => [styles.retry, pressed && { opacity: 0.6 }]}>
+              <Ionicons name="sparkles-outline" size={15} color={Colors.primary} />
+              <Text style={styles.retryText}>Try clearer</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
       <SaveButtons file={file} />
       <View style={styles.more}>
         <UseInApplication file={file} />
         <PrintByCode file={file} />
       </View>
+    </View>
+  );
+}
+
+function describe(file: WorkFile) {
+  const parts = [formatSize(size(file))];
+  if (file.kind === 'image' && file.width) parts.push(`${file.width} × ${file.height}`);
+  if (file.kind === 'pdf' && file.pages != null) parts.push(`${file.pages} page${file.pages === 1 ? '' : 's'}`);
+  return parts.join(' · ');
+}
+
+// "7.4 MB → 798 KB, 89% smaller" with both pictures side by side.
+export function BeforeAfter({ before, after }: { before: WorkFile; after: WorkFile }) {
+  const from = size(before);
+  const to = size(after);
+  const change = from > 0 ? Math.round(((from - to) / from) * 100) : 0;
+  return (
+    <View style={styles.compare}>
+      <View style={styles.compareSide}>
+        <Thumb file={before} size={96} />
+        <Text style={styles.compareLabel}>Before</Text>
+        <Text style={styles.compareMeta}>{describe(before)}</Text>
+      </View>
+      <Ionicons name="arrow-forward" size={20} color={Colors.textMuted} />
+      <View style={styles.compareSide}>
+        <Thumb file={after} size={96} />
+        <Text style={styles.compareLabel}>After</Text>
+        <Text style={styles.compareMeta}>{describe(after)}</Text>
+      </View>
+      {change !== 0 && (
+        <Text style={[styles.compareChange, change < 0 && { color: Colors.textMuted }]}>
+          {change > 0 ? `${change}% smaller` : `${-change}% bigger`}
+        </Text>
+      )}
     </View>
   );
 }
@@ -300,6 +362,32 @@ export const workbenchStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
+  compare: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.background,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+  },
+  compareSide: { alignItems: 'center', gap: 2 },
+  compareLabel: { fontSize: 12, fontWeight: '700', color: Colors.textMuted, textTransform: 'uppercase', marginTop: 4 },
+  compareMeta: { fontSize: 12, color: Colors.text },
+  compareChange: { width: '100%', textAlign: 'center', fontSize: 14, fontWeight: '700', color: Colors.success },
+  retryRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  retry: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+  },
+  retryText: { fontSize: 13, fontWeight: '600', color: Colors.primary },
   thumb: { borderRadius: Radius.sm, backgroundColor: Colors.background },
   pdfThumb: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: Colors.border },
   pdfLabel: { fontSize: 9, fontWeight: '800', color: '#DC2626' },

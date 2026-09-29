@@ -49,10 +49,18 @@ export function WorkCard({ outcome, request }: { outcome?: WorkOutcome; request?
       </View>
     );
   }
+  // One file in, one file out: show them side by side.
+  const oneToOne = request && request.fileIds.length === live.length && ['shrink', 'resize', 'passport', 'check_rule', 'scan'].includes(request.op);
   return (
     <View style={styles.stack}>
       {live.map((o, i) => (
-        <ResultCard key={o.file.id} file={o.work!} checks={o.checks} note={i === live.length - 1 ? note : undefined} />
+        <ResultCard
+          key={o.file.id}
+          file={o.work!}
+          before={oneToOne ? fileById(request.fileIds[i]) : undefined}
+          checks={o.checks}
+          note={i === live.length - 1 ? note : undefined}
+        />
       ))}
       {/* A passport photo also gets the AI check of the face and background, on tap. */}
       {request?.op === 'passport' && live[0]?.work?.kind === 'image' && (

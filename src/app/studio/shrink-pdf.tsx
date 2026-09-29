@@ -6,7 +6,7 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
 import { checksFor, FileRow, Problem, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
-import { formatSize, pickFiles, type WorkFile } from '@/lib/workbench/files';
+import { pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { pageCount, WorkbenchError } from '@/lib/workbench/pdf';
 import { shrinkPdf, type PdfShrinkResult } from '@/lib/workbench/shrink-pdf';
 
@@ -17,6 +17,7 @@ export default function ShrinkPdfScreen() {
   const [result, setResult] = useState<PdfShrinkResult | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
+  const [targetKb, setTargetKb] = useState(1024);
 
   const choose = async () => {
     setProblem(null);
@@ -31,13 +32,14 @@ export default function ShrinkPdfScreen() {
     }
   };
 
-  const shrink = async () => {
+  const shrink = async (kb = limitKb) => {
     if (!original) return;
+    setTargetKb(kb);
     setProblem(null);
     setResult(null);
     setProgress('Starting…');
     try {
-      setResult(await shrinkPdf(original, limitKb * 1024, engine, setProgress));
+      setResult(await shrinkPdf(original, kb * 1024, engine, setProgress));
     } catch (error) {
       setProblem(error instanceof Error ? error.message : 'That PDF couldn’t be shrunk.');
     } finally {
@@ -59,7 +61,7 @@ export default function ShrinkPdfScreen() {
       {already && <Text style={ui.intro}>This PDF is already under {sizeLabel(limitKb)}. You can upload it as it is.</Text>}
       {original && !already && (
         <View style={ui.row}>
-          <Button label={`Shrink under ${sizeLabel(limitKb)}`} icon="contract" onPress={shrink} busy={!!progress} />
+          <Button label={`Shrink under ${sizeLabel(limitKb)}`} icon="contract" onPress={() => shrink()} busy={!!progress} />
         </View>
       )}
       {progress && <Working text={progress} />}
@@ -67,9 +69,13 @@ export default function ShrinkPdfScreen() {
       {result && original && (
         <ResultCard
           file={result.file}
+          before={original}
+          retry={{
+            smaller: result.reached ? () => shrink(Math.max(50, Math.round((result.file.bytes.byteLength / 1024) * 0.7))) : undefined,
+            clearer: targetKb < limitKb ? () => shrink(limitKb) : undefined,
+          }}
           checks={checksFor(result.file, { maxBytes: limitKb * 1024 })}
           note={[
-            `Was ${formatSize(original.bytes.byteLength)}.`,
             result.asPictures ? 'Pages are now pictures, so text can’t be selected or searched. Check that it is still easy to read.' : 'Text and quality are unchanged.',
             result.reached ? '' : `This is the smallest it can go while staying readable. Try a limit above ${sizeLabel(limitKb)}, or split it into parts.`,
           ].filter(Boolean).join(' ')}

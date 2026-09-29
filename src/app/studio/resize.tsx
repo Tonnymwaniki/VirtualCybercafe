@@ -123,6 +123,7 @@ export default function ResizeScreen() {
       {result && (
         <ResultCard
           file={result}
+          before={original ?? undefined}
           checks={checksFor(result, { maxBytes: format === 'jpg' ? limit : undefined, ...(mode === 'exact' ? { width: w, height: h } : {}) })}
           note={mode === 'fit' ? 'The whole photo is kept, so one side may be shorter than you typed.' : undefined}
         />

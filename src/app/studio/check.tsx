@@ -151,7 +151,7 @@ export default function CheckScreen() {
       )}
       {busy && <Working text={busy} />}
       {problem && <Problem text={problem} />}
-      {fixed && <ResultCard file={fixed.file} checks={fixed.checks} note={fixed.notes.join(' ') || undefined} title="Meets the rule" />}
+      {fixed && <ResultCard file={fixed.file} before={file ?? undefined} checks={fixed.checks} note={fixed.notes.join(' ') || undefined} title="Meets the rule" />}
       {preset.photo && (fixed?.file ?? file)?.kind === 'image' && <PhotoCheckCard key={(fixed?.file ?? file)!.name} file={(fixed?.file ?? file)!} checks={preset.photo} />}
     </Screen>
   );

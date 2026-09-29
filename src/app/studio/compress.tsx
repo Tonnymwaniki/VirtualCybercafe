@@ -6,19 +6,22 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { checksFor, FileRow, Problem, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { pickImages } from '@/lib/images';
-import { formatSize, type WorkFile } from '@/lib/workbench/files';
+import { type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked, shrinkImage, type ShrinkResult } from '@/lib/workbench/image';
 
 export default function ShrinkPhotoScreen() {
   const [limitKb, setLimitKb] = useState(200);
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [result, setResult] = useState<ShrinkResult | null>(null);
+  // What the last shrink aimed for: the limit, or less after "Try smaller".
+  const [targetKb, setTargetKb] = useState(200);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const run = useRef(0);
 
   const shrink = async (file: WorkFile, kb: number) => {
     const mine = ++run.current;
+    setTargetKb(kb);
     setBusy(true);
     setProblem(null);
     setResult(null);
@@ -57,10 +60,15 @@ export default function ShrinkPhotoScreen() {
       {result && original && (
         <ResultCard
           file={result.file}
+          before={original}
+          retry={{
+            smaller: result.reached ? () => shrink(original, Math.max(20, Math.round((result.file.bytes.byteLength / 1024) * 0.7))) : undefined,
+            clearer: targetKb < limitKb ? () => shrink(original, limitKb) : undefined,
+          }}
           checks={checksFor(result.file, { maxBytes: limitKb * 1024 })}
           note={
             result.reached
-              ? `Was ${formatSize(original.bytes.byteLength)}.`
+              ? undefined
               : `This is the smallest it can go while staying readable. Try a limit above ${sizeLabel(limitKb)}, or crop the photo first.`
           }
         />
