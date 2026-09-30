@@ -106,7 +106,7 @@ const reportVisaTool: Anthropic.Beta.BetaTool = {
 
 export async function checkVisa(destination: string, purpose: TripPurpose): Promise<VisaCheck | null> {
   const key = `${destination.toLowerCase()}|${purpose}`;
-  const cached = visaCache.get(key);
+  const cached = await visaCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -123,7 +123,7 @@ export async function checkVisa(destination: string, purpose: TripPurpose): Prom
     checkedAt: new Date().toISOString(),
     mode: 'ai',
   };
-  visaCache.set(key, { value, expires: Date.now() + VISA_CACHE_MS });
+  await visaCache.set(key, { value, expires: Date.now() + VISA_CACHE_MS });
   return value;
 }
 
@@ -212,7 +212,7 @@ const reportAgencyTool: Anthropic.Beta.BetaTool = {
 
 export async function checkAgency(name: string): Promise<AgencyCheck | null> {
   const key = name.toLowerCase();
-  const cached = agencyCache.get(key);
+  const cached = await agencyCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const input = await searchAndReport<Omit<AgencyCheck, 'mode'>>({
@@ -223,6 +223,6 @@ export async function checkAgency(name: string): Promise<AgencyCheck | null> {
   });
   if (!input) return null;
   const value: AgencyCheck = { ...input, sources: httpsSources(input.sources), mode: 'ai' };
-  agencyCache.set(key, { value, expires: Date.now() + 24 * 60 * 60 * 1000 });
+  await agencyCache.set(key, { value, expires: Date.now() + 24 * 60 * 60 * 1000 });
   return value;
 }

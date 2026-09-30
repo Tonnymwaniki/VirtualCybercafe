@@ -1,14 +1,41 @@
 // Makes a PDF smaller on the phone. First a lossless re-save (text stays
 // text). If that isn't enough, each page is redrawn as a picture at the
-// highest quality that fits, which is how scanned PDFs get small. A server
-// with Ghostscript will do text PDFs better later.
+// highest quality that fits, which is how scanned PDFs get small. Before
+// that, when the app is online, the Ghostscript server (servers/pdf-shrink)
+// gets a try: it shrinks the pictures inside a PDF but keeps text as text.
+// The server deletes the file as soon as it answers.
 
 import type { useEngine } from '@/components/workbench/engine';
-import { renamed, type WorkFile } from '@/lib/workbench/files';
+import { apiFetch } from '@/lib/api';
+import { fromBase64, renamed, toBase64, type WorkFile } from '@/lib/workbench/files';
 import { pageCount, picturesToPdf, resavePdf } from '@/lib/workbench/pdf';
 import { track } from '@/lib/stats';
 
 export type PdfShrinkResult = { file: WorkFile; reached: boolean; asPictures: boolean };
+
+const SERVER_MAX_BYTES = 20 * 1024 * 1024;
+
+// The server's smaller copy, or null when it isn't set up, can't be reached
+// or didn't help.
+async function serverShrink(file: WorkFile, maxBytes: number, name: string): Promise<WorkFile | null> {
+  if (file.bytes.byteLength > SERVER_MAX_BYTES) return null;
+  try {
+    const response = await apiFetch('/api/pdf-shrink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdf: toBase64(file.bytes), target: maxBytes }),
+    });
+    if (!response.ok) return null;
+    const body = (await response.json()) as { pdf?: string };
+    if (!body.pdf) return null;
+    const bytes = fromBase64(body.pdf);
+    if (bytes.byteLength >= file.bytes.byteLength) return null;
+    track('workbench.shrink_pdf_server');
+    return { name, kind: 'pdf', mimeType: 'application/pdf', bytes, pages: file.pages };
+  } catch {
+    return null;
+  }
+}
 
 // From sharpest to smallest. The last one is still readable on a phone.
 const LEVELS = [
@@ -30,6 +57,10 @@ export async function shrinkPdf(
   const resaved = await resavePdf(file);
   if (resaved.bytes.byteLength <= maxBytes) return { file: resaved, reached: true, asPictures: false };
 
+  onProgress?.('Shrinking on the PDF server…');
+  const served = await serverShrink(resaved, maxBytes, name);
+  if (served && served.bytes.byteLength <= maxBytes) return { file: served, reached: true, asPictures: false };
+
   const total = await pageCount(file);
   let smallest: WorkFile | null = null;
   // Guess where to start from how far over the limit the file is.
@@ -45,6 +76,7 @@ export async function shrinkPdf(
     if (!smallest || rebuilt.bytes.byteLength < smallest.bytes.byteLength) smallest = rebuilt;
     if (rebuilt.bytes.byteLength <= maxBytes) return { file: rebuilt, reached: true, asPictures: true };
   }
-  const best = smallest && smallest.bytes.byteLength < resaved.bytes.byteLength ? smallest : resaved;
+  const candidates = [resaved, served, smallest].filter((f): f is WorkFile => !!f);
+  const best = candidates.reduce((a, b) => (b.bytes.byteLength < a.bytes.byteLength ? b : a));
   return { file: best, reached: false, asPictures: best === smallest };
 }

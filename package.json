@@ -47,7 +47,8 @@
     "web": "expo start --web",
     "check-keys": "node --env-file-if-exists=.env scripts/check-keys.mjs",
     "test": "jest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "expo export --platform web --clear && npx eas-cli@latest deploy --prod --environment production"
   },
   "private": true,
   "jest": {

@@ -1,6 +1,7 @@
 // Usage log and daily limits for the AI features.
-// - Each Claude reply is logged to .cache/usage.jsonl with its feature, tokens,
-//   web searches and an estimated cost. /api/usage sums it up.
+// - Each Claude reply is logged with its feature, tokens, web searches and an
+//   estimated cost. /api/usage sums it up. Hosted, the log and the day's
+//   counts live in Supabase (store.ts); on the PC in .cache/.
 // - Each device, and each signed-in account, gets AI_DAILY_LIMIT AI requests a
 //   day (default 40), and the whole app stops calling the AI for the day after
 //   AI_DAILY_BUDGET_USD (default 1) is spent. Answers from the cache don't count.
@@ -11,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { callerId, signInRequired } from '@/server/caller';
+import { remoteStore } from '@/server/store';
 
 type UsageNumbers = {
   input_tokens?: number | null;
@@ -32,7 +34,7 @@ export type UsageLine = {
   cost: number;
 };
 
-type Context = { feature: string; calls: number };
+type Context = { feature: string; calls: number; lines: UsageLine[] };
 type Today = { day: string; cost: number; devices: Record<string, number> };
 
 const DIR = path.join(process.cwd(), '.cache');
@@ -90,7 +92,7 @@ export function currentFeature(): string | undefined {
   return storage.getStore()?.feature;
 }
 
-export function recordUsage(model: string, usage: UsageNumbers) {
+export async function recordUsage(model: string, usage: UsageNumbers) {
   const context = storage.getStore();
   if (context) context.calls += 1;
   const counts = {
@@ -107,6 +109,14 @@ export function recordUsage(model: string, usage: UsageNumbers) {
     ...counts,
     cost: estimateCost(model, counts),
   };
+  const remote = remoteStore();
+  if (remote) {
+    // Sent with the request's count in withUsage; on its own when the reply
+    // came outside a tracked request.
+    if (context) context.lines.push(line);
+    else await remote.call('ai_finish', { p_who: [], p_lines: [line] }).catch((error) => console.warn('Usage not logged:', error));
+    return;
+  }
   const state = today();
   state.cost += line.cost;
   saveToday(state);
@@ -116,6 +126,25 @@ export function recordUsage(model: string, usage: UsageNumbers) {
   } catch {
     // No disk: the daily total above still works.
   }
+}
+
+// Whether the request context follows awaits on this server. If it doesn't,
+// every AI request is counted, whether or not it reached Claude.
+let contextCheck: Promise<boolean> | null = null;
+let warnedNoStore = false;
+function contextWorks() {
+  contextCheck ??= (async () => {
+    const probe: Context = { feature: 'probe', calls: 0, lines: [] };
+    try {
+      return await storage.run(probe, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        return storage.getStore() === probe;
+      });
+    } catch {
+      return false;
+    }
+  })();
+  return contextCheck;
 }
 
 function numberFromEnv(name: string, fallback: number) {
@@ -142,18 +171,34 @@ export async function withUsage(request: Request, feature: string, run: () => Pr
   if (!userId && signInRequired()) {
     return Response.json({ error: limitMessages.signIn, signIn: true }, { status: 401 });
   }
-  const state = today();
   const device = deviceOf(request);
   // Counted per phone and per account, so a new phone id doesn't reset an
   // account and one account can't be shared across many phones for free.
   const keys = userId ? [device, `user:${userId}`] : [device];
-  if (state.cost >= numberFromEnv('AI_DAILY_BUDGET_USD', 1)) {
-    return Response.json({ error: limitMessages.budget, limited: true }, { status: 429 });
-  }
+  const budget = numberFromEnv('AI_DAILY_BUDGET_USD', 1);
   const limit = numberFromEnv('AI_DAILY_LIMIT', 40);
-  if (keys.some((key) => (state.devices[key] ?? 0) >= limit)) {
-    return Response.json({ error: limitMessages.device, limited: true }, { status: 429 });
+  const remote = remoteStore();
+  if (!remote && process.env.NODE_ENV === 'production' && !warnedNoStore) {
+    warnedNoStore = true;
+    console.warn('AI_SERVER_KEY is not set: AI limits and the cost log only last until the server restarts.');
   }
+  let verdict: string = 'ok';
+  if (remote) {
+    // If Supabase can't be reached, the AI still answers; the Anthropic
+    // Console's spend limit is the backstop.
+    verdict = await remote
+      .call<string>('ai_allow', { p_who: keys, p_limit: limit, p_budget: budget })
+      .catch((error) => {
+        console.warn('AI limits not checked:', error);
+        return 'ok';
+      });
+  } else {
+    const state = today();
+    if (state.cost >= budget) verdict = 'budget';
+    else if (keys.some((key) => (state.devices[key] ?? 0) >= limit)) verdict = 'device';
+  }
+  if (verdict === 'budget') return Response.json({ error: limitMessages.budget, limited: true }, { status: 429 });
+  if (verdict === 'device') return Response.json({ error: limitMessages.device, limited: true }, { status: 429 });
   // Name the feature after the route and its action, e.g. travel.visa.
   let action = '';
   try {
@@ -162,9 +207,17 @@ export async function withUsage(request: Request, feature: string, run: () => Pr
   } catch {
     // No JSON body.
   }
-  const context: Context = { feature: action ? `${feature}.${action}` : feature, calls: 0 };
+  const context: Context = { feature: action ? `${feature}.${action}` : feature, calls: 0, lines: [] };
+  const tracked = await contextWorks();
   const response = await storage.run(context, run);
-  if (context.calls > 0) {
+  const used = context.calls > 0 || !tracked;
+  if (remote) {
+    if (used || context.lines.length) {
+      await remote
+        .call('ai_finish', { p_who: used ? keys : [], p_lines: context.lines })
+        .catch((error) => console.warn('AI use not counted:', error));
+    }
+  } else if (used) {
     const current = today();
     for (const key of keys) current.devices[key] = (current.devices[key] ?? 0) + 1;
     saveToday(current);
@@ -173,7 +226,30 @@ export async function withUsage(request: Request, feature: string, run: () => Pr
 }
 
 // Totals per feature for the last `days` days, from the log.
-export function usageSummary(days: number) {
+export async function usageSummary(days: number) {
+  const remote = remoteStore();
+  if (remote) {
+    const totals = await remote.call<{
+      totalCostUsd: number;
+      features: Record<string, unknown>;
+      todayCostUsd: number;
+      devices: number;
+      accounts: number;
+    }>('ai_summary', { p_days: days });
+    return {
+      days,
+      totalCostUsd: Number(totals.totalCostUsd),
+      features: totals.features,
+      today: {
+        costUsd: Number(totals.todayCostUsd),
+        budgetUsd: numberFromEnv('AI_DAILY_BUDGET_USD', 1),
+        devices: totals.devices,
+        accounts: totals.accounts,
+        perDeviceLimit: numberFromEnv('AI_DAILY_LIMIT', 40),
+      },
+      note: 'Costs are estimates from token counts. Your Anthropic Console shows the real bill.',
+    };
+  }
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
   let lines: UsageLine[] = [];
   try {

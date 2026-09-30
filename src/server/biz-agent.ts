@@ -151,7 +151,7 @@ const reportTendersTool: Anthropic.Beta.BetaTool = {
 
 export async function findTenders(query: string, county: string, agpoCategory: string): Promise<TenderSearch> {
   const key = `${query.toLowerCase()}|${county.toLowerCase()}|${agpoCategory.toLowerCase()}`;
-  const cached = tenderCache.get(key);
+  const cached = await tenderCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const client = claude();
@@ -194,7 +194,7 @@ export async function findTenders(query: string, county: string, agpoCategory: s
         note: input.note,
         mode: 'ai',
       };
-      tenderCache.set(key, { value, expires: Date.now() + TENDER_CACHE_MS });
+      await tenderCache.set(key, { value, expires: Date.now() + TENDER_CACHE_MS });
       return value;
     }
     if (response.stop_reason === 'refusal') break;

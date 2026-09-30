@@ -11,7 +11,7 @@ export const v1En = {
 
   // Workbench: shared pieces
   'wb.title': 'Document Workbench',
-  'wb.intro': 'Get any document ready for an online form. Everything happens on your phone; nothing is uploaded unless you save it to your Locker.',
+  'wb.intro': 'Get any document ready for an online form. Everything happens on your phone and nothing is kept unless you save it to your Locker. Only Shrink a PDF may send the file to our PDF server, which deletes it as soon as it answers.',
   'wb.remove': 'Remove {name}',
   'wb.onePage': '1 page',
   'wb.pages': '{n} pages',
@@ -102,7 +102,7 @@ export const v1En = {
   'wb.merge.failed': 'The files couldn’t be joined. Try again.',
 
   // Shrink a PDF
-  'wb.shrinkPdf.intro': 'Make a PDF small enough for an upload limit. Works best on scanned documents and photos of pages.',
+  'wb.shrinkPdf.intro': 'Make a PDF small enough for an upload limit. When you’re online, our PDF server shrinks it first and keeps the text sharp; the server deletes the file straight away.',
   'wb.shrinkPdf.already': 'This PDF is already under {limit}. You can upload it as it is.',
   'wb.shrinkPdf.button': 'Shrink under {limit}',
   'wb.shrinkPdf.failed': 'That PDF couldn’t be shrunk.',
@@ -408,7 +408,7 @@ export const v1Sw: Record<keyof typeof v1En, string> = {
 
   // Workbench: shared pieces
   'wb.title': 'Workbench ya nyaraka',
-  'wb.intro': 'Andaa hati yoyote kwa fomu ya mtandaoni. Kila kitu kinafanyika kwenye simu yako; hakuna kinachopakiwa mpaka uhifadhi kwenye Locker yako.',
+  'wb.intro': 'Andaa hati yoyote kwa fomu ya mtandaoni. Kila kitu kinafanyika kwenye simu yako na hakuna kinachohifadhiwa mpaka uhifadhi kwenye Locker yako. Ni Punguza PDF pekee inayoweza kutuma faili kwa seva yetu ya PDF, ambayo huifuta mara tu inapojibu.',
   'wb.remove': 'Ondoa {name}',
   'wb.onePage': 'ukurasa 1',
   'wb.pages': 'kurasa {n}',
@@ -499,7 +499,7 @@ export const v1Sw: Record<keyof typeof v1En, string> = {
   'wb.merge.failed': 'Faili hazikuunganika. Jaribu tena.',
 
   // Shrink a PDF
-  'wb.shrinkPdf.intro': 'Fanya PDF iwe ndogo ya kutosha kwa kikomo cha kupakia. Inafaa zaidi kwa hati zilizoskaniwa na picha za kurasa.',
+  'wb.shrinkPdf.intro': 'Fanya PDF iwe ndogo ya kutosha kwa kikomo cha kupakia. Ukiwa mtandaoni, seva yetu ya PDF huipunguza kwanza na kuweka maandishi wazi; seva huifuta faili mara moja.',
   'wb.shrinkPdf.already': 'PDF hii tayari iko chini ya {limit}. Unaweza kuipakia ilivyo.',
   'wb.shrinkPdf.button': 'Punguza chini ya {limit}',
   'wb.shrinkPdf.failed': 'PDF hiyo haikupungua.',

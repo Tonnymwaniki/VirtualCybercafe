@@ -188,6 +188,21 @@ Real SMS codes go through Africa's Talking using Supabase's Send SMS hook (`supa
    ```
    Optionally add `AT_SENDER_ID` once Africa's Talking approves a sender name.
 
+### Putting the app online (EAS Hosting)
+
+The web app and its API routes run on EAS Hosting. The hosted server can't keep files, so the AI limits, cost log and search cache live in Supabase (`0007_ai_server.sql`), reached with the anon key plus a server key only the server knows.
+
+1. Run `supabase/migrations/0007_ai_server.sql`, then `select public.ai_new_server_key();` and keep the key it shows.
+2. On expo.dev, add these **production** environment variables: `ANTHROPIC_API_KEY`, `AI_SERVER_KEY`, `USAGE_KEY`, `PDF_SERVER_URL`, `PDF_SERVER_KEY` (sensitive), and `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY` (plain text).
+3. Put `EXPO_PUBLIC_SITE_URL=https://<name>.expo.app` in `.env` so print QR codes point to the hosted app.
+4. `npx eas-cli@latest login`, then `npm run deploy` (exports the web app and runs `eas deploy --prod --environment production`).
+
+Native builds (step 8) also need the address as the expo-router `origin` in `app.json`.
+
+### PDF shrinking server
+
+`servers/pdf-shrink` is a tiny Python + Ghostscript service. `POST /shrink` with the PDF and header `X-Key` returns a smaller PDF with text kept as text; files exist only while the request runs. The app calls it through `/api/pdf-shrink` (so its key stays on the server) before falling back to redrawing pages on the phone. Deploy on Fly.io from that folder: `fly launch --copy-config --no-deploy`, `fly secrets set PDF_SERVER_KEY=...`, `fly deploy`. It stops when idle.
+
 ### Locker limit and hourly clean-up
 
 - **Locker limit:** run `supabase/migrations/0005_locker_quota.sql` in the SQL Editor. Each person gets 200 MB; the Locker shows how much is used, warns from 80%, and uploads past the limit are refused with a friendly message.

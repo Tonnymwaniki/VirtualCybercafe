@@ -71,7 +71,7 @@ export function baselineRequirements(task: GovTask): RequirementsCheck {
 }
 
 export async function checkRequirements(task: GovTask, refresh = false): Promise<RequirementsCheck> {
-  const cached = cache.get(task.id);
+  const cached = await cache.get(task.id);
   if (!refresh && cached && cached.expires > Date.now()) return cached.value;
 
   const client = claude();
@@ -124,7 +124,7 @@ Where the official source doesn't say, keep what we already know. Do not include
         checkedAt: new Date().toISOString(),
         mode: 'ai',
       };
-      cache.set(task.id, { value, expires: Date.now() + CACHE_MS });
+      await cache.set(task.id, { value, expires: Date.now() + CACHE_MS });
       return value;
     }
 

@@ -52,7 +52,7 @@ const reportTool: Anthropic.Beta.BetaTool = {
 
 export async function suggestCourses(query: CourseQuery): Promise<CourseSearch> {
   const key = JSON.stringify(query).toLowerCase();
-  const cached = cache.get(key);
+  const cached = await cache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const client = claude();
@@ -93,7 +93,7 @@ Mark fit "likely" only when the student's grades clearly meet every stated requi
         note: input.note,
         mode: 'ai',
       };
-      cache.set(key, { value, expires: Date.now() + CACHE_MS });
+      await cache.set(key, { value, expires: Date.now() + CACHE_MS });
       return value;
     }
     if (response.stop_reason === 'refusal') break;
@@ -221,7 +221,7 @@ const demandTool: Anthropic.Beta.BetaTool = {
 
 export async function courseDemand(programmes: string[], meanGrade: string): Promise<DemandReport> {
   const key = `${programmes.join('|').toLowerCase()}#${meanGrade}`;
-  const cached = demandCache.get(key);
+  const cached = await demandCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const client = claude();
@@ -259,7 +259,7 @@ Search the trusted job sites and official statistics only. Base demand on what y
         checkedAt: new Date().toISOString(),
         mode: 'ai',
       };
-      demandCache.set(key, { value, expires: Date.now() + CACHE_MS });
+      await demandCache.set(key, { value, expires: Date.now() + CACHE_MS });
       return value;
     }
     if (response.stop_reason === 'refusal') break;

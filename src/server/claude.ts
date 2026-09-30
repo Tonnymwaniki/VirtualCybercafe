@@ -45,7 +45,7 @@ const meteredFetch: typeof fetch = async (input, init) => {
   if (response.ok && isMessagesCall(url)) {
     try {
       const body = (await response.clone().json()) as { model?: string; usage?: Anthropic.Beta.BetaUsage };
-      if (body.usage) recordUsage(body.model ?? '', body.usage);
+      if (body.usage) await recordUsage(body.model ?? '', body.usage);
     } catch {
       // Not JSON (a stream): not counted.
     }

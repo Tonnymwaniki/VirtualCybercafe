@@ -224,7 +224,7 @@ const reportJobsTool: Anthropic.Beta.BetaTool = {
 
 export async function findJobs(query: string, county: string): Promise<FindJobsResult> {
   const key = `${query.toLowerCase()}|${county.toLowerCase()}`;
-  const cached = findCache.get(key);
+  const cached = await findCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.value;
 
   const client = claude();
@@ -257,7 +257,7 @@ export async function findJobs(query: string, county: string): Promise<FindJobsR
         note: input.note,
         mode: 'ai',
       };
-      findCache.set(key, { value, expires: Date.now() + FIND_CACHE_MS });
+      await findCache.set(key, { value, expires: Date.now() + FIND_CACHE_MS });
       return value;
     }
     if (response.stop_reason === 'refusal') break;
