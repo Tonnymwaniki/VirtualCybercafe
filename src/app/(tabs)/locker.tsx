@@ -9,12 +9,14 @@ import { Button } from '@/components/button';
 import { IconBadge } from '@/components/icon-badge';
 import { FilePanel } from '@/components/locker/file-panel';
 import { Screen } from '@/components/screen';
+import { Problem, type ProblemValue } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { guessCategory, lockerFilters, lockerLabel, type LockerCategory } from '@/data/locker';
 import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { formatBytes, pickImages } from '@/lib/images';
-import { LOCKER_LIMIT_BYTES, LockerFullError, listFiles, previewLinks, uploadFile, type StoredFile } from '@/lib/locker-store';
+import { LOCKER_LIMIT_BYTES, listFiles, previewLinks, uploadFile, type StoredFile } from '@/lib/locker-store';
 
 type Filter = (typeof lockerFilters)[number];
 
@@ -37,7 +39,7 @@ export default function LockerScreen() {
   const [filter, setFilter] = useState<Filter>('All');
   const [files, setFiles] = useState<StoredFile[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ProblemValue | null>(null);
   const [previews, setPreviews] = useState<Record<string, string>>({});
   const [openPath, setOpenPath] = useState<string | null>(null);
 
@@ -47,8 +49,8 @@ export default function LockerScreen() {
       const list = await listFiles(user.id);
       setFiles(list);
       setPreviews(await previewLinks(list));
-    } catch {
-      setError(t('locker.loadFailed'));
+    } catch (e) {
+      setError(explainError(e, 'lockerLoad', t));
     }
   }, [user, t]);
 
@@ -81,7 +83,7 @@ export default function LockerScreen() {
       }
       await refresh();
     } catch (e) {
-      setError(e instanceof LockerFullError ? e.message : t('locker.uploadFailed'));
+      setError(explainError(e, 'locker', t));
     } finally {
       setBusy(false);
     }
@@ -174,7 +176,7 @@ export default function LockerScreen() {
         <Button label={t('locker.addPhoto')} icon="image" variant="secondary" onPress={() => add('photo')} disabled={busy} />
         <Button label={t('locker.addFile')} icon="cloud-upload" onPress={() => add('document')} busy={busy} />
       </View>
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Problem text={error} />}
 
       {shown.length === 0 ? (
         <Text style={styles.empty}>

@@ -10,16 +10,29 @@ import { editImage } from '@/lib/workbench/image';
 const A4 = { width: 595.28, height: 841.89 };
 const MARGIN = 34;
 
-export class WorkbenchError extends Error {}
+// An error with a message already written for the person. kind helps the
+// error card explain it (see explain.ts).
+export class WorkbenchError extends Error {
+  constructor(
+    message: string,
+    public kind: 'input' | 'pdf_locked' | 'pdf_damaged' = 'input',
+  ) {
+    super(message);
+  }
+}
 
 export async function openPdf(file: WorkFile) {
   try {
-    return await PDFDocument.load(file.bytes, { updateMetadata: false });
+    const doc = await PDFDocument.load(file.bytes, { updateMetadata: false });
+    // pdf-lib opens some damaged files without complaint; counting the pages
+    // is where they fail.
+    if (doc.getPageCount() < 1) throw new Error('no pages');
+    return doc;
   } catch (error) {
     if (error instanceof Error && /encrypt/i.test(error.message)) {
-      throw new WorkbenchError(`${file.name} is locked with a password. Open it, save a copy without the password, and try again.`);
+      throw new WorkbenchError(`${file.name} is locked with a password.`, 'pdf_locked');
     }
-    throw new WorkbenchError(`${file.name} couldn’t be opened. It may be damaged, or not really a PDF.`);
+    throw new WorkbenchError(`${file.name} couldn’t be opened as a PDF.`, 'pdf_damaged');
   }
 }
 

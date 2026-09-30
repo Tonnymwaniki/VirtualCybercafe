@@ -4,27 +4,29 @@ import { Text, View } from 'react-native';
 import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { checksFor, OrderList, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, OrderList, Problem, type ProblemValue, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
-import { joinFiles, pageCount, WorkbenchError } from '@/lib/workbench/pdf';
+import { joinFiles, pageCount } from '@/lib/workbench/pdf';
 
 export default function MergeScreen() {
   const { t } = useLanguage();
   const [files, setFiles] = useState<WorkFile[]>([]);
   const [result, setResult] = useState<WorkFile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const add = async () => {
     setProblem(null);
+    let picked: WorkFile[] = [];
     try {
-      const picked = await pickFiles({ pdf: true, images: true, multiple: true });
+      picked = await pickFiles({ pdf: true, images: true, multiple: true });
       for (const file of picked) if (file.kind === 'pdf') await pageCount(file);
       setFiles((current) => [...current, ...picked]);
       setResult(null);
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.fileOpen'));
+      setProblem(explainError(error, 'openPdf', t, picked));
     }
   };
 
@@ -34,7 +36,7 @@ export default function MergeScreen() {
     try {
       setResult(await joinFiles(files, 'joined.pdf'));
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.merge.failed'));
+      setProblem(explainError(error, 'merge', t, files));
     } finally {
       setBusy(false);
     }
@@ -54,7 +56,7 @@ export default function MergeScreen() {
         </View>
       )}
       {busy && <Working text={t('wb.merge.working')} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={files.length ? join : undefined} />}
       {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
     </Screen>
   );

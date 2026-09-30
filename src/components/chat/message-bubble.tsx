@@ -91,6 +91,7 @@ export function MessageBubble({ message, lockerNames, menuOpen, speaking, copied
             </Pressable>
           )
         )}
+        {message.failed && !!message.failedWhy && <Text style={styles.failedWhy}>{message.failedWhy}</Text>}
         {menu}
       </View>
     );
@@ -149,6 +150,7 @@ const styles = StyleSheet.create({
   bubble: { borderRadius: Radius.lg, padding: Spacing.md },
   userBubble: { maxWidth: '85%', backgroundColor: Colors.primary, borderBottomRightRadius: 4, gap: Spacing.sm },
   failedBubble: { opacity: 0.6 },
+  failedWhy: { maxWidth: 300, fontSize: 12, lineHeight: 17, color: '#7F1D1D', textAlign: 'right' },
   assistantBubble: {
     alignSelf: 'stretch',
     backgroundColor: Colors.card,

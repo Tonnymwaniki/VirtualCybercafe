@@ -244,7 +244,7 @@ export default function ChatScreen() {
   const runJobs = async (conversationId: string, messageId: string, jobs: { id: string; request: WorkRequest }[]) => {
     for (const job of jobs) {
       setWorking((n) => n + 1);
-      const outcome = await runWork(job.request, engine);
+      const outcome = await runWork(job.request, engine, t);
       setWorking((n) => n - 1);
       patch(conversationId, (c) => ({
         ...c,
@@ -337,7 +337,7 @@ export default function ChatScreen() {
     if (response.offline || response.signIn) {
       if (files.length) failedFiles.current[message.id!] = files;
       if (response.offline) setStatus('offline');
-      update((c) => ({ ...c, messages: c.messages.map((m) => (m.id === message.id ? { ...m, failed: true } : m)) }));
+      update((c) => ({ ...c, messages: c.messages.map((m) => (m.id === message.id ? { ...m, failed: true, failedWhy: response.why } : m)) }));
       return;
     }
     usedAi.current = response.mode === 'ai';

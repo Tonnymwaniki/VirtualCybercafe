@@ -5,9 +5,10 @@ import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { PhotoCheckCard } from '@/components/workbench/photo-check';
-import { checksFor, Problem, ResultCard, Toggle, Working, workbenchStyles } from '@/components/workbench/ui';
+import { checksFor, Problem, type ProblemValue, ResultCard, Toggle, Working, workbenchStyles } from '@/components/workbench/ui';
 import { Colors, Spacing } from '@/constants/theme';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked } from '@/lib/workbench/image';
@@ -30,14 +31,14 @@ export default function PassportPhotoScreen() {
   const [sheet, setSheet] = useState<WorkFile | null>(null);
   const [size, setSize] = useState<PrintSize>('kenya');
   const [busy, setBusy] = useState<'photo' | 'sheet' | null>(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<ProblemValue | ''>('');
 
   const makeSheet = async (from: WorkFile, printSize: PrintSize) => {
     setBusy('sheet');
     try {
       setSheet(await passportSheet(from, printSize));
-    } catch {
-      setError(t('wb.passport.sheetFailed'));
+    } catch (problem) {
+      setError(explainError(problem, 'passport', t, [from]));
     } finally {
       setBusy(null);
     }
@@ -45,18 +46,19 @@ export default function PassportPhotoScreen() {
 
   const pick = async (source: 'camera' | 'library') => {
     setError('');
-    const [picked] = await pickImages(source);
-    if (!picked) return;
-    setBusy('photo');
-    setDigital(null);
-    setSheet(null);
+    let file: WorkFile | undefined;
     try {
-      const file = await imageFromPicked(picked);
+      const [picked] = await pickImages(source);
+      if (!picked) return;
+      setBusy('photo');
+      setDigital(null);
+      setSheet(null);
+      file = await imageFromPicked(picked);
       setOriginal(file);
       setDigital(await digitalPassport(file));
       await makeSheet(file, size);
-    } catch {
-      setError(t('wb.passport.failed'));
+    } catch (problem) {
+      setError(explainError(problem, 'passport', t, [file]));
     } finally {
       setBusy(null);
     }

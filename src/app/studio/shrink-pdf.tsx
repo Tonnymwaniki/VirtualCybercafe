@@ -5,10 +5,11 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
-import { checksFor, FileRow, Problem, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, FileRow, Problem, type ProblemValue, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
-import { pageCount, WorkbenchError } from '@/lib/workbench/pdf';
+import { pageCount } from '@/lib/workbench/pdf';
 import { shrinkPdf, type PdfShrinkResult } from '@/lib/workbench/shrink-pdf';
 
 export default function ShrinkPdfScreen() {
@@ -18,19 +19,20 @@ export default function ShrinkPdfScreen() {
   const [original, setOriginal] = useState<WorkFile | null>(null);
   const [result, setResult] = useState<PdfShrinkResult | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
   const [targetKb, setTargetKb] = useState(1024);
 
   const choose = async () => {
     setProblem(null);
+    let file: WorkFile | undefined;
     try {
-      const [file] = await pickFiles({ pdf: true });
+      [file] = await pickFiles({ pdf: true });
       if (!file) return;
       await pageCount(file);
       setOriginal(file);
       setResult(null);
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.pdfOpen'));
+      setProblem(explainError(error, 'openPdf', t, [file]));
     }
   };
 
@@ -43,7 +45,7 @@ export default function ShrinkPdfScreen() {
     try {
       setResult(await shrinkPdf(original, kb * 1024, engine, setProgress));
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('wb.shrinkPdf.failed'));
+      setProblem(explainError(error, 'shrinkPdf', t, [original]));
     } finally {
       setProgress(null);
     }
@@ -67,7 +69,7 @@ export default function ShrinkPdfScreen() {
         </View>
       )}
       {progress && <Working text={progress} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={original ? () => shrink() : undefined} />}
       {result && original && (
         <ResultCard
           file={result.file}

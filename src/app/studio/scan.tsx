@@ -7,9 +7,10 @@ import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine, type ScanFilter } from '@/components/workbench/engine';
-import { checksFor, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, Problem, type ProblemValue, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useLanguage, type TextKey } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import { fileUri, renamed, type WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked } from '@/lib/workbench/image';
@@ -36,7 +37,7 @@ export default function ScanScreen() {
   const [current, setCurrent] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [result, setResult] = useState<WorkFile | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const draw = async (source: WorkFile, rotate: number, look: Look) => {
     const turned = await editImage(source, { rotate, maxSide: MAX_SIDE }, 'jpg', 0.9);
@@ -47,10 +48,10 @@ export default function ScanScreen() {
   const add = async (from: 'camera' | 'library') => {
     setProblem(null);
     // Android lets the person crop right after taking the photo.
-    const picked = await pickImages(from, from === 'library', from === 'camera' && Platform.OS === 'android');
-    if (!picked.length) return;
-    setBusy(t('wb.scan.cleaning'));
     try {
+      const picked = await pickImages(from, from === 'library', from === 'camera' && Platform.OS === 'android');
+      if (!picked.length) return;
+      setBusy(t('wb.scan.cleaning'));
       const added: Page[] = [];
       for (const image of picked) {
         const source = await imageFromPicked(image);
@@ -59,8 +60,8 @@ export default function ScanScreen() {
       setCurrent(pages.length);
       setPages((list) => [...list, ...added]);
       setResult(null);
-    } catch {
-      setProblem(t('wb.scan.cleanFailed'));
+    } catch (error) {
+      setProblem(explainError(error, 'scan', t));
     } finally {
       setBusy(null);
     }
@@ -75,8 +76,8 @@ export default function ScanScreen() {
       const view = await draw(next.source, next.rotate, next.look);
       setPages((list) => list.map((p, i) => (i === current ? { ...next, view } : p)));
       setResult(null);
-    } catch {
-      setProblem(t('wb.err.tryAgain'));
+    } catch (error) {
+      setProblem(explainError(error, 'scan', t, [page.source]));
     } finally {
       setBusy(null);
     }
@@ -94,8 +95,8 @@ export default function ScanScreen() {
     try {
       if (as === 'jpg') setResult({ ...pages[0].view, name: renamed('scan.jpg', '', 'jpg') });
       else setResult(await joinFiles(pages.map((p) => p.view), 'scan.pdf'));
-    } catch {
-      setProblem(t('wb.scan.fileFailed'));
+    } catch (error) {
+      setProblem(explainError(error, 'scan', t));
     } finally {
       setBusy(null);
     }

@@ -1,5 +1,6 @@
 import type { JobAdvert } from '@/lib/jobs-types';
 import type { TripPurpose } from '@/lib/travel-types';
+import type { Explained } from '@/lib/workbench/explain';
 
 export type ChatRole = 'user' | 'assistant';
 
@@ -55,6 +56,8 @@ export type WorkOutcome = {
   outputs: { file: FileMeta; checks: { ok: boolean; label: string }[] }[];
   notes: string[];
   error?: string;
+  // Why it failed and what to do (older chats only have `error`).
+  problem?: Explained;
 };
 
 // Things the attendant hands back, shown as cards under its reply.
@@ -87,6 +90,8 @@ export type ChatMessage = {
   files?: FileMeta[];
   // The message could not be sent; the chat offers a retry.
   failed?: boolean;
+  // Why it didn't send, shown under the retry link.
+  failedWhy?: string;
 };
 
 export type ChatResponse = {
@@ -101,6 +106,8 @@ export type ChatResponse = {
   signIn?: boolean;
   // The server couldn't be reached; the user message can be retried.
   offline?: boolean;
+  // Why, and what to do.
+  why?: string;
 };
 
 // A saved conversation, listed in the chat history panel.

@@ -20,6 +20,8 @@ import { packHtml } from '@/lib/job-pack';
 import { cvAnswersFor } from '@/lib/jobs-sample';
 import type { Job } from '@/lib/jobs-types';
 import { fileDataUrl, type StoredFile } from '@/lib/locker-store';
+import { useLanguage } from '@/lib/i18n';
+import { explainedText, explainError } from '@/lib/workbench/explain';
 
 type CvProps = {
   job: Job;
@@ -131,6 +133,7 @@ const isImage = (file: StoredFile) => file.mimeType.startsWith('image/');
 // Step 4: the application pack, the email draft, and the form helper for
 // online portals.
 export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePortal, onHelperAction, onApplied }: ApplyProps) {
+  const { t } = useLanguage();
   const [design] = useCvDesign();
   const router = useRouter();
   const { advert, application } = job;
@@ -162,8 +165,8 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
           .map(async (file) => ({ name: file.name, dataUrl: await fileDataUrl(file) })),
       );
       await sharePdfFromHtml(packHtml(application.cv, answers, images, design));
-    } catch {
-      setPackProblem('Couldn’t add one of the Locker files. Check your connection and try again.');
+    } catch (error) {
+      setPackProblem(explainedText(explainError(error, 'jobPack', t)));
     } finally {
       setPacking(false);
     }

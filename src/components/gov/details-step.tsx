@@ -16,6 +16,8 @@ import type { HelperAction, HelperResponse } from '@/lib/gov-types';
 import { validateAnswers, type Issue } from '@/lib/gov-validate';
 import { pickImages, processImage } from '@/lib/images';
 import { listFiles } from '@/lib/locker-store';
+import { useLanguage } from '@/lib/i18n';
+import { explainedText, explainError } from '@/lib/workbench/explain';
 
 type Props = {
   task: FormTask;
@@ -33,6 +35,7 @@ type Props = {
 export function DetailsStep({ task, user, profile, answers, onSave, onAction }: Props) {
   const initial = () =>
     Object.fromEntries(task.fields.map((field) => [field.key, answers[field.key] || profile[field.key] || '']));
+  const { t } = useLanguage();
   const [values, setValues] = useState<Record<string, string>>(initial);
   const [reading, setReading] = useState(false);
   const [readNotes, setReadNotes] = useState<string[]>([]);
@@ -93,11 +96,11 @@ export function DetailsStep({ task, user, profile, answers, onSave, onAction }: 
   };
 
   const scanId = async (source: 'camera' | 'library') => {
-    const [photo] = await pickImages(source);
-    if (!photo) return;
-    setReading(true);
     setReadNotes([]);
     try {
+      const [photo] = await pickImages(source);
+      if (!photo) return;
+      setReading(true);
       const image = await processImage(photo, { maxSide: 1600, maxBytes: 1_500_000 });
       const result = await readIdCard(image.base64);
       const found = Object.keys(result.details).length;
@@ -115,8 +118,8 @@ export function DetailsStep({ task, user, profile, answers, onSave, onAction }: 
         ...result.problems,
       ]);
       setSaved(false);
-    } catch {
-      setReadNotes(['Couldn’t read that photo. Try again in good light, or type your details.']);
+    } catch (error) {
+      setReadNotes([explainedText(explainError(error, 'idScan', t))]);
     } finally {
       setReading(false);
     }

@@ -5,6 +5,7 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View 
 import { useRouter, type Href } from 'expo-router';
 
 import { Button } from '@/components/button';
+import { ErrorCard } from '@/components/error-card';
 import { UseInApplication } from '@/components/jobs/use-in-application';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
@@ -12,6 +13,7 @@ import { translate, useLanguage, type Translate } from '@/lib/i18n';
 import { keepFile } from '@/lib/chat-files';
 import { GUEST_ID } from '@/lib/profile-store';
 import { LockerFullError } from '@/lib/locker-store';
+import type { Explained } from '@/lib/workbench/explain';
 import { fileUri, formatSize, saveToLocker, shareFile, size, type WorkFile } from '@/lib/workbench/files';
 
 // Shared pieces of the Workbench screens: the file being worked on, size
@@ -160,7 +162,12 @@ export function Working({ text }: { text: string }) {
   );
 }
 
-export function Problem({ text }: { text: string }) {
+// A problem on a tool screen: a short line for a simple fix (a wrong
+// number), or a full explanation card for an error (see explain.ts).
+export type ProblemValue = string | Explained;
+
+export function Problem({ text, onRetry }: { text: ProblemValue; onRetry?: () => void }) {
+  if (typeof text !== 'string') return <ErrorCard error={text} onRetry={onRetry} />;
   return <Text style={styles.problem}>{text}</Text>;
 }
 

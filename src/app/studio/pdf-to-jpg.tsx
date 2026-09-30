@@ -5,10 +5,11 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
-import { FileRow, Problem, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { FileRow, Problem, type ProblemValue, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickFiles, type WorkFile } from '@/lib/workbench/files';
-import { pageCount, parsePages, WorkbenchError } from '@/lib/workbench/pdf';
+import { pageCount, parsePages } from '@/lib/workbench/pdf';
 
 const QUALITY = {
   standard: { scale: 2, maxSide: 2000, quality: 0.85 },
@@ -23,19 +24,20 @@ export default function PdfToJpgScreen() {
   const [quality, setQuality] = useState<keyof typeof QUALITY>('standard');
   const [pictures, setPictures] = useState<WorkFile[]>([]);
   const [progress, setProgress] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const choose = async () => {
     setProblem(null);
+    let file: WorkFile | undefined;
     try {
-      const [file] = await pickFiles({ pdf: true });
+      [file] = await pickFiles({ pdf: true });
       if (!file) return;
       await pageCount(file);
       setOriginal(file);
       setPictures([]);
       setPagesText('');
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.pdfOpen'));
+      setProblem(explainError(error, 'openPdf', t, [file]));
     }
   };
 
@@ -59,7 +61,7 @@ export default function PdfToJpgScreen() {
         setProgress(done.length < count ? t('wb.pdfToJpg.pageOf', { n: done.length + 1, total: count }) : t('wb.finishing'));
       });
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('wb.err.pdfRead'));
+      setProblem(explainError(error, 'pdfToJpg', t, [original]));
     } finally {
       setProgress(null);
     }
@@ -91,7 +93,7 @@ export default function PdfToJpgScreen() {
         </>
       )}
       {progress && <Working text={progress} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={original ? convert : undefined} />}
       {pictures.length > 0 && !progress && <ResultList files={pictures} title={pictures.length === 1 ? t('wb.pdfToJpg.readyOne') : t('wb.pdfToJpg.ready', { n: pictures.length })} />}
     </Screen>
   );

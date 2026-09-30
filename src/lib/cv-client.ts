@@ -1,4 +1,4 @@
-import { apiFetch } from '@/lib/api';
+import { apiFetch, throwIfFailed } from '@/lib/api';
 import { sampleCv, type CvAnswers, type CvResponse } from '@/lib/cv';
 
 // Asks the server to write the CV; falls back to the local template when the
@@ -10,7 +10,7 @@ export async function requestCv(answers: CvAnswers): Promise<CvResponse> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answers }),
     });
-    if (!response.ok) throw new Error(`CV request failed: ${response.status}`);
+    await throwIfFailed(response);
     return (await response.json()) as CvResponse;
   } catch {
     return { cv: sampleCv(answers), mode: 'sample' };

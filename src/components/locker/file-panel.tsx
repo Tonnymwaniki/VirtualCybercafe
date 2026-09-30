@@ -4,13 +4,16 @@ import { useState, type ComponentProps } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { UseInApplication } from '@/components/jobs/use-in-application';
+import { Problem, type ProblemValue } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { lockerCategories, lockerLabel, type LockerCategory } from '@/data/locker';
 import { keepFile } from '@/lib/chat-files';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { relinkJobDocument } from '@/lib/jobs-store';
 import { deleteFile, moveFile, openFile, renameFile, type StoredFile } from '@/lib/locker-store';
 import { lockerWorkFile } from '@/lib/workbench/files';
+import { WorkbenchError } from '@/lib/workbench/pdf';
 
 type Mode = 'actions' | 'rename' | 'move' | 'delete';
 
@@ -29,7 +32,7 @@ export function FilePanel({ file, preview, onChanged }: Props) {
   const [mode, setMode] = useState<Mode>('actions');
   const [name, setName] = useState(file.name.replace(/\.[a-z0-9]{2,5}$/i, ''));
   const [busy, setBusy] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   // `id` names the button that shows the spinner while the action runs.
   const run = async (id: string, action: () => Promise<void>) => {
@@ -38,7 +41,7 @@ export function FilePanel({ file, preview, onChanged }: Props) {
     try {
       await action();
     } catch (error) {
-      setProblem(error instanceof Error && error.message ? error.message : t('locker.actionFailed'));
+      setProblem(explainError(error, 'lockerFile', t));
     } finally {
       setBusy(null);
     }
@@ -56,7 +59,7 @@ export function FilePanel({ file, preview, onChanged }: Props) {
   const openWith = (id: string, screen: string) =>
     run(id, async () => {
       const work = await lockerWorkFile(file);
-      if (!work) throw new Error(t('locker.onlyPdfPhotos'));
+      if (!work) throw new WorkbenchError(t('locker.onlyPdfPhotos'));
       router.push(`${screen}?file=${keepFile(work).id}` as Href);
     });
 
@@ -160,7 +163,7 @@ export function FilePanel({ file, preview, onChanged }: Props) {
         </View>
       )}
 
-      {problem && <Text style={styles.problem}>{problem}</Text>}
+      {problem && <Problem text={problem} />}
     </View>
   );
 }

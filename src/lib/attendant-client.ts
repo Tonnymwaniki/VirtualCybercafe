@@ -1,4 +1,5 @@
-import { apiFetch } from '@/lib/api';
+import { apiFetch, throwIfFailed } from '@/lib/api';
+import { failureText } from '@/lib/failure';
 import type { ChatMessage, ChatResponse, FileMeta } from '@/lib/chat-types';
 import { supabase } from '@/lib/supabase';
 
@@ -48,10 +49,10 @@ export async function askAttendant(
         limited: response.status === 429,
       };
     }
-    if (!response.ok) throw new Error(`Chat request failed: ${response.status}`);
+    await throwIfFailed(response);
     return (await response.json()) as ChatResponse;
-  } catch {
-    return { reply: '', actions: [], mode: 'sample', offline: true };
+  } catch (error) {
+    return { reply: '', actions: [], mode: 'sample', offline: true, why: failureText('', error) };
   }
 }
 

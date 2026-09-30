@@ -6,11 +6,12 @@ import { Button } from '@/components/button';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
-import { checksFor, FileRow, filesReadyLabel, Problem, ResultCard, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, FileRow, filesReadyLabel, Problem, type ProblemValue, ResultCard, ResultList, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { fileUri, pickFiles, type WorkFile } from '@/lib/workbench/files';
-import { keepPages, pageCount, parsePages, splitPages, WorkbenchError } from '@/lib/workbench/pdf';
+import { keepPages, pageCount, parsePages, splitPages } from '@/lib/workbench/pdf';
 
 type Mode = 'keep' | 'remove' | 'each';
 
@@ -38,15 +39,17 @@ export default function SplitScreen() {
   const [result, setResult] = useState<WorkFile | null>(null);
   const [parts, setParts] = useState<WorkFile[]>([]);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const total = original?.pages ?? 0;
 
   const choose = async () => {
     setProblem(null);
+    let file: WorkFile | undefined;
     try {
-      const [file] = await pickFiles({ pdf: true });
+      [file] = await pickFiles({ pdf: true });
       if (!file) return;
+      const picked = file;
       await pageCount(file);
       setOriginal(file);
       setSelected([]);
@@ -57,13 +60,13 @@ export default function SplitScreen() {
       // Small pictures of the pages; the numbers still work without them.
       const shown: WorkFile[] = [];
       engine
-        .renderPdf(file, { scale: 1, maxSide: 260, quality: 0.6, pages: Array.from({ length: Math.min(file.pages ?? 0, 40) }, (_, i) => i) }, (page) => {
+        .renderPdf(picked, { scale: 1, maxSide: 260, quality: 0.6, pages: Array.from({ length: Math.min(file.pages ?? 0, 40) }, (_, i) => i) }, (page) => {
           shown.push(page);
           setThumbs([...shown]);
         })
         .catch(() => {});
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.pdfOpen'));
+      setProblem(explainError(error, 'openPdf', t, [file]));
     }
   };
 
@@ -101,7 +104,7 @@ export default function SplitScreen() {
       try {
         setResult(await keepPages(original, keep, mode === 'keep' ? `-pages-${describe(parsed).replace(/[ ,]+/g, '_')}` : '-edited'));
       } catch (error) {
-        setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.tryAgain'));
+        setProblem(explainError(error, 'split', t, [original]));
       } finally {
         setBusy(false);
       }
@@ -111,7 +114,7 @@ export default function SplitScreen() {
     try {
       setParts(await splitPages(original));
     } catch (error) {
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.tryAgain'));
+      setProblem(explainError(error, 'split', t, [original]));
     } finally {
       setBusy(false);
     }
@@ -172,7 +175,7 @@ export default function SplitScreen() {
         </>
       )}
       {busy && <Working text={t('wb.working')} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={original ? run : undefined} />}
       {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
       {parts.length > 0 && <ResultList files={parts} title={filesReadyLabel(t, parts.length)} />}
     </Screen>

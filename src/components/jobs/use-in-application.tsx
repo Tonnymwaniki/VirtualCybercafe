@@ -9,9 +9,9 @@ import { useAuth } from '@/lib/auth';
 import { useLanguage } from '@/lib/i18n';
 import { addJobDocument, deadlineLabel, GUEST_ID, loadJobs, openJobs } from '@/lib/jobs-store';
 import type { Job } from '@/lib/jobs-types';
-import { LockerFullError } from '@/lib/locker-store';
 import { supabase } from '@/lib/supabase';
 import { saveToLocker, size, type WorkFile } from '@/lib/workbench/files';
+import { explainedText, explainError } from '@/lib/workbench/explain';
 
 type State =
   | { step: 'idle' }
@@ -42,8 +42,8 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
     setState({ step: 'loading' });
     try {
       setState({ step: 'pick', jobs: openJobs(await loadJobs(userId)).slice(0, 5) });
-    } catch {
-      setState({ step: 'failed', text: t('useApp.loadFailed') });
+    } catch (error) {
+      setState({ step: 'failed', text: explainedText(explainError(error, 'lockerFile', t)) });
     }
   };
 
@@ -55,7 +55,7 @@ export function UseInApplication({ file, lockerPath }: { file: WorkFile | { name
       await addJobDocument(userId, job.id, { path, name: file.name, mimeType: file.mimeType, bytes, addedAt: new Date().toISOString() });
       setState({ step: 'added', job });
     } catch (error) {
-      setState({ step: 'failed', text: error instanceof LockerFullError ? error.message : t('useApp.addFailed') });
+      setState({ step: 'failed', text: explainedText(explainError(error, 'locker', t)) });
     }
   };
 

@@ -1,5 +1,6 @@
 import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, throwIfFailed } from '@/lib/api';
+import { failureText } from '@/lib/failure';
 import type { HelperRequest, HelperResponse, IdReadResult, RequirementsCheck } from '@/lib/gov-types';
 
 async function post<T>(body: object, path = '/api/gov'): Promise<T> {
@@ -8,7 +9,7 @@ async function post<T>(body: object, path = '/api/gov'): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  await throwIfFailed(response);
   return (await response.json()) as T;
 }
 
@@ -33,17 +34,17 @@ export async function fetchRequirements(taskId: GovTaskId, refresh = false): Pro
 export async function readIdCard(base64: string): Promise<IdReadResult> {
   try {
     return await post<IdReadResult>({ action: 'read_id', image: base64, mediaType: 'image/jpeg' });
-  } catch {
-    return { details: {}, problems: ['Couldn’t reach the ID reader. Type your details below.'], mode: 'sample' };
+  } catch (error) {
+    return { details: {}, problems: [failureText('Couldn’t read the ID card, so type your details below.', error)], mode: 'sample' };
   }
 }
 
 export async function askFormHelper(request: HelperRequest): Promise<HelperResponse> {
   try {
     return await post<HelperResponse>(request, '/api/form-helper');
-  } catch {
+  } catch (error) {
     return {
-      reply: 'I couldn’t reach the helper. Check your connection and try again.',
+      reply: failureText('I couldn’t reach the helper.', error),
       updates: [],
       actions: [],
       mode: 'sample',

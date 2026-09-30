@@ -5,8 +5,9 @@ import { Button } from '@/components/button';
 import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { checksFor, OrderList, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, OrderList, Problem, type ProblemValue, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked } from '@/lib/workbench/image';
@@ -21,21 +22,21 @@ export default function PhotosToPdfScreen() {
   const [pages, setPages] = useState<WorkFile[]>([]);
   const [result, setResult] = useState<WorkFile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const add = async (source: 'camera' | 'library') => {
     setProblem(null);
-    const picked = await pickImages(source, source === 'library');
-    if (!picked.length) return;
-    setBusy(true);
     try {
+      const picked = await pickImages(source, source === 'library');
+      if (!picked.length) return;
+      setBusy(true);
       const files = await Promise.all(
         picked.map(async (image) => editImage(await imageFromPicked(image), { maxSide: PAGE_MAX_SIDE }, 'jpg', 0.85)),
       );
       setPages((current) => [...current, ...files.map((file, i) => ({ ...file, name: `page-${current.length + i + 1}.jpg` }))]);
       setResult(null);
-    } catch {
-      setProblem(t('wb.photosToPdf.readFailed'));
+    } catch (error) {
+      setProblem(explainError(error, 'openPhoto', t));
     } finally {
       setBusy(false);
     }
@@ -46,8 +47,8 @@ export default function PhotosToPdfScreen() {
     setProblem(null);
     try {
       setResult(await joinFiles(pages, 'documents.pdf'));
-    } catch {
-      setProblem(t('wb.photosToPdf.failed'));
+    } catch (error) {
+      setProblem(explainError(error, 'photosToPdf', t, pages));
     } finally {
       setBusy(false);
     }
@@ -65,7 +66,7 @@ export default function PhotosToPdfScreen() {
         </View>
       )}
       {busy && <Working text={t('wb.working')} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={pages.length ? make : undefined} />}
       {result && <ResultCard file={result} checks={checksFor(result, {}, t)} />}
     </Screen>
   );

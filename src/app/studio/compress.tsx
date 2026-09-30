@@ -4,8 +4,9 @@ import { Text } from 'react-native';
 import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { checksFor, FileRow, Problem, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, FileRow, Problem, type ProblemValue, ResultCard, SizeLimit, sizeLabel, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { useLanguage } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import { type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked, shrinkImage, type ShrinkResult } from '@/lib/workbench/image';
@@ -18,7 +19,7 @@ export default function ShrinkPhotoScreen() {
   // What the last shrink aimed for: the limit, or less after "Try smaller".
   const [targetKb, setTargetKb] = useState(200);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
   const run = useRef(0);
 
   const shrink = async (file: WorkFile, kb: number) => {
@@ -30,19 +31,24 @@ export default function ShrinkPhotoScreen() {
     try {
       const out = await shrinkImage(file, kb * 1024);
       if (mine === run.current) setResult(out);
-    } catch {
-      if (mine === run.current) setProblem(t('wb.err.photoRead'));
+    } catch (error) {
+      if (mine === run.current) setProblem(explainError(error, 'shrinkPhoto', t, [file]));
     } finally {
       if (mine === run.current) setBusy(false);
     }
   };
 
   const pick = async (source: 'camera' | 'library') => {
-    const [picked] = await pickImages(source);
-    if (!picked) return;
-    const file = await imageFromPicked(picked);
-    setOriginal(file);
-    shrink(file, limitKb);
+    setProblem(null);
+    try {
+      const [picked] = await pickImages(source);
+      if (!picked) return;
+      const file = await imageFromPicked(picked);
+      setOriginal(file);
+      shrink(file, limitKb);
+    } catch (error) {
+      setProblem(explainError(error, 'openPhoto', t));
+    }
   };
 
   const changeLimit = (kb: number) => {
@@ -58,7 +64,7 @@ export default function ShrinkPhotoScreen() {
       <PickButtons onPick={pick} busy={busy} libraryLabel={t('wb.choosePhoto')} />
       {original && <FileRow file={original} />}
       {busy && <Working text={t('wb.compress.working')} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={original ? () => shrink(original, limitKb) : undefined} />}
       {result && original && (
         <ResultCard
           file={result.file}

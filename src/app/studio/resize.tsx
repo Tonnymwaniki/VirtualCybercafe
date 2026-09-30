@@ -5,9 +5,10 @@ import { Button } from '@/components/button';
 import { PickButtons } from '@/components/pick-buttons';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { checksFor, FileRow, Problem, ResultCard, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { checksFor, FileRow, Problem, type ProblemValue, ResultCard, Toggle, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useLanguage, type TextKey } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import type { WorkFile } from '@/lib/workbench/files';
 import { editImage, imageFromPicked, imageSize, shrinkImage, type ImageFormat } from '@/lib/workbench/image';
@@ -32,15 +33,21 @@ export default function ResizeScreen() {
   const [maxKb, setMaxKb] = useState('');
   const [result, setResult] = useState<WorkFile | null>(null);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const pick = async (source: 'camera' | 'library') => {
-    const [picked] = await pickImages(source);
-    if (!picked) return;
-    const file = await imageFromPicked(picked);
-    await imageSize(file);
-    setOriginal(file);
-    setResult(null);
+    setProblem(null);
+    let file: WorkFile | undefined;
+    try {
+      const [picked] = await pickImages(source);
+      if (!picked) return;
+      file = await imageFromPicked(picked);
+      await imageSize(file);
+      setOriginal(file);
+      setResult(null);
+    } catch (error) {
+      setProblem(explainError(error, 'openPhoto', t, [file]));
+    }
   };
 
   const w = Number(width);
@@ -64,8 +71,8 @@ export default function ResizeScreen() {
         out = await editImage(original, edit, format);
       }
       setResult(out);
-    } catch {
-      setProblem(t('wb.resize.failed'));
+    } catch (error) {
+      setProblem(explainError(error, 'resize', t, [original]));
     } finally {
       setBusy(false);
     }
@@ -122,7 +129,7 @@ export default function ResizeScreen() {
         <Button label={t('wb.resize.button')} icon="resize" onPress={resize} busy={busy} disabled={!original} />
       </View>
       {busy && <Working text={t('wb.resize.working')} />}
-      {problem && <Problem text={problem} />}
+      {problem && <Problem text={problem} onRetry={original ? resize : undefined} />}
       {result && (
         <ResultCard
           file={result}

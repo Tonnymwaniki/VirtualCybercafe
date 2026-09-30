@@ -1,4 +1,5 @@
-import { apiFetch } from '@/lib/api';
+import { apiFetch, throwIfFailed } from '@/lib/api';
+import { failureText } from '@/lib/failure';
 import { sampleAdvert, sampleApplication, sampleMatch, sampleQuestions } from '@/lib/jobs-sample';
 import type {
   AdvertInput,
@@ -16,24 +17,24 @@ async function post<T>(body: object): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  await throwIfFailed(response);
   return (await response.json()) as T;
 }
 
 export async function readJobAdvert(input: AdvertInput): Promise<ReadAdvertResult> {
   try {
     return await post<ReadAdvertResult>({ action: 'read_advert', ...input });
-  } catch {
+  } catch (error) {
     if (input.text?.trim()) return { advert: sampleAdvert(input.text, input.url), problem: '', mode: 'sample' };
-    return { advert: null, problem: 'Couldn’t reach the job reader. Check your connection, or paste the advert text.', mode: 'sample' };
+    return { advert: null, problem: failureText('Couldn’t read the advert. You can also paste the advert text instead.', error), mode: 'sample' };
   }
 }
 
 export async function findJobs(query: string, county: string): Promise<FindJobsResult> {
   try {
     return await post<FindJobsResult>({ action: 'find', query, county });
-  } catch {
-    return { jobs: [], note: 'Couldn’t search right now. Check your connection and try again.', mode: 'sample' };
+  } catch (error) {
+    return { jobs: [], note: failureText('Couldn’t search right now.', error), mode: 'sample' };
   }
 }
 
@@ -70,7 +71,7 @@ export type OldCvResult = { details: Record<string, string>; problems: string[];
 export async function readOldCv(file: { image?: string; pdf?: string }): Promise<OldCvResult> {
   try {
     return await post<OldCvResult>({ action: 'read_cv', ...file });
-  } catch {
-    return { details: {}, problems: ['Couldn’t read your CV right now. Check your connection and try again.'], mode: 'sample' };
+  } catch (error) {
+    return { details: {}, problems: [failureText('Couldn’t read your CV.', error)], mode: 'sample' };
   }
 }

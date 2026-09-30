@@ -7,10 +7,12 @@ import { Colors, Radius, Spacing } from '@/constants/theme';
 import { findGovTask, type GovTaskId } from '@/data/gov-tasks';
 import { taskColors } from '@/data/task-colors';
 import { useAuth } from '@/lib/auth';
+import { failureText } from '@/lib/failure';
 import { runAction, undoAction } from '@/lib/chat-actions';
 import type { ActionState, ProposedAction } from '@/lib/chat-types';
 import { shortDate } from '@/lib/continue';
 import { useLanguage } from '@/lib/i18n';
+import { LockerFullError } from '@/lib/locker-store';
 import { GUEST_ID } from '@/lib/profile-store';
 import { purposeLabel } from '@/lib/travel-types';
 
@@ -84,17 +86,17 @@ export function ActionCard({
   const { user } = useAuth();
   const userId = user?.id ?? GUEST_ID;
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState('');
   const { icon, color, title } = look(action, t);
   const done = state?.status === 'done';
 
   const act = async (work: () => Promise<ActionState | undefined>) => {
     setBusy(true);
-    setFailed(false);
+    setFailed('');
     try {
       onChange(await work());
-    } catch {
-      setFailed(true);
+    } catch (error) {
+      setFailed(error instanceof LockerFullError ? error.message : failureText(t('action.failedLead'), error));
     } finally {
       setBusy(false);
     }
@@ -125,7 +127,7 @@ export function ActionCard({
         </View>
       ))}
 
-      {failed && <Text style={styles.failed}>{t('action.failed')}</Text>}
+      {!!failed && <Text style={styles.failed}>{failed}</Text>}
 
       {busy ? (
         <ActivityIndicator color={Colors.primary} style={styles.spinner} />

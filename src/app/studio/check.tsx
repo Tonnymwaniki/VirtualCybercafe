@@ -9,15 +9,15 @@ import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
 import { useEngine } from '@/components/workbench/engine';
 import { PhotoCheckCard } from '@/components/workbench/photo-check';
-import { FileRow, Problem, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
+import { FileRow, Problem, type ProblemValue, ResultCard, workbenchStyles as ui, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { findPreset, generalPresets, officialPresets, type Preset } from '@/data/presets';
 import { fileById } from '@/lib/chat-files';
 import { useLanguage, type Translate } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { pickImages } from '@/lib/images';
 import { formatSize, pickFiles, type WorkFile } from '@/lib/workbench/files';
 import { imageFromPicked } from '@/lib/workbench/image';
-import { WorkbenchError } from '@/lib/workbench/pdf';
 import { checkAgainst, fixToRule, typesLabel, type RuleCheck } from '@/lib/workbench/validate';
 
 function ruleSummary(t: Translate, preset: Preset) {
@@ -43,7 +43,7 @@ export default function CheckScreen() {
   const [checks, setChecks] = useState<RuleCheck[]>([]);
   const [fixed, setFixed] = useState<{ file: WorkFile; checks: RuleCheck[]; notes: string[] } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [problem, setProblem] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ProblemValue | null>(null);
 
   const load = async (next: WorkFile, rule = preset) => {
     setFile(next);
@@ -53,7 +53,7 @@ export default function CheckScreen() {
       setChecks(await checkAgainst(next, rule));
     } catch (error) {
       setChecks([]);
-      setProblem(error instanceof WorkbenchError ? error.message : t('wb.err.fileRead'));
+      setProblem(explainError(error, 'check', t, [next]));
     }
   };
 
@@ -70,13 +70,23 @@ export default function CheckScreen() {
   }, [params.file]);
 
   const pickDocument = async () => {
-    const [picked] = await pickFiles({ pdf: true, images: true });
-    if (picked) load(picked);
+    setProblem(null);
+    try {
+      const [picked] = await pickFiles({ pdf: true, images: true });
+      if (picked) load(picked);
+    } catch (error) {
+      setProblem(explainError(error, 'openPdf', t));
+    }
   };
 
   const pickPhoto = async (source: 'camera' | 'library') => {
-    const [picked] = await pickImages(source);
-    if (picked) load(await imageFromPicked(picked));
+    setProblem(null);
+    try {
+      const [picked] = await pickImages(source);
+      if (picked) load(await imageFromPicked(picked));
+    } catch (error) {
+      setProblem(explainError(error, 'openPhoto', t));
+    }
   };
 
   const fix = async () => {
@@ -87,7 +97,7 @@ export default function CheckScreen() {
       const result = await fixToRule(file, preset, engine);
       setFixed({ ...result, checks: await checkAgainst(result.file, preset) });
     } catch (error) {
-      setProblem(error instanceof Error ? error.message : t('wb.err.tryAgain'));
+      setProblem(explainError(error, 'check', t, [file]));
     } finally {
       setBusy(null);
     }

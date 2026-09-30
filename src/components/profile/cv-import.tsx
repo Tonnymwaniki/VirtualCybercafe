@@ -7,7 +7,8 @@ import { Spacing } from '@/constants/theme';
 import { useLanguage } from '@/lib/i18n';
 import { canUseCamera, pickImages, processImage } from '@/lib/images';
 import { readOldCv } from '@/lib/jobs-client';
-import { pickFiles, toBase64 } from '@/lib/workbench/files';
+import { pickFiles, toBase64, type WorkFile } from '@/lib/workbench/files';
+import { explainedText, explainError } from '@/lib/workbench/explain';
 
 const MAX_PDF_BYTES = 3_000_000;
 
@@ -41,20 +42,27 @@ export function CvImport({ onFound }: Props) {
   };
 
   const fromPhoto = async (source: 'camera' | 'library') => {
-    const [photo] = await pickImages(source);
-    if (!photo) return;
-    setBusy(true);
     try {
+      const [photo] = await pickImages(source);
+      if (!photo) return;
+      setBusy(true);
       const image = await processImage(photo, { maxSide: 2000, maxBytes: 1_500_000 });
       await read({ image: image.base64 });
-    } catch {
-      setNotes([{ text: t('profile.cvPhotoFailed') }]);
+    } catch (error) {
+      setNotes([{ text: explainedText(explainError(error, 'cvImport', t)) }]);
       setBusy(false);
     }
   };
 
   const fromPdf = async () => {
-    const [file] = await pickFiles({ pdf: true });
+    setNotes([]);
+    let file: WorkFile | undefined;
+    try {
+      [file] = await pickFiles({ pdf: true });
+    } catch (error) {
+      setNotes([{ text: explainedText(explainError(error, 'cvImport', t)) }]);
+      return;
+    }
     if (!file) return;
     if (file.bytes.byteLength > MAX_PDF_BYTES) {
       setNotes([{ text: t('profile.cvTooBig') }]);

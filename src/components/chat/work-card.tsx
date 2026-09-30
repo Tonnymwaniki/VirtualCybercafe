@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { ErrorCard } from '@/components/error-card';
 import { PhotoCheckCard } from '@/components/workbench/photo-check';
 import { filesReadyLabel, ResultCard, ResultList, Working } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -21,6 +22,7 @@ export function WorkCard({ outcome, request }: { outcome?: WorkOutcome; request?
     );
   }
   if (outcome.status === 'failed') {
+    if (outcome.problem) return <ErrorCard error={outcome.problem} />;
     return (
       <View style={[styles.card, styles.failed]}>
         <Ionicons name="alert-circle" size={18} color="#DC2626" />

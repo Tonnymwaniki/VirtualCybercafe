@@ -8,11 +8,12 @@ import { Button } from '@/components/button';
 import { QrCode } from '@/components/print/qr-code';
 import { Screen } from '@/components/screen';
 import { SubHeader } from '@/components/sub-header';
-import { FileRow, pagesLabel, Problem, Toggle, workbenchStyles } from '@/components/workbench/ui';
+import { FileRow, pagesLabel, Problem, type ProblemValue, Toggle, workbenchStyles } from '@/components/workbench/ui';
 import { Colors, Radius, Spacing } from '@/constants/theme';
 import { useAuth } from '@/lib/auth';
 import { fileById } from '@/lib/chat-files';
 import { useLanguage, type Translate } from '@/lib/i18n';
+import { explainError } from '@/lib/workbench/explain';
 import { GUEST_ID } from '@/lib/profile-store';
 import {
   cancelQuickPrint,
@@ -20,7 +21,6 @@ import {
   displayCode,
   listQuickPrints,
   printPageUrl,
-  QuickPrintError,
   siteUrl,
   type QuickPrint,
 } from '@/lib/quick-print';
@@ -49,7 +49,7 @@ export default function PrintByCodeScreen() {
   const [usePin, setUsePin] = useState<'no' | 'yes'>('no');
   const [pin, setPin] = useState('');
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState('');
+  const [problem, setProblem] = useState<ProblemValue | ''>('');
   const [made, setMade] = useState<QuickPrint | null>(null);
   const [codes, setCodes] = useState<QuickPrint[]>([]);
 
@@ -83,7 +83,7 @@ export default function PrintByCodeScreen() {
       setMade(print);
       refresh();
     } catch (error) {
-      setProblem(error instanceof QuickPrintError ? error.message : t('print.failed'));
+      setProblem(explainError(error, 'print', t, [file]));
     } finally {
       setBusy(false);
     }

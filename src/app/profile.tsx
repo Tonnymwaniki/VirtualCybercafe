@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/i18n';
 import { validateAnswers, type Issue } from '@/lib/gov-validate';
 import { pickImages, processImage } from '@/lib/images';
 import { GUEST_ID, loadProfile, saveProfile } from '@/lib/profile-store';
+import { explainedText, explainError } from '@/lib/workbench/explain';
 
 // Everything checked here is optional: My Details only flags values that look wrong.
 const checkFields = profileFields.map((field) => ({ ...field, optional: true }));
@@ -43,10 +44,10 @@ export default function ProfileScreen() {
   };
 
   const scanId = async (source: 'camera' | 'library') => {
-    const [photo] = await pickImages(source);
-    if (!photo) return;
-    setReading(true);
     try {
+      const [photo] = await pickImages(source);
+      if (!photo) return;
+      setReading(true);
       const image = await processImage(photo, { maxSide: 1600, maxBytes: 1_500_000 });
       const result = await readIdCard(image.base64);
       const found = cleanProfile(result.details);
@@ -56,8 +57,8 @@ export default function ProfileScreen() {
         ...result.problems.map((text) => ({ text })),
       ]);
       setSaved(false);
-    } catch {
-      setNotes([{ text: t('profile.idFailed') }]);
+    } catch (error) {
+      setNotes([{ text: explainedText(explainError(error, 'idScan', t)) }]);
     } finally {
       setReading(false);
     }

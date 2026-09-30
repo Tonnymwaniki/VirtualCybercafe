@@ -488,8 +488,13 @@ const LanguageContext = createContext<LanguageState>({
   t: (key, vars) => translate('en', key, vars),
 });
 
+// The language picked, for text made outside screens (e.g. why a request failed).
+let active: Language = 'en';
+export const activeLanguage = () => active;
+
 export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('en');
+  active = language;
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)

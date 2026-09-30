@@ -1,5 +1,6 @@
 import type { Profile } from '@/data/profile-fields';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, throwIfFailed } from '@/lib/api';
+import { failureText } from '@/lib/failure';
 import { sampleLetter } from '@/lib/travel-sample';
 import type { AgencyCheck, LetterKind, LetterResult, Trip, TripPurpose, VisaCheck } from '@/lib/travel-types';
 
@@ -9,7 +10,7 @@ async function post<T>(body: object): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+  await throwIfFailed(response);
   return (await response.json()) as T;
 }
 
@@ -25,8 +26,8 @@ export async function writeTripLetter(kind: LetterKind, trip: Trip, profile: Pro
   const { destination, purpose, departDate, returnDate } = trip;
   try {
     return await post<LetterResult>({ action: 'letter', kind, trip: { destination, purpose, departDate, returnDate }, profile, notes });
-  } catch {
-    return { letter: sampleLetter(kind, trip, profile, notes), problem: 'Couldn’t reach the writer, so this is a simple draft.' };
+  } catch (error) {
+    return { letter: sampleLetter(kind, trip, profile, notes), problem: failureText('Couldn’t reach the writer, so this is a simple draft.', error) };
   }
 }
 

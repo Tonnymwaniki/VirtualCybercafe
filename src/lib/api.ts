@@ -53,6 +53,28 @@ export function onSignInNeeded(listener: Listener) {
   };
 }
 
+// A request the server answered with an error; `message` is the server's own
+// explanation when it gave one (e.g. today's AI limit).
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+    public fromServer = false,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export async function throwIfFailed(response: Response) {
+  if (response.ok) return;
+  const body = (await response
+    .clone()
+    .json()
+    .catch(() => null)) as { error?: string } | null;
+  throw new ApiError(response.status, body?.error || `HTTP ${response.status}`, !!body?.error);
+}
+
 export async function apiFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set('x-device-id', await getDeviceId());
