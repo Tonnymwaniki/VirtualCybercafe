@@ -1,0 +1,57 @@
+# Runs on pull requests and pushes to main: typecheck, app tests, and the print
+# code rules and Locker limit against a real Postgres.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Tests
+        run: npx jest --ci
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Print code rules and Locker limit
+        run: |
+          createdb vctest
+          psql -q -v ON_ERROR_STOP=1 -d vctest \
+            -f tests/sql/stub.sql \
+            -f supabase/migrations/0001_locker.sql \
+            -f supabase/migrations/0004_quick_print.sql \
+            -f supabase/migrations/0005_locker_quota.sql \
+            -f supabase/migrations/0006_stats_errors.sql \
+            -f supabase/migrations/0007_ai_server.sql \
+            -f tests/sql/quick-print.test.sql \
+            -f tests/sql/locker-quota.test.sql \
+            -f tests/sql/stats-errors.test.sql \
+            -f tests/sql/ai-server.test.sql

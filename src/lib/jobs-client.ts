@@ -1,0 +1,77 @@
+import { apiFetch, throwIfFailed } from '@/lib/api';
+import { failureText } from '@/lib/failure';
+import { sampleAdvert, sampleApplication, sampleMatch, sampleQuestions } from '@/lib/jobs-sample';
+import type {
+  AdvertInput,
+  FindJobsResult,
+  InterviewQuestion,
+  JobAdvert,
+  MatchResult,
+  ReadAdvertResult,
+  TailoredApplication,
+} from '@/lib/jobs-types';
+
+async function post<T>(body: object): Promise<T> {
+  const response = await apiFetch('/api/jobs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  await throwIfFailed(response);
+  return (await response.json()) as T;
+}
+
+export async function readJobAdvert(input: AdvertInput): Promise<ReadAdvertResult> {
+  try {
+    return await post<ReadAdvertResult>({ action: 'read_advert', ...input });
+  } catch (error) {
+    if (input.text?.trim()) return { advert: sampleAdvert(input.text, input.url), problem: '', mode: 'sample' };
+    return { advert: null, problem: failureText('Couldn’t read the advert. You can also paste the advert text instead.', error), mode: 'sample' };
+  }
+}
+
+export async function findJobs(query: string, county: string): Promise<FindJobsResult> {
+  try {
+    return await post<FindJobsResult>({ action: 'find', query, county });
+  } catch (error) {
+    return { jobs: [], note: failureText('Couldn’t search right now.', error), mode: 'sample' };
+  }
+}
+
+type Me = { profile: Record<string, string>; lockerFiles?: string[] };
+
+export async function checkMatch(advert: JobAdvert, me: Me): Promise<MatchResult> {
+  try {
+    return await post<MatchResult>({ action: 'match', advert, ...me });
+  } catch {
+    return sampleMatch(advert, { profile: me.profile, lockerFiles: me.lockerFiles ?? [] });
+  }
+}
+
+export async function tailorApplication(advert: JobAdvert, profile: Record<string, string>): Promise<TailoredApplication> {
+  try {
+    return await post<TailoredApplication>({ action: 'tailor', advert, profile });
+  } catch {
+    return sampleApplication(advert, profile);
+  }
+}
+
+export async function interviewQuestions(advert: JobAdvert, profile: Record<string, string>): Promise<InterviewQuestion[]> {
+  try {
+    return (await post<{ questions: InterviewQuestion[] }>({ action: 'interview', advert, profile })).questions;
+  } catch {
+    return sampleQuestions(advert);
+  }
+}
+
+export type OldCvResult = { details: Record<string, string>; problems: string[]; mode: 'ai' | 'sample' };
+
+// Reads an old CV (one photo as base64 JPEG, or a PDF as base64) into My
+// Details fields for the person to check.
+export async function readOldCv(file: { image?: string; pdf?: string }): Promise<OldCvResult> {
+  try {
+    return await post<OldCvResult>({ action: 'read_cv', ...file });
+  } catch (error) {
+    return { details: {}, problems: [failureText('Couldn’t read your CV.', error)], mode: 'sample' };
+  }
+}
