@@ -134,6 +134,15 @@ const toolEntries: CatalogueEntry[] = [
     next: ['student_funding'],
   },
   {
+    id: 'forms',
+    title: 'Form Intelligence',
+    description: 'Prepare a job application that checks itself: % ready, what is missing or wrong, and what to fix next',
+    route: '/forms',
+    workspace: 'jobs',
+    keywords: ['form', 'forms', 'fomu', 'application form', 'prepare application', 'ready to apply', 'form intelligence', 'my applications'],
+    help: 'Open My Applications, or start a job application. Every field says why it is asked and where the answer came from; the readiness card shows what is missing and the next thing to fix. Documents are attached from the Locker or the phone. The person submits on the official site themselves.',
+  },
+  {
     id: 'studio',
     title: 'Document Workbench',
     description: 'Shrink PDFs and photos, resize, scan, join, split and PDF to JPG',

@@ -21,6 +21,8 @@ import { cvAnswersFor } from '@/lib/jobs-sample';
 import type { Job } from '@/lib/jobs-types';
 import { fileDataUrl, type StoredFile } from '@/lib/locker-store';
 import { useLanguage } from '@/lib/i18n';
+import { FormLink } from '@/components/forms/form-link';
+import { GUEST_ID } from '@/lib/profile-store';
 import { explainedText, explainError } from '@/lib/workbench/explain';
 
 type CvProps = {
@@ -188,6 +190,7 @@ export function ApplyStep({ job, user, profile, lockerFiles, onGoToCv, onSavePor
   return (
     <>
       <ScamWarning advert={advert} />
+      <FormLink job={job} userId={user?.id ?? GUEST_ID} />
 
       {(advert.documents.length > 0 || !!job.documents?.length) && (
         <Card title="Supporting documents">

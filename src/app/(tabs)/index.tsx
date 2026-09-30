@@ -109,6 +109,21 @@ export default function HomeScreen() {
 
       </View>
 
+      {/* Form Intelligence: its own tab, and this big button. */}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.navigate('/forms')}
+        style={({ pressed }) => [styles.formsButton, pressed && styles.pressed]}>
+        <View style={styles.formsIcon}>
+          <Ionicons name="sparkles" size={22} color="#FCD34D" />
+        </View>
+        <View style={styles.formsText}>
+          <Text style={styles.formsTitle}>{t('forms.homeTitle')}</Text>
+          <Text style={styles.formsSub}>{t('forms.homeText')}</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={20} color={Colors.onDark} />
+      </Pressable>
+
       {FULL_APP ? (
         <>
           {continueItems.length > 0 && (
@@ -248,6 +263,11 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  formsButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, backgroundColor: Colors.navy, borderRadius: Radius.lg, padding: Spacing.lg },
+  formsIcon: { width: 44, height: 44, borderRadius: Radius.md, backgroundColor: Colors.navyLight, alignItems: 'center', justifyContent: 'center' },
+  formsText: { flex: 1, gap: 2 },
+  formsTitle: { fontSize: 16, fontWeight: '800', color: Colors.onDark },
+  formsSub: { fontSize: 13, lineHeight: 18, color: Colors.onDarkMuted },
   attendantCard: {
     backgroundColor: Colors.card,
     borderRadius: Radius.lg,
