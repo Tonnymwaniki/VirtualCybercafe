@@ -3,24 +3,31 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '@/components/button';
+import { DocumentField } from '@/components/forms/document-field';
 import { FieldInput } from '@/components/forms/field-input';
 import { FilePicker } from '@/components/forms/file-picker';
 import { ReadinessCard } from '@/components/forms/readiness';
 import { FormHelperPanel } from '@/components/gov/form-helper-panel';
 import { Card, Note, openUrl } from '@/components/gov/ui';
 import { Screen } from '@/components/screen';
+import { useEngine } from '@/components/workbench/engine';
 import { SubHeader } from '@/components/sub-header';
 import { Colors, Spacing } from '@/constants/theme';
 import { findForm } from '@/data/forms';
 import { jobPortalTask } from '@/data/job-portal';
 import type { Profile } from '@/data/profile-fields';
 import { useAuth } from '@/lib/auth';
+import { fixDocument, inspect } from '@/lib/forms/documents';
 import { reasonAbout } from '@/lib/forms/reason';
-import { isVisible, type FormEntry, type FormField } from '@/lib/forms/schema';
+import { isFileField, isVisible, type FormEntry, type FormField, type FormFile } from '@/lib/forms/schema';
 import { fromProfile, loadEntry, saveAnswersToProfile, saveEntry } from '@/lib/forms/store';
 import type { HelperResponse } from '@/lib/gov-types';
 import { useLanguage } from '@/lib/i18n';
+import { lockerCategories, type LockerCategory } from '@/data/locker';
 import { GUEST_ID, loadProfile, usesCloud } from '@/lib/profile-store';
+import { explainError, type Explained } from '@/lib/workbench/explain';
+import { lockerWorkFile, saveToLocker, type WorkFile } from '@/lib/workbench/files';
+import { WorkbenchError } from '@/lib/workbench/pdf';
 
 // One application in Form Intelligence: any form schema drawn as a form that
 // reasons (why each field is asked, where the value came from, what's wrong
@@ -39,6 +46,12 @@ export default function FormScreen() {
   const positions = useRef<Record<string, number>>({});
   const sectionTops = useRef<Record<string, number>>({});
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const engine = useEngine();
+  // Attached files held in memory while the screen is open, for fixing.
+  const workFiles = useRef(new Map<string, WorkFile>());
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [fixProblems, setFixProblems] = useState<Record<string, Explained | null>>({});
+  const hasLocker = !!user && (demoMode || usesCloud(userId));
 
   useEffect(() => {
     loadEntry(userId, id).then((found) => setEntry(found ?? null));
@@ -88,6 +101,70 @@ export default function FormScreen() {
       sourceOf: { ...current.sourceOf, ...Object.fromEntries(response.updates.map((u) => [u.key, 'typed' as const])) },
     }));
   };
+
+  const setFile = (fieldId: string, file: FormFile | null) =>
+    update((current) => {
+      const { [fieldId]: _, ...files } = current.files;
+      return { ...current, files: file ? { ...files, [fieldId]: file } : files };
+    });
+
+  // Measures the attached file, so the checks use the real file.
+  const attach = async (field: FormField, file: FormFile, work: WorkFile | null) => {
+    setFixProblems((current) => ({ ...current, [field.id]: null }));
+    if (!work) return setFile(field.id, file);
+    workFiles.current.set(file.path, work);
+    setFile(field.id, { ...file, facts: await inspect(work) });
+  };
+
+  // The file again, from memory or the Locker.
+  const loadWork = async (file: FormFile): Promise<WorkFile | null> => {
+    const kept = workFiles.current.get(file.path);
+    if (kept) return kept;
+    if (file.path.startsWith('device:')) return null;
+    const category = file.path.split('/')[1] as LockerCategory;
+    return lockerWorkFile({
+      path: file.path,
+      name: file.name,
+      mimeType: file.mimeType,
+      bytes: file.bytes,
+      category: lockerCategories.includes(category) ? category : 'Documents',
+      createdAt: '',
+    });
+  };
+
+  const fix = async (field: FormField) => {
+    const file = entry?.files[field.id];
+    if (!file || fixing) return;
+    setFixing(field.id);
+    setFixProblems((current) => ({ ...current, [field.id]: null }));
+    try {
+      const work = await loadWork(file);
+      if (!work) throw new WorkbenchError(t('forms.attachAgain'));
+      const result = await fixDocument(field, work, engine, entry?.limits?.[field.id]);
+      let path = `device:${result.file.name}`;
+      if (hasLocker) path = await saveToLocker(userId, result.file, field.document?.lockerCategory as LockerCategory | undefined);
+      workFiles.current.set(path, result.file);
+      setFile(field.id, {
+        path,
+        name: result.file.name,
+        mimeType: result.file.mimeType,
+        bytes: result.file.bytes.byteLength,
+        facts: result.facts,
+        fixedFrom: { name: file.name, bytes: file.facts?.bytes ?? file.bytes, type: file.facts?.type },
+        notes: result.notes,
+      });
+    } catch (error) {
+      setFixProblems((current) => ({ ...current, [field.id]: explainError(error, 'formFix', t, []) }));
+    } finally {
+      setFixing(null);
+    }
+  };
+
+  const setLimit = (fieldId: string, kb: number) =>
+    update((current) => {
+      const { [fieldId]: _, ...limits } = current.limits ?? {};
+      return { ...current, limits: kb ? { ...limits, [fieldId]: kb } : limits };
+    });
 
   const go = (fieldId: string) => {
     setFocus(fieldId);
@@ -156,11 +233,21 @@ export default function FormScreen() {
                     highlight={focus === field.id}
                     onChange={(value) => setAnswer(field.id, value)}
                     onPickFile={() => setPicking(field)}
-                    onRemoveFile={() =>
-                      update((current) => {
-                        const { [field.id]: _, ...files } = current.files;
-                        return { ...current, files };
-                      })
+                    onRemoveFile={() => setFile(field.id, null)}
+                    document={
+                      isFileField(field) ? (
+                        <DocumentField
+                          field={field}
+                          file={entry.files[field.id]}
+                          limitKB={entry.limits?.[field.id]}
+                          fixing={fixing === field.id}
+                          fixProblem={fixProblems[field.id]}
+                          onPick={() => setPicking(field)}
+                          onRemove={() => setFile(field.id, null)}
+                          onFix={() => fix(field)}
+                          onLimit={(kb) => setLimit(field.id, kb)}
+                        />
+                      ) : undefined
                     }
                   />
                 </View>
@@ -203,12 +290,12 @@ export default function FormScreen() {
       <FilePicker
         field={picking}
         userId={userId}
-        hasLocker={!!user && (demoMode || usesCloud(userId))}
+        hasLocker={hasLocker}
         onClose={() => setPicking(null)}
-        onPicked={(file) => {
+        onPicked={(file, work) => {
           const field = picking;
           setPicking(null);
-          if (field) update((current) => ({ ...current, files: { ...current.files, [field.id]: file } }));
+          if (field) attach(field, file, work).catch(() => setFile(field.id, file));
         }}
       />
     </Screen>

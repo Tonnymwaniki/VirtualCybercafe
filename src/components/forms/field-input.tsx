@@ -1,5 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Colors, Radius, Spacing } from '@/constants/theme';
@@ -19,6 +19,8 @@ type Props = {
   onPickFile?: () => void;
   onRemoveFile?: () => void;
   highlight?: boolean;
+  // The document slot, for file and image fields.
+  document?: ReactNode;
 };
 
 const sourceKey: Record<Source, TextKey> = {
@@ -32,7 +34,7 @@ const keyboard = { phone: 'phone-pad', email: 'email-address', number: 'numeric'
 
 // One field of a reasoning form: the input, why the real form asks for it,
 // where the value came from, and what is wrong with it in plain words.
-export function FieldInput({ field, value, result, source, file, onChange, onPickFile, onRemoveFile, highlight }: Props) {
+export function FieldInput({ field, value, result, source, file, onChange, onPickFile, onRemoveFile, highlight, document }: Props) {
   const { t } = useLanguage();
   const [showWhy, setShowWhy] = useState(false);
   const bad = result?.status === 'invalid' || (highlight && result?.status === 'missing');
@@ -61,7 +63,9 @@ export function FieldInput({ field, value, result, source, file, onChange, onPic
       {showWhy && !!field.why && <Text style={styles.why}>{field.why}</Text>}
       {!!field.help && <Text style={styles.help}>{field.help}</Text>}
 
-      {isFileField(field) ? (
+      {isFileField(field) && document ? (
+        document
+      ) : isFileField(field) ? (
         file ? (
           <View style={styles.fileRow}>
             <Ionicons name="document-attach" size={20} color={Colors.primary} />
@@ -120,7 +124,7 @@ export function FieldInput({ field, value, result, source, file, onChange, onPic
       )}
 
       {source && source !== 'typed' && !!value && <Text style={styles.source}>{t(sourceKey[source])}</Text>}
-      {bad && !!result?.message && <Text style={styles.error}>{result.message}</Text>}
+      {bad && !!result?.message && !(isFileField(field) && document && file) && <Text style={styles.error}>{result.message}</Text>}
       {!!result?.warning && (
         <View style={styles.warning}>
           <Ionicons name="warning" size={16} color={Colors.warning} />

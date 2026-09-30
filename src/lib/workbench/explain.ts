@@ -32,6 +32,7 @@ export type ErrorTask =
   | 'cvImport'
   | 'idScan'
   | 'jobPack'
+  | 'formFix'
   | 'chatFile';
 
 export type ErrorKind =

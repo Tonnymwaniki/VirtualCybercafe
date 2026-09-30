@@ -3,6 +3,7 @@
 // ready each section and the whole form are; the one next thing to do; and
 // what would likely get the application turned down.
 
+import { documentProblems } from '@/lib/forms/documents';
 import { normaliseKenyanPhone } from '@/lib/phone';
 import { allFields, isFileField, isVisible, type FormEntry, type FormField, type FormSchema, type Rule } from '@/lib/forms/schema';
 
@@ -103,22 +104,12 @@ function typeRules(field: FormField): Rule[] {
   }
 }
 
-export function checkField(field: FormField, entry: Pick<FormEntry, 'answers' | 'files'>, now = new Date()): FieldResult {
+export function checkField(field: FormField, entry: Pick<FormEntry, 'answers' | 'files' | 'limits'>, now = new Date()): FieldResult {
   if (isFileField(field)) {
     const file = entry.files[field.id];
     if (!file) return { status: field.required ? 'missing' : 'empty', message: field.required ? `${field.label} is missing.` : undefined };
-    const rule = field.document;
-    if (rule?.maxKB && file.bytes > rule.maxKB * 1024) {
-      return {
-        status: 'invalid',
-        message: `${field.label} is too large. Allowed: up to ${sizeText(rule.maxKB * 1024)}. Yours: ${sizeText(file.bytes)}.`,
-      };
-    }
-    const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
-    const type = ext === 'jpeg' ? 'jpg' : ext;
-    if (rule?.types.length && !rule.types.includes(type as never)) {
-      return { status: 'invalid', message: `${field.label} must be ${rule.types.map((t) => t.toUpperCase()).join(' or ')}. Yours is ${type.toUpperCase() || 'another type'}.` };
-    }
+    const [problem] = documentProblems(field, file, entry.limits?.[field.id]);
+    if (problem) return { status: 'invalid', message: `${problem.what} Required: ${problem.required}. Yours: ${problem.yours}.` };
     return { status: 'ok' };
   }
   const value = (entry.answers[field.id] ?? '').trim();

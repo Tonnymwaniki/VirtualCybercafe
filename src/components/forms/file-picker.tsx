@@ -11,14 +11,15 @@ import { listFiles, type StoredFile } from '@/lib/locker-store';
 import { sizeText } from '@/lib/forms/reason';
 import type { FormField, FormFile } from '@/lib/forms/schema';
 import { explainError, type Explained } from '@/lib/workbench/explain';
-import { pickFiles, saveToLocker } from '@/lib/workbench/files';
+import { lockerWorkFile, pickFiles, saveToLocker, type WorkFile } from '@/lib/workbench/files';
 
 type Props = {
   field: FormField | null;
   userId: string;
   // Guests can attach from the phone, but only signed-in people have a Locker.
   hasLocker: boolean;
-  onPicked: (file: FormFile) => void;
+  // `work` is the file itself, when the phone could load it (PDFs and photos).
+  onPicked: (file: FormFile, work: WorkFile | null) => void;
   onClose: () => void;
 };
 
@@ -53,12 +54,20 @@ export function FilePicker({ field, userId, hasLocker, onPicked, onClose }: Prop
       if (!file) return;
       let path = `device:${file.name}`;
       if (hasLocker) path = await saveToLocker(userId, file, field.document?.lockerCategory as LockerCategory | undefined);
-      onPicked({ path, name: file.name, mimeType: file.mimeType, bytes: file.bytes.byteLength });
+      onPicked({ path, name: file.name, mimeType: file.mimeType, bytes: file.bytes.byteLength }, file);
     } catch (error) {
       setProblem(explainError(error, 'locker', t));
     } finally {
       setBusy(false);
     }
+  };
+
+  const fromLocker = async (file: StoredFile) => {
+    setBusy(true);
+    // Loaded so it can be measured; a Word file can't be, and is attached as it is.
+    const work = await lockerWorkFile(file).catch(() => null);
+    setBusy(false);
+    onPicked({ path: file.path, name: file.name, mimeType: file.mimeType, bytes: file.bytes ?? work?.bytes.byteLength ?? 0 }, work);
   };
 
   return (
@@ -83,7 +92,7 @@ export function FilePicker({ field, userId, hasLocker, onPicked, onClose }: Prop
             {files.map((file) => (
               <Pressable
                 key={file.path}
-                onPress={() => onPicked({ path: file.path, name: file.name, mimeType: file.mimeType, bytes: file.bytes ?? 0 })}
+                onPress={() => fromLocker(file)}
                 style={({ pressed }) => [styles.row, pressed && styles.dim]}>
                 <Ionicons name={file.mimeType.startsWith('image/') ? 'image' : 'document-text'} size={20} color={Colors.primary} />
                 <View style={styles.rowText}>

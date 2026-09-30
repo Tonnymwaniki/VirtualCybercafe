@@ -37,11 +37,14 @@ export type Rule =
 // Where a value can come from, best first.
 export type Source = 'profile' | 'id_card' | 'cv' | 'job';
 
+export type DocType = 'pdf' | 'jpg' | 'png' | 'doc' | 'docx' | 'other';
+
 // A file the form needs. `presetId` links to an upload rule in
 // src/data/presets.ts when an official one exists.
 export type DocumentRule = {
-  types: ('pdf' | 'jpg' | 'png' | 'doc' | 'docx')[];
+  types: Exclude<DocType, 'other'>[];
   maxKB?: number;
+  maxPages?: number;
   presetId?: string;
   lockerCategory?: string;
 };
@@ -101,7 +104,27 @@ export type FormSchema = {
   rejectionReasons?: { reason: string; avoid: string }[];
 };
 
-export type FormFile = { path: string; name: string; mimeType: string; bytes: number };
+// What was measured on the real file when it was attached.
+export type FileFacts = {
+  type: DocType;
+  bytes: number;
+  width?: number;
+  height?: number;
+  pages?: number;
+  locked?: boolean;
+  unreadable?: boolean;
+};
+
+export type FormFile = {
+  path: string;
+  name: string;
+  mimeType: string;
+  bytes: number;
+  facts?: FileFacts;
+  // Set after Fix automatically: what it was before.
+  fixedFrom?: { name: string; bytes: number; type?: DocType };
+  notes?: string[];
+};
 
 // One application being prepared.
 export type FormEntry = {
@@ -115,6 +138,8 @@ export type FormEntry = {
   // Where each answer came from (profile, id_card, cv, job or typed).
   sourceOf: Record<string, Source | 'typed'>;
   files: Record<string, FormFile>;
+  // Size limits the portal states for this application, per document field (KB).
+  limits?: Record<string, number>;
   createdAt: string;
   updatedAt: string;
 };

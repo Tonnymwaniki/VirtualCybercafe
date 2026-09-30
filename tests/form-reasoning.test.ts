@@ -1,6 +1,7 @@
 import { jobApplicationForm as form } from '@/data/forms/job-application';
 import { reasonAbout } from '@/lib/forms/reason';
 import type { FormEntry } from '@/lib/forms/schema';
+import { documentProblems, sniffType } from '@/lib/forms/documents';
 import { fromProfile } from '@/lib/forms/store';
 
 const now = new Date('2026-09-30T10:00:00Z');
@@ -55,7 +56,7 @@ describe('form reasoning', () => {
 
   it('explains a wrong file plainly', () => {
     const result = reasonAbout(form, { ...complete, files: { ...complete.files, cvFile: { ...file('cv.png'), name: 'cv.png' } } }, now);
-    expect(result.fields.cvFile.message).toBe('CV must be PDF or DOCX or DOC. Yours is PNG.');
+    expect(result.fields.cvFile.message).toBe('CV is the wrong type of file. Required: PDF, DOCX or DOC. Yours: PNG.');
   });
 
   it('warns about knockout answers and closed deadlines without blocking', () => {
@@ -79,5 +80,25 @@ describe('form reasoning', () => {
 
   it('fills empty fields from My Details only', () => {
     expect(fromProfile(form, { answers: { phone: '0700000000' } }, { phone: '0711111111', fullName: 'Jane Mwangi' })).toEqual({ fullName: 'Jane Mwangi' });
+  });
+});
+
+describe('form documents', () => {
+  const field = form.sections.flatMap((s) => s.fields).find((f) => f.id === 'kraTccFile')!;
+  it('reads the real type from the bytes, not the name', () => {
+    expect(sniffType(new Uint8Array([0x25, 0x50, 0x44, 0x46]), 'x.jpg')).toBe('pdf');
+    expect(sniffType(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), 'scan.pdf')).toBe('jpg');
+    expect(sniffType(new Uint8Array([0x50, 0x4b, 3, 4]), 'cv.docx')).toBe('docx');
+  });
+
+  it('says what is wrong, what is required and what yours is, and whether it can be fixed', () => {
+    const photo = { path: 'p', name: 'tcc.pdf', mimeType: 'image/jpeg', bytes: 4_800_000, facts: { type: 'jpg' as const, bytes: 4_800_000 } };
+    const problems = documentProblems(field, photo, 2048);
+    expect(problems).toEqual([
+      { what: 'KRA tax compliance certificate is the wrong type of file.', required: 'PDF', yours: 'JPG', fixable: true },
+      { what: 'KRA tax compliance certificate is too large.', required: 'Up to 2.0 MB', yours: '4.6 MB', fixable: true },
+    ]);
+    const locked = documentProblems(field, { ...photo, facts: { type: 'pdf', bytes: 1000, locked: true } });
+    expect(locked[0]).toMatchObject({ yours: 'Locked PDF', fixable: false });
   });
 });
