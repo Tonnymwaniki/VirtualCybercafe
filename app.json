@@ -25,6 +25,11 @@
     "scheme": "virtualcybercafe",
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8e8363e3-eb8b-4494-b3b4-61067b978aca"
+      }
+    }
   }
 }
